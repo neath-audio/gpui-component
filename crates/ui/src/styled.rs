@@ -536,7 +536,9 @@ impl<T: Styled> StyleSized<T> for T {
         match size {
             Size::XSmall => self.text_xs(),
             Size::Small => self.text_sm(),
-            _ => self.text_base(),
+            Size::Medium => self.text_sm(),
+            Size::Large => self.text_base(),
+            Size::Size(_) => self.text_base(),
         }
     }
 }
