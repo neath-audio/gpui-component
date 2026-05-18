@@ -67,6 +67,13 @@ struct ComboboxOptions {
     menu_max_h: Length,
     disabled: bool,
     appearance: bool,
+    /// When `true` AND `render_trigger` is set, the custom trigger is rendered
+    /// without any container chrome (no border, padding, focused_border ring,
+    /// or trailing icon). The custom trigger element is responsible for its
+    /// own visual + focus state. Click/bounds tracking are still wired.
+    ///
+    /// Default `false`. Has no effect without `render_trigger`.
+    trigger_unstyled: bool,
     trigger_icon: Option<Icon>,
     check_icon: Option<Icon>,
 }
@@ -83,6 +90,7 @@ impl Default for ComboboxOptions {
             menu_max_h: rems(20.).into(),
             disabled: false,
             appearance: true,
+            trigger_unstyled: false,
             trigger_icon: None,
             check_icon: None,
         }
@@ -105,6 +113,10 @@ where
     check_icon: Option<Icon>,
     render_trigger:
         Option<Box<dyn Fn(&ComboboxTriggerCtx<D>, &mut Window, &mut App) -> AnyElement + 'static>>,
+    /// When `true` AND `render_trigger` is set, the custom trigger renders
+    /// without any container chrome. Flushed from [`ComboboxOptions::trigger_unstyled`]
+    /// on each render.
+    trigger_unstyled: bool,
     footer: Option<Box<dyn Fn(&mut Window, &mut App) -> AnyElement + 'static>>,
 }
 
@@ -253,6 +265,7 @@ where
             trigger_icon: None,
             check_icon: None,
             render_trigger: None,
+            trigger_unstyled: false,
             footer: None,
         }
     }
@@ -641,10 +654,20 @@ where
         let dismiss_handler: Box<dyn Fn(&MouseDownEvent, &mut Window, &mut App) + 'static> =
             Box::new(cx.listener(|this, _, window, cx| this.escape(&Cancel, window, cx)));
 
-        div()
-            .size_full()
-            .relative()
-            .child(render_trigger_container(
+        let trigger_el: AnyElement = if has_custom_trigger && self.trigger_unstyled {
+            // Unstyled mode — the custom trigger is responsible for its own
+            // visual + focus state. Wrap only with the click + prepaint
+            // hooks needed for open-toggle and popup anchoring.
+            div()
+                .id("input")
+                .when(allow_open, |this| {
+                    this.when_some(toggle_handler, |this, handler| this.on_click(handler))
+                })
+                .child(trigger_body)
+                .on_prepaint(prepaint_handler)
+                .into_any_element()
+        } else {
+            render_trigger_container(
                 disabled,
                 self.state.appearance,
                 self.state.size,
@@ -658,7 +681,20 @@ where
                 toggle_handler,
                 prepaint_handler,
                 cx,
-            ))
+            )
+            .into_any_element()
+        };
+
+        // `.size_full()` is correct for the styled trigger container (it's
+        // meant to fill its parent like an input field). For the unstyled
+        // case the custom trigger is content-sized, so we let the wrapper
+        // size to content as well — otherwise the trigger stretches to fill
+        // a flex parent.
+        let unstyled = has_custom_trigger && self.trigger_unstyled;
+        div()
+            .when(!unstyled, |this| this.size_full())
+            .relative()
+            .child(trigger_el)
             .when(self.state.open, |this| {
                 this.child(
                     deferred(render_popup_shell(
@@ -817,6 +853,20 @@ where
         self
     }
 
+    /// Render the custom trigger without any container chrome (no border,
+    /// padding, `focused_border` ring, or trailing chevron / clear button).
+    /// Click + bounds tracking are still wired so the popup anchors and
+    /// dismisses normally.
+    ///
+    /// Has no effect unless [`Combobox::render_trigger`] is also set — the
+    /// default trigger needs the container to look like an input. Use this
+    /// for fully-custom triggers (e.g. a chip-shaped affordance) that
+    /// provide their own visual + focus state.
+    pub fn trigger_unstyled(mut self) -> Self {
+        self.options.trigger_unstyled = true;
+        self
+    }
+
     /// Render an element below a separator at the bottom of the dropdown.
     pub fn footer<E: IntoElement + 'static>(
         mut self,
@@ -856,6 +906,11 @@ where
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let disabled = self.options.disabled;
         let focus_handle = self.state.focus_handle(cx);
+        // `unstyled` gates `.size_full()` on the outer wrapper: a styled
+        // trigger fills its container like an input; an unstyled custom
+        // trigger is content-sized and must not claim 100% width or it
+        // stretches in a flex parent.
+        let unstyled = self.options.trigger_unstyled && self.render_trigger.is_some();
         let render_trigger = self.render_trigger;
         let footer = self.footer;
         let empty = self.empty;
@@ -874,6 +929,7 @@ where
             this.trigger_icon = opts.trigger_icon;
             this.check_icon = opts.check_icon;
             this.render_trigger = render_trigger;
+            this.trigger_unstyled = opts.trigger_unstyled;
             this.footer = footer;
 
             if let Some(empty) = empty {
@@ -895,7 +951,7 @@ where
             .on_action(window.listener_for(&self.state, ComboboxState::down))
             .on_action(window.listener_for(&self.state, ComboboxState::enter))
             .on_action(window.listener_for(&self.state, ComboboxState::escape))
-            .size_full()
+            .when(!unstyled, |this| this.size_full())
             .child(self.state)
     }
 }
