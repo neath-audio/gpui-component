@@ -416,6 +416,7 @@ pub struct Slider {
     style: StyleRefinement,
     disabled: bool,
     reverse: bool,
+    thumb: bool,
 }
 
 impl Slider {
@@ -427,6 +428,7 @@ impl Slider {
             style: StyleRefinement::default(),
             disabled: false,
             reverse: false,
+            thumb: true,
         }
     }
 
@@ -459,6 +461,15 @@ impl Slider {
     /// range sliders.
     pub fn reverse(mut self) -> Self {
         self.reverse = true;
+        self
+    }
+
+    /// Show or hide the draggable thumb, default: true.
+    ///
+    /// When hidden the bar still responds to click and drag, useful for
+    /// Apple-Music-style volume bars where the knob is undesired.
+    pub fn thumb(mut self, thumb: bool) -> Self {
+        self.thumb = thumb;
         self
     }
 
@@ -740,7 +751,7 @@ impl RenderOnce for Slider {
                                     .bg(bar_color)
                                     .when(!cx.theme().radius.is_zero(), |this| this.rounded_full()),
                             )
-                            .when(is_range, |this| {
+                            .when(self.thumb && is_range, |this| {
                                 this.child(self.render_thumb(
                                     relative(percentage.start),
                                     true,
@@ -751,15 +762,17 @@ impl RenderOnce for Slider {
                                     cx,
                                 ))
                             })
-                            .child(self.render_thumb(
-                                relative(percentage.end),
-                                false,
-                                bar_color,
-                                thumb_bg,
-                                radius,
-                                window,
-                                cx,
-                            ))
+                            .when(self.thumb, |this| {
+                                this.child(self.render_thumb(
+                                    relative(percentage.end),
+                                    false,
+                                    bar_color,
+                                    thumb_bg,
+                                    radius,
+                                    window,
+                                    cx,
+                                ))
+                            })
                             .on_prepaint({
                                 let state = self.state.clone();
                                 move |bounds, _, cx| state.update(cx, |r, _| r.bounds = bounds)
