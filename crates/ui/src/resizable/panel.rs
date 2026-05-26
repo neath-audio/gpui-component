@@ -136,10 +136,15 @@ impl RenderOnce for ResizablePanelGroup {
             v_flex()
         };
 
-        // Sync panels to the state
+        // Sync panels to the state. `sync_panel_fixed` must run before the
+        // group's `on_prepaint` calls `adjust_to_container_size`, so the
+        // `.fixed(true)` panels are exempted from the proportional rescale
+        // even on the first frame after a container size change.
         let panels_count = self.children.len();
+        let fixed_flags: Vec<bool> = self.children.iter().map(|c| c.fixed).collect();
         state.update(cx, |state, cx| {
             state.sync_panels_count(self.axis, panels_count, cx);
+            state.sync_panel_fixed(&fixed_flags);
         });
 
         container
@@ -184,20 +189,21 @@ impl RenderOnce for ResizablePanelGroup {
 /// Implements [`Styled`], so call sites can override the panel's
 /// rendered styles. User overrides are applied **between** the panel's
 /// flex defaults and its size management — the caller can override the
-/// internal `flex_grow: 1` (e.g. via `.flex_none()`) and add their own
-/// padding / colors / borders, while the panel's runtime size
-/// constraints (`min_w`/`max_w`/`flex_basis` driven by `ResizableState`)
-/// always win.
+/// internal `flex_grow: 1` and add their own padding / colors / borders,
+/// while the panel's runtime size constraints (`min_w`/`max_w`/`flex_basis`
+/// driven by `ResizableState`) always win.
 ///
-/// A common override is `.flex_none()`: the panel sets `flex_grow: 1`
-/// internally, so a sized panel that should hold its width when a
-/// sibling collapses needs to opt out of growth via `.flex_none()`.
+/// For sized panels that should hold their pixel size — both when a sibling
+/// collapses *and* when the group's container resizes — use `.fixed(true)`.
+/// It applies `flex_grow: 0` + `flex_shrink: 0` internally and excludes the
+/// panel from [`ResizableState`]'s proportional reflow, replacing the older
+/// `.flex_none()` pattern.
 ///
 /// ```ignore
 /// h_resizable("layout")
-///     .child(resizable_panel().size(px(220.)).flex_none().child(sidebar))
+///     .child(resizable_panel().size(px(220.)).fixed(true).child(sidebar))
 ///     .child(resizable_panel().child(content))                // flex
-///     .child(resizable_panel().size(px(280.)).flex_none().child(metadata))
+///     .child(resizable_panel().size(px(280.)).fixed(true).child(metadata))
 /// ```
 ///
 /// **Reserved styles**: do not call these from outside — they fight the
@@ -217,6 +223,7 @@ pub struct ResizablePanel {
     size_range: Range<Pixels>,
     children: Vec<AnyElement>,
     visible: bool,
+    pub(super) fixed: bool,
     style: StyleRefinement,
 }
 
@@ -231,6 +238,7 @@ impl ResizablePanel {
             axis: Axis::Horizontal,
             children: vec![],
             visible: true,
+            fixed: false,
             style: StyleRefinement::default(),
         }
     }
@@ -252,6 +260,19 @@ impl ResizablePanel {
     /// Default is [`PANEL_MIN_SIZE`] to [`Pixels::MAX`].
     pub fn size_range(mut self, range: impl Into<Range<Pixels>>) -> Self {
         self.size_range = range.into();
+        self
+    }
+
+    /// Set whether the panel is fixed, default is false.
+    ///
+    /// A fixed panel applies `flex_grow: 0` + `flex_shrink: 0` (so it does
+    /// not absorb or yield space to flexible siblings) and is excluded from
+    /// [`ResizableState`]'s proportional reflow when the group's container
+    /// resizes — it keeps its pixel size. The drag handle still works.
+    ///
+    /// Supersedes the `.flex_none()` pattern for sized side panels.
+    pub fn fixed(mut self, fixed: bool) -> Self {
+        self.fixed = fixed;
         self
     }
 }
@@ -321,6 +342,12 @@ impl RenderOnce for ResizablePanel {
                 Some(size) => this.flex_basis(size.min(size_range.end).max(size_range.start)),
                 None => this,
             })
+            // `.fixed(true)` panels pin their pixel size: applied last so it
+            // cancels the unconditional `flex_grow()` above and any user
+            // override in `refine_style`. Equivalent to the call-site
+            // `.flex_none()` pattern but also exempts the panel from
+            // `ResizableState::adjust_to_container_size`.
+            .when(self.fixed, |this| this.flex_none())
             .on_prepaint({
                 let state = state.clone();
                 move |bounds, _, cx| {

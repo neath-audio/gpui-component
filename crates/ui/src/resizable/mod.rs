@@ -170,6 +170,17 @@ impl ResizableState {
         cx.notify();
     }
 
+    /// Sync the `fixed` flag of each panel from the group's children. Called
+    /// once per render (before the group's prepaint) so [`Self::adjust_to_container_size`]
+    /// sees the up-to-date flags when the container resizes.
+    pub(crate) fn sync_panel_fixed(&mut self, fixed: &[bool]) {
+        for (i, &flag) in fixed.iter().enumerate() {
+            if let Some(panel) = self.panels.get_mut(i) {
+                panel.fixed = flag;
+            }
+        }
+    }
+
     pub(crate) fn remove_panel(&mut self, panel_ix: usize, cx: &mut Context<Self>) {
         self.panels.remove(panel_ix);
         self.sizes.remove(panel_ix);
@@ -303,7 +314,9 @@ impl ResizableState {
 
     /// Adjust panel sizes according to the container size.
     ///
-    /// When the container size changes, the panels should take up the same percentage as they did before.
+    /// When the container size changes, non-fixed panels rescale proportionally
+    /// across the leftover space (`container - sum(fixed panel sizes)`); panels
+    /// marked with [`ResizablePanel::fixed`] keep their current pixel size.
     fn adjust_to_container_size(&mut self, cx: &mut Context<Self>) {
         if self.container_size().is_zero() {
             return;
@@ -314,13 +327,32 @@ impl ResizableState {
         if !total.is_finite() || total <= 0. {
             return;
         }
-        let total_size = px(total);
+        let fixed_total = px(self
+            .panels
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.fixed)
+            .map(|(i, _)| self.sizes[i].as_f32())
+            .sum::<f32>());
+        let flex_total = px(self
+            .panels
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| !p.fixed)
+            .map(|(i, _)| self.sizes[i].as_f32())
+            .sum::<f32>());
+        let leftover = (container_size - fixed_total).max(px(0.));
 
         for i in 0..self.panels.len() {
-            let size = self.sizes[i];
-            let ratio = size / total_size;
-            let new_size = container_size * ratio;
-
+            if self.panels[i].fixed {
+                // Fixed panels keep their pixel size across container resize.
+                continue;
+            }
+            if flex_total.is_zero() {
+                continue;
+            }
+            let ratio = self.sizes[i] / flex_total;
+            let new_size = leftover * ratio;
             self.sizes[i] = new_size;
             self.panels[i].size = Some(new_size);
         }
@@ -335,4 +367,7 @@ pub(crate) struct ResizablePanelState {
     pub size: Option<Pixels>,
     pub size_range: Range<Pixels>,
     bounds: Bounds<Pixels>,
+    /// When true, this panel is excluded from [`ResizableState::adjust_to_container_size`]
+    /// — it keeps its pixel size while the rest of the group rescales.
+    fixed: bool,
 }
