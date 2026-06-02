@@ -627,7 +627,7 @@ impl Calendar {
         let disabled = view_mode.is_month();
         let multiple_months = self.number_of_months > 1;
         let icon_size = match self.size {
-            Size::Small => Size::Small,
+            Size::Small | Size::XSmall => Size::Small,
             Size::Large => Size::Medium,
             _ => Size::Medium,
         };
@@ -706,7 +706,7 @@ impl Calendar {
                         h_flex()
                             .justify_center()
                             .map(|this| match self.size {
-                                Size::Small => this.gap_2(),
+                                Size::Small | Size::XSmall => this.gap_2(),
                                 Size::Large => this.gap_4(),
                                 _ => this.gap_3(),
                             })
@@ -749,7 +749,7 @@ impl Calendar {
         h_flex()
             .id(id.into())
             .map(|this| match self.size {
-                Size::Small => this.size_7().rounded(cx.theme().radius / 2.),
+                Size::Small | Size::XSmall => this.size_7().rounded(cx.theme().radius / 2.),
                 Size::Large => this.size_10().rounded(cx.theme().radius * 2.),
                 _ => this.size_9().rounded(cx.theme().radius),
             })
@@ -796,7 +796,7 @@ impl Calendar {
 
         h_flex()
             .map(|this| match self.size {
-                Size::Small => this.gap_3().text_sm(),
+                Size::Small | Size::XSmall => this.gap_3().text_sm(),
                 Size::Large => this.gap_5().text_base(),
                 _ => this.gap_4().text_sm(),
             })
@@ -829,7 +829,7 @@ impl Calendar {
     fn render_week(&self, week: impl Into<SharedString>, _: &mut Window, cx: &mut App) -> Div {
         h_flex()
             .map(|this| match self.size {
-                Size::Small => this.size_7().rounded(cx.theme().radius / 2.0),
+                Size::Small | Size::XSmall => this.size_7().rounded(cx.theme().radius / 2.0),
                 Size::Large => this.size_10().rounded(cx.theme().radius),
                 _ => this.size_9().rounded(cx.theme().radius),
             })
@@ -849,7 +849,7 @@ impl Calendar {
             .gap_0p5()
             .gap_y_3()
             .map(|this| match self.size {
-                Size::Small => this.mt_2().gap_y_2().w(px(208.)),
+                Size::Small | Size::XSmall => this.mt_2().gap_y_2().w(px(208.)),
                 Size::Large => this.mt_4().gap_y_4().w(px(292.)),
                 _ => this.mt_3().gap_y_3().w(px(264.)),
             })
@@ -896,7 +896,7 @@ impl Calendar {
             .id("years")
             .gap_0p5()
             .map(|this| match self.size {
-                Size::Small => this.mt_2().gap_y_2().w(px(208.)),
+                Size::Small | Size::XSmall => this.mt_2().gap_y_2().w(px(208.)),
                 Size::Large => this.mt_4().gap_y_4().w(px(292.)),
                 _ => this.mt_3().gap_y_3().w(px(264.)),
             })
