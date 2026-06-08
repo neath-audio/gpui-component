@@ -331,7 +331,10 @@ impl RenderOnce for ResizablePanel {
             .when(self.initial_size.is_none(), |this| this.flex_shrink_1())
             .when_some(self.initial_size, |this, initial_size| {
                 // The `self.size` is None, that mean the initial size for the panel,
-                // so we need set `flex_shrink_0` To let it keep the initial size.
+                // so we pin grow/shrink to 0 to keep the initial size. `flex_none()`
+                // is safe here (unlike the `.fixed` branch below) only because
+                // `.flex_basis(initial_size)` runs AFTER it and re-applies the basis
+                // that `flex_none()` resets to `Auto` (gpui #58142).
                 this.when(
                     panel_state.size.is_none() && !initial_size.is_zero(),
                     |this| this.flex_none(),
@@ -342,12 +345,18 @@ impl RenderOnce for ResizablePanel {
                 Some(size) => this.flex_basis(size.min(size_range.end).max(size_range.start)),
                 None => this,
             })
-            // `.fixed(true)` panels pin their pixel size: applied last so it
-            // cancels the unconditional `flex_grow()` above and any user
-            // override in `refine_style`. Equivalent to the call-site
-            // `.flex_none()` pattern but also exempts the panel from
-            // `ResizableState::adjust_to_container_size`.
-            .when(self.fixed, |this| this.flex_none())
+            // `.fixed(true)` panels pin their pixel size to the `flex_basis`
+            // set just above: zero grow + shrink so they neither absorb nor
+            // yield space to flexible siblings. Applied last so it cancels the
+            // unconditional `flex_grow_1()` and any `refine_style` override.
+            //
+            // NB: do NOT collapse this to `flex_none()` — since gpui #58142,
+            // `flex_none()` also resets `flex_basis` to `Auto`, which would
+            // discard the pin and let the panel auto-size to its content
+            // (clamped to `max_w`). The runtime exemption from the group's
+            // proportional reflow is handled separately via the `fixed` flag in
+            // `ResizableState` (see `adjust_to_container_size`).
+            .when(self.fixed, |this| this.flex_grow_0().flex_shrink_0())
             .on_prepaint({
                 let state = state.clone();
                 move |bounds, _, cx| {
