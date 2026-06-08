@@ -2209,7 +2209,9 @@ where
                             menu.delegate_mut().context_menu(row_ix, this, window, cx)
                         })
                     } else {
-                        this
+                        view.update(cx, |menu, cx| {
+                            menu.delegate_mut().context_menu_empty(this, window, cx)
+                        })
                     }
                 }
             })
