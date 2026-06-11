@@ -49,9 +49,10 @@ impl SearchableListItemElement {
         self
     }
 
-    /// Override the default check icon.
-    pub fn check_icon(mut self, icon: impl Into<Icon>) -> Self {
-        self.check_icon = Some(icon.into());
+    /// Override the default check icon, or pass `None` to remove the
+    /// trailing check column entirely (no reserved space).
+    pub fn check_icon(mut self, icon: impl Into<Option<Icon>>) -> Self {
+        self.check_icon = icon.into();
         self
     }
 }

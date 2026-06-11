@@ -113,8 +113,11 @@ impl<D: SearchableListDelegate + 'static> ListDelegate for SearchableListAdapter
         let size = self.size;
 
         if let Some(el) = self.delegate.render_item(ix, item, is_checked, window, cx) {
+            // Delegate-rendered rows draw their own content as-is: drop the
+            // automatic check icon so it doesn't reserve a trailing column.
             return Some(
                 SearchableListItemElement::new(ix.row)
+                    .check_icon(None)
                     .disabled(disabled)
                     .with_size(size)
                     .child(el),
