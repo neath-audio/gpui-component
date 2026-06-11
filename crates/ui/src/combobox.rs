@@ -836,7 +836,8 @@ where
         self
     }
 
-    /// Control whether the trigger shows a border and background.
+    /// Control whether the trigger shows a border, background, and the
+    /// focused ring while open or focused.
     pub fn appearance(mut self, appearance: bool) -> Self {
         self.options.appearance = appearance;
         self
@@ -996,7 +997,12 @@ fn render_trigger_container(
         .input_size(size)
         .input_text_size(size)
         .refine_style(style)
-        .when(outline_visible, |this| this.focused_border(cx))
+        // The focused ring is appearance chrome, like the border and
+        // background — `appearance(false)` callers style the trigger
+        // themselves (same contract as `trigger_unstyled()`).
+        .when(appearance && outline_visible, |this| {
+            this.focused_border(cx)
+        })
         .when(allow_open, |this| {
             this.when_some(toggle_handler, |this, handler| this.on_click(handler))
         })

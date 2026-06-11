@@ -460,7 +460,11 @@ where
         let show_clean = self.state.cleanable && self.selected_index(cx).is_some();
         let bounds = self.state.bounds;
         let allow_open = !(self.state.open || self.state.disabled);
-        let outline_visible = self.state.open || (is_focused && !self.state.disabled);
+        // The focused ring is appearance chrome, like the border and
+        // background — `appearance(false)` callers style the trigger
+        // themselves (same contract as the combobox's `trigger_unstyled()`).
+        let outline_visible = self.state.appearance
+            && (self.state.open || (is_focused && !self.state.disabled));
         let popup_radius = cx.theme().radius.min(px(8.));
 
         let (bg, fg) = input_style(self.state.disabled, cx);
@@ -662,7 +666,8 @@ where
         self
     }
 
-    /// Control whether the trigger shows a border and background (`true` by default).
+    /// Control whether the trigger shows a border, background, and the
+    /// focused ring while open or focused (`true` by default).
     pub fn appearance(mut self, appearance: bool) -> Self {
         self.options.appearance = appearance;
         self
