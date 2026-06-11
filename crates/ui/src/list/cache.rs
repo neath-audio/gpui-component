@@ -69,6 +69,9 @@ pub(crate) struct RowsCache {
     pub(crate) items_count: usize,
     /// The sections, the item is number of rows in each section.
     pub(crate) sections: Rc<Vec<usize>>,
+    /// Whether each section has a header; sections without one get no
+    /// header entry (and so no reserved slot) at all.
+    section_has_header: Rc<Vec<bool>>,
     pub(crate) entries_sizes: Rc<Vec<Size<Pixels>>>,
     measured_size: MeasuredEntrySize,
 }
@@ -168,6 +171,7 @@ impl RowsCache {
         &mut self,
         sections_count: usize,
         measured_size: MeasuredEntrySize,
+        section_has_header: Vec<bool>,
         cx: &App,
         rows_count_f: F,
     ) where
@@ -178,56 +182,101 @@ impl RowsCache {
             new_sections.push(rows_count_f(section_ix, cx));
         }
 
-        let need_update = new_sections != *self.sections || self.measured_size != measured_size;
+        let need_update = new_sections != *self.sections
+            || self.measured_size != measured_size
+            || *self.section_has_header != section_has_header;
 
         if !need_update {
             return;
         }
 
-        let mut entries_sizes = vec![];
-        let mut total_items_count = 0;
         self.measured_size = measured_size;
         self.sections = Rc::new(new_sections);
-        self.entities = Rc::new(
-            self.sections
-                .iter()
-                .enumerate()
-                .flat_map(|(section, items_count)| {
-                    total_items_count += items_count;
-                    let mut children = vec![];
-                    if *items_count == 0 {
-                        return children;
-                    }
+        self.section_has_header = Rc::new(section_has_header);
 
-                    children.push(RowEntry::SectionHeader(section));
-                    entries_sizes.push(measured_size.section_header_size);
-                    for row in 0..*items_count {
-                        children.push(RowEntry::Entry(IndexPath {
-                            section,
-                            row,
-                            ..Default::default()
-                        }));
-                        entries_sizes.push(measured_size.item_size);
-                    }
-                    children.push(RowEntry::SectionFooter(section));
-                    entries_sizes.push(measured_size.section_footer_size);
-                    children
-                })
-                .collect(),
-        );
+        let (entities, entries_sizes, items_count) =
+            build_entries(&self.sections, &self.section_has_header, measured_size);
+        self.entities = Rc::new(entities);
         self.entries_sizes = Rc::new(entries_sizes);
-        self.items_count = total_items_count;
+        self.items_count = items_count;
     }
+}
+
+/// Flatten sections into row entries with their slot sizes. Sections without
+/// a header get no header entry; empty sections produce no entries at all.
+fn build_entries(
+    sections: &[usize],
+    section_has_header: &[bool],
+    measured_size: MeasuredEntrySize,
+) -> (Vec<RowEntry>, Vec<Size<Pixels>>, usize) {
+    let mut entities = vec![];
+    let mut entries_sizes = vec![];
+    let mut total_items_count = 0;
+
+    for (section, items_count) in sections.iter().enumerate() {
+        total_items_count += items_count;
+        if *items_count == 0 {
+            continue;
+        }
+
+        if section_has_header.get(section).copied().unwrap_or(true) {
+            entities.push(RowEntry::SectionHeader(section));
+            entries_sizes.push(measured_size.section_header_size);
+        }
+        for row in 0..*items_count {
+            entities.push(RowEntry::Entry(IndexPath {
+                section,
+                row,
+                ..Default::default()
+            }));
+            entries_sizes.push(measured_size.item_size);
+        }
+        entities.push(RowEntry::SectionFooter(section));
+        entries_sizes.push(measured_size.section_footer_size);
+    }
+
+    (entities, entries_sizes, total_items_count)
 }
 
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
 
+    use gpui::{px, size};
+
     use crate::{
         IndexPath,
-        list::cache::{RowEntry, RowsCache},
+        list::cache::{MeasuredEntrySize, RowEntry, RowsCache, build_entries},
     };
+
+    #[test]
+    fn test_build_entries_skips_headers_for_headerless_sections() {
+        let measured = MeasuredEntrySize {
+            item_size: size(px(100.), px(20.)),
+            section_header_size: size(px(100.), px(10.)),
+            section_footer_size: size(px(100.), px(0.)),
+        };
+
+        // Section 0 has no header, section 1 has one, section 2 is empty.
+        let (entities, sizes, count) = build_entries(&[2, 3, 0], &[false, true, false], measured);
+
+        assert_eq!(count, 5);
+        assert_eq!(
+            entities,
+            vec![
+                RowEntry::Entry(IndexPath::new(0).section(0)),
+                RowEntry::Entry(IndexPath::new(1).section(0)),
+                RowEntry::SectionFooter(0),
+                RowEntry::SectionHeader(1),
+                RowEntry::Entry(IndexPath::new(0).section(1)),
+                RowEntry::Entry(IndexPath::new(1).section(1)),
+                RowEntry::Entry(IndexPath::new(2).section(1)),
+                RowEntry::SectionFooter(1),
+            ],
+        );
+        assert_eq!(sizes.len(), entities.len());
+        assert_eq!(sizes[3], measured.section_header_size);
+    }
 
     fn build_entities(sections: &[usize]) -> Vec<RowEntry> {
         sections

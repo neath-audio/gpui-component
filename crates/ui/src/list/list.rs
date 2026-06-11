@@ -428,12 +428,25 @@ where
             .into_any_element()
             .layout_as_root(available_space, window, cx);
 
-        if let Some(mut el) = self
-            .delegate
-            .render_section_header(0, window, cx)
-            .map(|r| r.into_any_element())
-        {
-            measured_size.section_header_size = el.layout_as_root(available_space, window, cx);
+        // Sections without a header get no header slot at all (see
+        // `RowsCache`); the slot height is measured once, from the first
+        // section that has one.
+        let mut section_has_header = Vec::with_capacity(sections_count);
+        for section_ix in 0..sections_count {
+            let header = self
+                .delegate
+                .render_section_header(section_ix, window, cx)
+                .map(|r| r.into_any_element());
+            match header {
+                Some(mut el) => {
+                    if !section_has_header.contains(&true) {
+                        measured_size.section_header_size =
+                            el.layout_as_root(available_space, window, cx);
+                    }
+                    section_has_header.push(true);
+                }
+                None => section_has_header.push(false),
+            }
         }
         if let Some(mut el) = self
             .delegate
@@ -443,10 +456,13 @@ where
             measured_size.section_footer_size = el.layout_as_root(available_space, window, cx);
         }
 
-        self.rows_cache
-            .prepare_if_needed(sections_count, measured_size, cx, |section_ix, cx| {
-                self.delegate.items_count(section_ix, cx)
-            });
+        self.rows_cache.prepare_if_needed(
+            sections_count,
+            measured_size,
+            section_has_header,
+            cx,
+            |section_ix, cx| self.delegate.items_count(section_ix, cx),
+        );
     }
 
     fn render_list_item(
