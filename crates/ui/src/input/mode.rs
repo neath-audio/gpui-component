@@ -2,13 +2,15 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::{cell::RefCell, ops::Range};
 
-use gpui::{App, SharedString, Task};
+use gpui::{App, Pixels, SharedString, Task};
 use ropey::Rope;
 
 use super::display_map::DisplayMap;
 use crate::highlighter::DiagnosticSet;
 use crate::highlighter::SyntaxHighlighter;
-use crate::input::{InputEdit, RopeExt as _, TabSize};
+use crate::input::{
+    InputEdit, RopeExt as _, TabSize, blink_cursor::CURSOR_WIDTH, element::RIGHT_MARGIN,
+};
 
 #[allow(dead_code)]
 pub(super) struct PendingBackgroundParse {
@@ -138,6 +140,21 @@ impl InputMode {
             InputMode::PlainText { multi_line, .. } => *multi_line,
             InputMode::CodeEditor { multi_line, .. } => *multi_line,
             InputMode::AutoGrow { max_rows, .. } => *max_rows > 1,
+        }
+    }
+
+    /// Right-edge gap kept ahead of the cursor when left-aligned text overflows.
+    ///
+    /// Single-line inputs use just the cursor width, so the scrolled-to-end text
+    /// stays visually symmetric with the left padding. Multi-line editors keep a
+    /// larger gap to hold lookahead context and to keep the longest line from
+    /// sliding under the overlay scrollbar.
+    #[inline]
+    pub(super) fn scroll_right_margin(&self) -> Pixels {
+        if self.is_single_line() {
+            CURSOR_WIDTH
+        } else {
+            RIGHT_MARGIN
         }
     }
 

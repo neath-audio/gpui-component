@@ -41,7 +41,6 @@ use crate::input::movement::MoveDirection;
 use crate::input::{
     HoverDefinition, InlineCompletion, Lsp, Position, RopeExt as _, Selection,
     display_map::LineLayout,
-    element::RIGHT_MARGIN,
     popovers::{ContextMenu, DiagnosticPopover, HoverPopover},
     search::SearchPanel,
 };
@@ -1954,7 +1953,7 @@ impl InputState {
         // For Right alignment use 0 margin: the cursor indicator is clamped inside bounds
         // in layout_cursor, so shifting the text here would cause a first-click visual jump.
         let safety_margin = match last_layout.text_align {
-            TextAlign::Left => RIGHT_MARGIN,
+            TextAlign::Left => self.mode.scroll_right_margin(),
             TextAlign::Right => px(0.),
             TextAlign::Center => CURSOR_WIDTH,
         };
