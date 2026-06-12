@@ -6,7 +6,7 @@ use crate::{ActiveTheme, ElementExt, Icon, IconName, Sizable as _, h_flex, v_fle
 use crate::{Side, Size, StyledExt, kbd::Kbd};
 use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
-    EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding,
+    EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
     ParentElement, Pixels, Render, Role, ScrollHandle, SharedString, StatefulInteractiveElement,
     Styled, WeakEntity, Window, anchored, div, prelude::FluentBuilder, px, rems,
 };
@@ -290,6 +290,7 @@ pub struct PopupMenu {
     max_height: Option<Pixels>,
     bounds: Bounds<Pixels>,
     size: Size,
+    menu_bg: Option<Hsla>,
     check_side: Side,
 
     /// The parent menu of this menu, if this is a submenu
@@ -320,6 +321,7 @@ impl PopupMenu {
             scroll_handle: ScrollHandle::default(),
             external_link_icon: true,
             size: Size::default(),
+            menu_bg: None,
             submenu_anchor: (Anchor::TopLeft, Pixels::ZERO),
             _subscriptions: vec![],
         }
@@ -391,6 +393,24 @@ impl PopupMenu {
     /// Set max height of the popup menu, default is half of the window height
     pub fn max_h(mut self, height: impl Into<Pixels>) -> Self {
         self.max_height = Some(height.into());
+        self
+    }
+
+    /// Override the menu surface background color, e.g. for a translucent menu.
+    pub fn menu_bg(mut self, bg: impl Into<Hsla>) -> Self {
+        self.menu_bg = Some(bg.into());
+        self
+    }
+
+    /// Use small size, the menu item will have smaller height.
+    pub fn small(mut self) -> Self {
+        self.size = Size::Small;
+        self
+    }
+
+    /// Use extra-small size, the menu item will have the smallest height and text.
+    pub fn xsmall(mut self) -> Self {
+        self.size = Size::XSmall;
         self
     }
 
@@ -1126,13 +1146,17 @@ impl PopupMenu {
         let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
         let (item_height, radius) = match self.size {
+            Size::XSmall => (px(18.), options.radius.half()),
             Size::Small => (px(20.), options.radius.half()),
             _ => (px(26.), options.radius),
         };
 
         let this = MenuItemElement::new(ix, &group_name)
             .relative()
-            .text_sm()
+            .map(|this| match self.size {
+                Size::XSmall => this.text_xs(),
+                _ => this.text_sm(),
+            })
             .py_0()
             .px(INNER_PADDING)
             .rounded(radius)
@@ -1156,7 +1180,11 @@ impl PopupMenu {
                 .p_0()
                 .my_0p5()
                 .mx_neg_1()
-                .border_b(px(2.))
+                .border_b(if matches!(self.size, Size::Small | Size::XSmall) {
+                    px(1.)
+                } else {
+                    px(2.)
+                })
                 .border_color(cx.theme().border)
                 .disabled(true),
             PopupMenuItem::Label(label) => this.disabled(true).cursor_default().child(
@@ -1358,6 +1386,7 @@ impl Render for PopupMenu {
             .on_action(cx.listener(Self::dismiss))
             .on_mouse_down_out(cx.listener(Self::on_mouse_down_out))
             .popover_style(cx)
+            .when_some(self.menu_bg, |this, bg| this.bg(bg))
             .text_color(cx.theme().popover_foreground)
             .relative()
             .occlude()

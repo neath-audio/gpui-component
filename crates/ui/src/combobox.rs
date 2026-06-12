@@ -1048,11 +1048,9 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                     v_flex()
                         .occlude()
                         .mt_1p5()
-                        .bg(cx.theme().tokens.background)
-                        .border_1()
-                        .border_color(cx.theme().border)
+                        .popover_style(cx)
+                        // Re-clamp after popover_style — menus cap their radius at 8px.
                         .rounded(popup_radius)
-                        .shadow_md()
                         .child(
                             List::new(list)
                                 .when_some(search_placeholder, |this, placeholder| {

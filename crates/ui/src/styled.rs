@@ -492,6 +492,7 @@ impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn list_px(self, size: Size) -> Self {
         match size {
+            Size::XSmall => self.px_1p5(),
             Size::Small => self.px_2(),
             _ => self.px_3(),
         }
@@ -502,7 +503,7 @@ impl<T: Styled> StyleSized<T> for T {
         match size {
             Size::Large => self.py_2(),
             Size::Medium => self.py_1(),
-            Size::Small => self.py_0p5(),
+            Size::Small | Size::XSmall => self.py_0p5(),
             _ => self.py_1(),
         }
     }

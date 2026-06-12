@@ -1,6 +1,6 @@
 use gpui::{
-    AnyElement, App, AppContext as _, Bounds, Context, Entity, FocusHandle, Focusable as _, Length,
-    Pixels, StyleRefinement, Subscription, Window,
+    AnyElement, App, AppContext as _, Bounds, Context, Entity, FocusHandle, Focusable as _, Hsla,
+    Length, Pixels, StyleRefinement, Subscription, Window,
 };
 
 use crate::{IndexPath, Size, list::ListState, searchable_list::adapter::SearchableListAdapter};
@@ -30,6 +30,7 @@ where
     pub(crate) search_placeholder: Option<gpui::SharedString>,
     pub(crate) menu_width: Length,
     pub(crate) menu_max_h: Length,
+    pub(crate) menu_bg: Option<Hsla>,
     pub(crate) disabled: bool,
     pub(crate) appearance: bool,
     pub(crate) empty: Option<Box<dyn Fn(&mut Window, &App) -> AnyElement + 'static>>,
@@ -116,6 +117,7 @@ where
             search_placeholder: None,
             menu_width: Length::Auto,
             menu_max_h: gpui::rems(20.).into(),
+            menu_bg: None,
             disabled: false,
             appearance: true,
             empty: None,
