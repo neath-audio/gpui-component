@@ -16,7 +16,7 @@ pub use number::NumberFieldOptions;
 use gpui::{AnyElement, App, IntoElement, SharedString, StyleRefinement, Styled, Window};
 use std::{any::Any, rc::Rc};
 
-use crate::setting::RenderOptions;
+use crate::{Sizable, Size, setting::RenderOptions};
 
 /// Custom reset behavior for a setting field or item.
 ///
@@ -138,6 +138,8 @@ impl SettingFieldType {
 pub struct SettingField<T> {
     pub(crate) field_type: SettingFieldType,
     pub(crate) style: StyleRefinement,
+    /// Optional size for this field, overrides the size from [`Settings`](crate::setting::Settings).
+    pub(crate) size: Option<Size>,
     /// Function to get the value for this field.
     pub(crate) value: Rc<dyn Fn(&App) -> T>,
     /// Function to set the value for this field.
@@ -279,6 +281,7 @@ impl<T> SettingField<T> {
         Self {
             field_type,
             style: StyleRefinement::default(),
+            size: None,
             value: Rc::new(value),
             set_value: Rc::new(set_value),
             default_value: None,
@@ -322,6 +325,13 @@ impl<T> Styled for SettingField<T> {
     }
 }
 
+impl<T> Sizable for SettingField<T> {
+    fn with_size(mut self, size: impl Into<Size>) -> Self {
+        self.size = Some(size.into());
+        self
+    }
+}
+
 /// A trait for setting fields that allows for dynamic typing.
 pub trait AnySettingField {
     fn as_any(&self) -> &dyn std::any::Any;
@@ -329,6 +339,7 @@ pub trait AnySettingField {
     fn type_id(&self) -> std::any::TypeId;
     fn field_type(&self) -> &SettingFieldType;
     fn style(&self) -> &StyleRefinement;
+    fn size(&self) -> Option<Size>;
     fn is_resettable(&self, cx: &App) -> bool;
     fn reset(&self, window: &mut Window, cx: &mut App);
 }
@@ -352,6 +363,10 @@ impl<T: Clone + PartialEq + Send + Sync + 'static> AnySettingField for SettingFi
 
     fn style(&self) -> &StyleRefinement {
         &self.style
+    }
+
+    fn size(&self) -> Option<Size> {
+        self.size
     }
 
     fn is_resettable(&self, cx: &App) -> bool {

@@ -211,6 +211,11 @@ impl SettingItem {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
+        // A field-level size (set via `Sizable`) overrides the page-wide size.
+        let options = RenderOptions {
+            size: field.size().unwrap_or(options.size),
+            ..options
+        };
         let field_type = field.field_type();
         let style = field.style().clone();
         let type_id = field.deref().type_id();
