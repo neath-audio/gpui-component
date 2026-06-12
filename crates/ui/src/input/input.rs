@@ -519,7 +519,7 @@ impl RenderOnce for Input {
                 this.child(self.state.clone())
             })
             .when(has_suffix, |this| {
-                this.pr(self.size.input_px()).child(
+                this.child(
                     h_flex()
                         .id("suffix")
                         .gap(gap_x)
