@@ -580,11 +580,20 @@ impl ComponentTooltip {
     }
 }
 
-// ── Internal managed tooltip trait ──────────────────────────────────────────
+// ── Managed tooltip extension trait ──────────────────────────────────────────
 
-pub(crate) trait ManagedTooltipExt:
-    StatefulInteractiveElement + crate::ElementExt + Sized
-{
+/// Extension trait to attach a managed tooltip to any stateful element.
+///
+/// Managed tooltips are rendered by the per-window [`TooltipOverlay`] owned by
+/// [`Root`]: they are anchored to the trigger element (above, flipping below
+/// near the window edge), show after a short delay with an enter animation,
+/// and switch instantly between adjacent triggers within a grace period.
+///
+/// This is the same mechanism used by built-in components such as
+/// [`Button`](crate::button::Button); use it to give custom widgets
+/// consistent tooltip behavior.
+pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Sized {
+    /// Show a managed tooltip built by `build_tooltip` while this element is hovered.
     fn managed_tooltip(
         self,
         build_tooltip: impl Fn(&mut Window, &mut App) -> AnyView + 'static,
