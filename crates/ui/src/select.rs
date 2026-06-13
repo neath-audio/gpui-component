@@ -70,6 +70,8 @@ struct SelectOptions {
     menu_width: Length,
     menu_max_h: Length,
     menu_bg: Option<Hsla>,
+    menu_border: Option<Hsla>,
+    menu_accent: Option<Hsla>,
     disabled: bool,
     appearance: bool,
 }
@@ -86,6 +88,8 @@ impl Default for SelectOptions {
             menu_width: Length::Auto,
             menu_max_h: rems(20.).into(),
             menu_bg: None,
+            menu_border: None,
+            menu_accent: None,
             disabled: false,
             appearance: true,
             search_placeholder: None,
@@ -474,6 +478,7 @@ where
         self.state.list.update(cx, |list, cx| {
             list.set_searchable(searchable, cx);
             list.delegate_mut().size = self.state.size;
+            list.delegate_mut().accent = self.state.menu_accent;
         });
 
         div()
@@ -568,6 +573,9 @@ where
                                         // Re-clamp after popover_style — menus cap their radius at 8px.
                                         .rounded(popup_radius)
                                         .when_some(self.state.menu_bg, |this, bg| this.bg(bg))
+                                        .when_some(self.state.menu_border, |this, c| {
+                                            this.border_color(c)
+                                        })
                                         .child(
                                             List::new(&self.state.list)
                                                 .when_some(
@@ -621,6 +629,20 @@ where
     /// Override the dropdown menu's background color, e.g. for a translucent menu.
     pub fn menu_bg(mut self, bg: impl Into<Hsla>) -> Self {
         self.options.menu_bg = Some(bg.into());
+        self
+    }
+
+    /// Override the dropdown menu's border color, replacing the theme border —
+    /// e.g. to tint the open menu's edge to match a colored trigger.
+    pub fn menu_border(mut self, border: impl Into<Hsla>) -> Self {
+        self.options.menu_border = Some(border.into());
+        self
+    }
+
+    /// Tint the dropdown's selected/hover row highlight, replacing the neutral
+    /// theme `accent` (selected at full strength, hover dimmed).
+    pub fn menu_accent(mut self, accent: impl Into<Hsla>) -> Self {
+        self.options.menu_accent = Some(accent.into());
         self
     }
 
@@ -750,6 +772,8 @@ where
             this.state.menu_width = opts.menu_width;
             this.state.menu_max_h = opts.menu_max_h;
             this.state.menu_bg = opts.menu_bg;
+            this.state.menu_border = opts.menu_border;
+            this.state.menu_accent = opts.menu_accent;
             this.state.disabled = opts.disabled;
             this.state.appearance = opts.appearance;
             this.icon = opts.icon;
