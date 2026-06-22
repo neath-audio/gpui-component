@@ -1,5 +1,5 @@
 use gpui::{
-    App, IntoElement, ParentElement as _, SharedString, StyleRefinement, Styled, Window,
+    App, IntoElement, ParentElement as _, SharedString, StyleRefinement, Styled, Window, div,
     prelude::FluentBuilder as _,
 };
 
@@ -85,16 +85,30 @@ impl SettingGroup {
             .id(SharedString::from(format!("group-{}", options.group_ix)))
             .with_variant(options.group_variant)
             .when_some(self.title.clone(), |this, title| {
-                this.title(v_flex().gap_1().child(title).when_some(
-                    self.description.clone(),
-                    |this, description| {
-                        this.child(
-                            Label::new(description)
-                                .text_sm()
-                                .text_color(cx.theme().muted_foreground),
-                        )
-                    },
-                ))
+                // Promote the group title to a real section heading: the
+                // `GroupBox` wraps its title in `muted_foreground`, so override
+                // it back to the default foreground here. Weight is left at
+                // regular on purpose — the title is already larger than the
+                // item labels below it, and a bolder weight would make it
+                // shout louder than the (regular-weight) page title above. The
+                // description stays muted, so color carries the
+                // title/description split.
+                this.title(
+                    v_flex()
+                        // `gap_2` (not `gap_1`): the `GroupBox` title wrapper
+                        // forces `line_height(1.)`, so a 4px gap crowds the
+                        // promoted heading against its description. 8px gives
+                        // it room without matching the page header's 12px.
+                        .gap_2()
+                        .child(div().text_color(cx.theme().foreground).child(title))
+                        .when_some(self.description.clone(), |this, description| {
+                            this.child(
+                                Label::new(description)
+                                    .text_sm()
+                                    .text_color(cx.theme().muted_foreground),
+                            )
+                        }),
+                )
             })
             .gap_4()
             .children(self.items.iter().enumerate().filter_map(|(item_ix, item)| {
