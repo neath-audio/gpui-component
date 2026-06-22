@@ -374,7 +374,12 @@ impl SidebarItem for SidebarMenuItem {
                         .gap_1()
                         .ml_3p5()
                         .pl_2p5()
-                        .py_0p5()
+                        // `pt_1` (= the `gap_1` between items), not `py_0p5`: the
+                        // submenu's only space above its first item was the 2px
+                        // top padding, so the group→first-item gap (2px) didn't
+                        // match the item→item gap (4px). Match them; the bottom
+                        // is handled by the menu's own `gap_2` to the next item.
+                        .pt_1()
                         .children(self.children.into_iter().enumerate().map(|(ix, item)| {
                             let id = format!("{}-{}", id, ix);
                             item.render(id, window, cx).into_any_element()
