@@ -36,6 +36,7 @@ pub struct ResizablePanelGroup {
     axis: Axis,
     size: Option<Pixels>,
     children: Vec<ResizablePanel>,
+    seamless_handles: bool,
     on_resize: Rc<dyn Fn(&Entity<ResizableState>, &mut Window, &mut App)>,
 }
 
@@ -48,8 +49,17 @@ impl ResizablePanelGroup {
             children: vec![],
             state: None,
             size: None,
+            seamless_handles: false,
             on_resize: Rc::new(|_, _, _| {}),
         }
+    }
+
+    /// Draw no resting line on this group's resize handles — they're
+    /// transparent until dragged. For splits whose panes carry their own
+    /// visual seam (e.g. a colored pane header at the boundary).
+    pub fn seamless_handles(mut self) -> Self {
+        self.seamless_handles = true;
+        self
     }
 
     /// Bind yourself to a resizable state entity.
@@ -158,6 +168,7 @@ impl RenderOnce for ResizablePanelGroup {
                         panel.panel_ix = ix;
                         panel.axis = self.axis;
                         panel.state = Some(state.clone());
+                        panel.seamless_handle = self.seamless_handles;
                         panel
                     }),
             )
@@ -224,6 +235,9 @@ pub struct ResizablePanel {
     children: Vec<AnyElement>,
     visible: bool,
     pub(super) fixed: bool,
+    /// Whether this panel's leading resize handle (drawn for `panel_ix > 0`)
+    /// is seamless — transparent at rest. Threaded from the group.
+    pub(super) seamless_handle: bool,
     style: StyleRefinement,
 }
 
@@ -239,6 +253,7 @@ impl ResizablePanel {
             children: vec![],
             visible: true,
             fixed: false,
+            seamless_handle: false,
             style: StyleRefinement::default(),
         }
     }
@@ -368,17 +383,17 @@ impl RenderOnce for ResizablePanel {
             .children(self.children)
             .when(self.panel_ix > 0, |this| {
                 let ix = self.panel_ix - 1;
-                this.child(resize_handle(("resizable-handle", ix), self.axis).on_drag(
-                    DragPanel,
-                    move |drag_panel, _, _, cx| {
-                        cx.stop_propagation();
-                        // Set current resizing panel ix
-                        state.update(cx, |state, _| {
-                            state.resizing_panel_ix = Some(ix);
-                        });
-                        cx.new(|_| drag_panel.deref().clone())
-                    },
-                ))
+                let handle = resize_handle(("resizable-handle", ix), self.axis)
+                    .seamless(self.seamless_handle)
+                    .on_drag(DragPanel, move |drag_panel, _, _, cx| {
+                    cx.stop_propagation();
+                    // Set current resizing panel ix
+                    state.update(cx, |state, _| {
+                        state.resizing_panel_ix = Some(ix);
+                    });
+                    cx.new(|_| drag_panel.deref().clone())
+                });
+                this.child(handle)
             })
     }
 }

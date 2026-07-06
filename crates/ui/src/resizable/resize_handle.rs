@@ -24,6 +24,10 @@ pub(crate) struct ResizeHandle<T: 'static, E: 'static + Render> {
     axis: Axis,
     drag_value: Option<Rc<T>>,
     placement: Option<DockPlacement>,
+    /// When set, the handle draws no resting line — it's transparent until
+    /// dragged (`theme.drag_border`). For splits whose panes already carry
+    /// their own visual seam.
+    seamless: bool,
     on_drag: Option<Rc<dyn Fn(&Point<Pixels>, &mut Window, &mut App) -> Entity<E>>>,
 }
 
@@ -35,8 +39,15 @@ impl<T: 'static, E: 'static + Render> ResizeHandle<T, E> {
             on_drag: None,
             drag_value: None,
             placement: None,
+            seamless: false,
             axis,
         }
+    }
+
+    /// Draw no resting line — transparent until dragged.
+    pub(crate) fn seamless(mut self, seamless: bool) -> Self {
+        self.seamless = seamless;
+        self
     }
 
     pub(crate) fn on_drag(
@@ -107,6 +118,8 @@ impl<T: 'static, E: 'static + Render> Element for ResizeHandle<T, E> {
 
             let bg_color = if state.is_active() {
                 cx.theme().drag_border
+            } else if self.seamless {
+                gpui::transparent_black()
             } else {
                 cx.theme().border
             };
