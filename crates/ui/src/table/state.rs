@@ -1395,6 +1395,7 @@ where
         let movable = self.col_movable && col_group.column.movable;
         let paddings = col_group.column.paddings;
         let name = col_group.column.name.clone();
+        let icon = col_group.column.icon.clone();
 
         h_flex()
             .h_full()
@@ -1424,6 +1425,7 @@ where
                                 entity_id,
                                 col_ix,
                                 name,
+                                icon,
                                 width: col_group.width,
                             },
                             |drag, _, _, cx| {

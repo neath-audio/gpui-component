@@ -5,7 +5,7 @@ use gpui::{
     SharedString, Styled as _, TextAlign, Window, div, prelude::FluentBuilder, px,
 };
 
-use crate::ActiveTheme as _;
+use crate::{ActiveTheme as _, Icon, IconName};
 
 /// Represents a column in a table, used for initializing table columns.
 #[derive(Debug, Clone)]
@@ -18,6 +18,10 @@ pub struct Column {
     pub key: SharedString,
     /// The display name of the column.
     pub name: SharedString,
+    /// Optional embedded icon path for the column. When set, the reorder-drag
+    /// preview paints this icon instead of `name` so an icon-only header (which
+    /// the delegate draws itself) drags as its glyph rather than as bare text.
+    pub icon: Option<SharedString>,
     /// The text alignment of the column.
     pub align: TextAlign,
     /// The sorting behavior of the column, if any.
@@ -71,6 +75,7 @@ impl Default for Column {
         Self {
             key: SharedString::new(""),
             name: SharedString::new(""),
+            icon: None,
             align: TextAlign::Left,
             sort: None,
             paddings: None,
@@ -93,6 +98,14 @@ impl Column {
             name: name.into(),
             ..Default::default()
         }
+    }
+
+    /// Set the embedded icon path used by the reorder-drag preview. Use this
+    /// for columns whose header the delegate paints as an icon, so the drag
+    /// ghost shows the glyph instead of the (often empty) `name`.
+    pub fn icon(mut self, path: impl Into<SharedString>) -> Self {
+        self.icon = Some(path.into());
+        self
     }
 
     /// Set the column to be sortable with custom sort function, default is None (not sortable).
@@ -256,6 +269,7 @@ impl ColGroup {
 pub(crate) struct DragColumn {
     pub(crate) entity_id: EntityId,
     pub(crate) name: SharedString,
+    pub(crate) icon: Option<SharedString>,
     pub(crate) width: Pixels,
     pub(crate) col_ix: usize,
 }
@@ -274,19 +288,32 @@ pub enum ColumnSort {
 
 impl Render for DragColumn {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .px_4()
+        let muted = cx.theme().muted_foreground;
+        let chip = div()
+            .flex()
+            .items_center()
+            .justify_center()
+            .px_2()
             .py_1()
             .bg(cx.theme().tokens.table_head)
-            .text_color(cx.theme().muted_foreground)
+            .text_color(muted)
             .opacity(0.9)
             .border_1()
             .border_color(cx.theme().border)
-            .shadow_md()
-            .w(self.width)
-            .min_w(px(100.))
-            .max_w(px(450.))
-            .child(self.name.clone())
+            .rounded(cx.theme().radius)
+            .shadow_md();
+
+        match &self.icon {
+            // Icon columns: paint the glyph, matching the delegate's header.
+            Some(path) => chip
+                .child(Icon::new(IconName::Dash).path(path.clone()).size(px(12.))),
+            // Text columns: mirror the header's own `text_xs` size, not the
+            // default 16px, and cap the width so long names stay compact.
+            None => chip
+                .text_xs()
+                .max_w(self.width.max(px(160.)))
+                .child(div().truncate().child(self.name.clone())),
+        }
     }
 }
 
