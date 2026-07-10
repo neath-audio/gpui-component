@@ -40,7 +40,17 @@ extern "C" fn hit_test_forwarder(this: &NSWindow, _cmd: Sel, point: NSPoint) -> 
 }
 
 fn ns_view(window: &Window) -> Option<&NSView> {
-    let handle = HasWindowHandle::window_handle(window).ok()?;
+    // gpui's TestWindow answers raw-window-handle requests with
+    // `unimplemented!` instead of `Err(HandleError::NotSupported)`, so any
+    // downstream test binary that builds a `Root` would panic here — the
+    // `not(test)` guard at the Root::new call site only covers this crate's
+    // own unit tests, not consumers'. Contain the unwind and treat "no
+    // platform backing" as None, the same fallback as a non-AppKit handle.
+    let handle = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        HasWindowHandle::window_handle(window).ok()
+    }))
+    .ok()
+    .flatten()?;
     let RawWindowHandle::AppKit(handle) = handle.as_raw() else {
         return None;
     };
