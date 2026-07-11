@@ -1,5 +1,5 @@
 use gpui::{
-    App, Entity, InteractiveElement as _, IntoElement, ListAlignment, ListState,
+    App, Entity, FontWeight, InteractiveElement as _, IntoElement, ListAlignment, ListState,
     ParentElement as _, SharedString, StyleRefinement, Styled, Window, div, list,
     prelude::FluentBuilder as _, px,
 };
@@ -149,24 +149,34 @@ impl SettingPage {
                     .border_b_1()
                     .border_color(cx.theme().border)
                     .refine_style(&self.header_style)
-                    .child(h_flex().justify_between().child(self.title.clone()).when(
-                        self.is_resettable(cx),
-                        |this| {
-                            this.child(
-                                Button::new("reset")
-                                    .icon(IconName::Undo2)
-                                    .ghost()
-                                    .small()
-                                    .tooltip(t!("Settings.Reset All"))
-                                    .on_click({
-                                        let page = self.clone();
-                                        move |_, window, cx| {
-                                            page.reset_all(window, cx);
-                                        }
-                                    }),
+                    // The page title is the page's one heading — semibold so it
+                    // outranks the group titles below, which stay regular. Size
+                    // is inherited, so `header_style` can re-tier it without
+                    // touching the description (whose `text_sm` still wins).
+                    .child(
+                        h_flex()
+                            .justify_between()
+                            .child(
+                                div()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(self.title.clone()),
                             )
-                        },
-                    ))
+                            .when(self.is_resettable(cx), |this| {
+                                this.child(
+                                    Button::new("reset")
+                                        .icon(IconName::Undo2)
+                                        .ghost()
+                                        .small()
+                                        .tooltip(t!("Settings.Reset All"))
+                                        .on_click({
+                                            let page = self.clone();
+                                            move |_, window, cx| {
+                                                page.reset_all(window, cx);
+                                            }
+                                        }),
+                                )
+                            }),
+                    )
                     .when_some(self.description.clone(), |this, description| {
                         this.child(
                             Label::new(description)
