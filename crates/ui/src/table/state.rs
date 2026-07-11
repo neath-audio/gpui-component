@@ -1393,7 +1393,6 @@ where
         let col_group = self.col_groups.get(col_ix).expect("BUG: invalid col index");
 
         let movable = self.col_movable && col_group.column.movable;
-        let paddings = col_group.column.paddings;
         let name = col_group.column.name.clone();
         let icon = col_group.column.icon.clone();
 
@@ -1411,12 +1410,9 @@ where
                             .justify_between()
                             .items_center()
                             .child(self.delegate.render_th(col_ix, window, cx))
-                            .when_some(paddings, |this, paddings| {
-                                // Leave right space for the sort icon, if this column have custom padding
-                                let offset_pr =
-                                    self.options.size.table_cell_padding().right - paddings.right;
-                                this.pr(offset_pr.max(px(0.)))
-                            })
+                            // neath: no extra right inset for custom-padding columns —
+                            // render_cell already applies the column paddings to the th
+                            // wrapper, so the size-arm delta double-padded pinned columns.
                             .children(self.render_sort_icon(col_ix, &col_group, window, cx)),
                     )
                     .when(movable, |this| {
