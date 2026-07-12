@@ -3,7 +3,7 @@ use crate::actions::{SelectLeft, SelectRight};
 use crate::menu::menu_item::MenuItemElement;
 use crate::scroll::ScrollableElement;
 use crate::{ActiveTheme, ElementExt, Icon, IconName, Sizable as _, h_flex, v_flex};
-use crate::{Side, Size, StyledExt, kbd::Kbd};
+use crate::{Side, Size, StyledExt, global_state::GlobalState, kbd::Kbd};
 use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
@@ -306,8 +306,16 @@ pub struct PopupMenu {
 
 impl PopupMenu {
     pub(crate) fn new(cx: &mut App) -> Self {
+        let focus_handle = cx.focus_handle();
+        // A menu owns focus exactly while it is open; the managed tooltip
+        // overlay reads this registry to suppress tooltips over open menus.
+        // Guarded: before `crate::init` there is no registry (and no tooltip
+        // overlay either), so an untracked menu is harmless.
+        if cx.has_global::<GlobalState>() {
+            GlobalState::global_mut(cx).register_menu_focus_handle(&focus_handle);
+        }
         Self {
-            focus_handle: cx.focus_handle(),
+            focus_handle,
             action_context: None,
             parent_menu: None,
             menu_items: Vec::new(),

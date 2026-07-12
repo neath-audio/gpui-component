@@ -2,14 +2,16 @@ use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Display, Element, ElementId,
-    GlobalElementId, Half, InspectorElementId, IntoElement, LayoutId, MouseButton, ParentElement,
-    Pixels, Point, Position, Render, SharedString, Size, StatefulInteractiveElement, Style,
-    StyleRefinement, Styled, Task, Window, deferred, div, point, prelude::FluentBuilder, px,
+    GlobalElementId, Half, InspectorElementId, IntoElement, LayoutId, MouseDownEvent,
+    ParentElement, Pixels, Point, Position, Render, ScrollWheelEvent, SharedString, Size,
+    StatefulInteractiveElement, Style, StyleRefinement, Styled, Task, Window, canvas, deferred,
+    div, point, prelude::FluentBuilder, px,
 };
 
 use crate::{
     ActiveTheme, StyledExt,
     animation::{Transition, ease_in_out_cubic, ease_out_cubic},
+    global_state::GlobalState,
     h_flex,
     kbd::Kbd,
     root::Root,
@@ -399,6 +401,14 @@ impl TooltipOverlay {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // No tooltip may appear while a menu is open (a menu owns focus
+        // exactly while open). Without this, a trigger that stays hovered
+        // after opening a menu — or any trigger hovered while one is up —
+        // would draw its tooltip on top of the menu.
+        if GlobalState::global(cx).is_menu_focused(window, cx) {
+            return;
+        }
+
         // Cancel any pending hide
         self._hide_task = None;
 
@@ -488,9 +498,43 @@ impl TooltipOverlay {
 
 impl Render for TooltipOverlay {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Native parity: gpui's built-in tooltips clear on any mouse press or
+        // scroll anywhere in the window. A zero-size canvas re-registers the
+        // window-level listeners every frame — unconditionally, so a pending
+        // (delayed) show is cancelled by a press as well.
+        let overlay = cx.entity();
+        let dismisser = canvas(
+            |_, _, _| (),
+            move |_, _, window, _| {
+                window.on_mouse_event({
+                    let overlay = overlay.clone();
+                    move |_: &MouseDownEvent, _, _, cx| {
+                        overlay.update(cx, |overlay: &mut TooltipOverlay, cx| overlay.hide(cx));
+                    }
+                });
+                window.on_mouse_event({
+                    let overlay = overlay.clone();
+                    move |_: &ScrollWheelEvent, _, _, cx| {
+                        overlay.update(cx, |overlay: &mut TooltipOverlay, cx| overlay.hide(cx));
+                    }
+                });
+            },
+        )
+        .absolute()
+        .size_0();
+        let root = div().child(dismisser);
+
         let Some(content) = self.content.as_ref() else {
-            return div().into_any_element();
+            return root.into_any_element();
         };
+
+        // Level guard for menus opened without a press (e.g. keyboard): an
+        // already-visible tooltip must not stay painted over an open menu.
+        // The content is kept — it resumes (or is hidden by the normal
+        // hover-leave path) once the menu closes.
+        if GlobalState::global(cx).is_menu_focused(window, cx) {
+            return root.into_any_element();
+        }
 
         let content_view = (content.build)(window, cx);
         let trigger_bounds = content.trigger_bounds;
@@ -498,47 +542,55 @@ impl Render for TooltipOverlay {
         let is_switching = self.is_switching;
         let prev_trigger_bounds = self.prev_trigger_bounds;
 
-        deferred(
-            tooltip_overlay_positioner(trigger_bounds).child(div().child(content_view).map(|el| {
-                if is_switching {
-                    let Some(prev_bounds) = prev_trigger_bounds else {
-                        return el.into_any_element();
-                    };
+        root.child(
+            deferred(tooltip_overlay_positioner(trigger_bounds).child(
+                div().child(content_view).map(|el| {
+                    if is_switching {
+                        let Some(prev_bounds) = prev_trigger_bounds else {
+                            return el.into_any_element();
+                        };
 
-                    let is_same_y =
-                        (trigger_bounds.origin.y - prev_bounds.origin.y).abs() < px(10.);
-                    if !is_same_y {
-                        // If the new trigger is at a different Y level, don't slide horizontally
-                        // to avoid weird diagonal movement. (We could consider sliding vertically
-                        // in this case, but it might be less visually clear.)
-                        return el.into_any_element();
+                        let is_same_y =
+                            (trigger_bounds.origin.y - prev_bounds.origin.y).abs() < px(10.);
+                        if !is_same_y {
+                            // If the new trigger is at a different Y level, don't slide horizontally
+                            // to avoid weird diagonal movement. (We could consider sliding vertically
+                            // in this case, but it might be less visually clear.)
+                            return el.into_any_element();
+                        }
+
+                        let dx = trigger_bounds.center().x - prev_bounds.center().x;
+
+                        Transition::new(SLIDE_DURATION)
+                            .ease(ease_in_out_cubic)
+                            .slide_x(-dx, px(0.))
+                            .apply(
+                                el,
+                                ElementId::NamedInteger(
+                                    "tooltip-slide".into(),
+                                    animation_epoch as u64,
+                                ),
+                            )
+                            .into_any_element()
+                    } else {
+                        // New tooltip: slideDown + fadeIn
+                        Transition::new(ENTER_DURATION)
+                            .ease(ease_out_cubic)
+                            .slide_y(px(4.), px(0.))
+                            .fade(0.0, 1.0)
+                            .apply(
+                                el,
+                                ElementId::NamedInteger(
+                                    "tooltip-enter".into(),
+                                    animation_epoch as u64,
+                                ),
+                            )
+                            .into_any_element()
                     }
-
-                    let dx = trigger_bounds.center().x - prev_bounds.center().x;
-
-                    Transition::new(SLIDE_DURATION)
-                        .ease(ease_in_out_cubic)
-                        .slide_x(-dx, px(0.))
-                        .apply(
-                            el,
-                            ElementId::NamedInteger("tooltip-slide".into(), animation_epoch as u64),
-                        )
-                        .into_any_element()
-                } else {
-                    // New tooltip: slideDown + fadeIn
-                    Transition::new(ENTER_DURATION)
-                        .ease(ease_out_cubic)
-                        .slide_y(px(4.), px(0.))
-                        .fade(0.0, 1.0)
-                        .apply(
-                            el,
-                            ElementId::NamedInteger("tooltip-enter".into(), animation_epoch as u64),
-                        )
-                        .into_any_element()
-                }
-            })),
+                }),
+            ))
+            .with_priority(2),
         )
-        .with_priority(2)
         .into_any_element()
     }
 }
@@ -630,13 +682,9 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
                 }
             }
         })
-        .on_mouse_down(MouseButton::Left, move |_, window, cx| {
-            if let Some(overlay) = Root::tooltip_overlay(window, cx) {
-                overlay.update(cx, |overlay, cx| {
-                    overlay.hide(cx);
-                });
-            }
-        })
+        // No press handler here: the overlay itself hides on any mouse press
+        // or scroll anywhere in the window (see `TooltipOverlay::render`),
+        // which subsumes the old left-down-on-trigger dismissal.
     }
 }
 
@@ -645,7 +693,10 @@ impl<E: StatefulInteractiveElement + crate::ElementExt> ManagedTooltipExt for E 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::size;
+    use gpui::{
+        Entity, Focusable as _, InteractiveElement as _, MouseButton, MouseMoveEvent, Render,
+        ScrollDelta, TestAppContext, VisualTestContext, size,
+    };
 
     fn test_content(bounds: Bounds<Pixels>) -> TooltipContent {
         TooltipContent {
@@ -739,5 +790,147 @@ mod tests {
         assert_eq!(position.placement, TooltipPlacement::Below);
         assert_eq!(position.bounds.top(), TOOLTIP_WINDOW_MARGIN);
         assert_eq!(position.bounds.left(), px(60.));
+    }
+
+    // ── Dismissal parity with gpui's native tooltips ────────────────────────
+
+    struct TriggerView;
+
+    impl Render for TriggerView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().child(
+                div()
+                    .id("trigger")
+                    .w(px(60.))
+                    .h(px(60.))
+                    .managed_tooltip(|window, cx| Tooltip::new("tip").build(window, cx)),
+            )
+        }
+    }
+
+    fn setup(cx: &mut TestAppContext) -> (Entity<TooltipOverlay>, &mut VisualTestContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| {
+            let view = cx.new(|_| TriggerView);
+            Root::new(view, window, cx).bordered(false)
+        });
+        let overlay = root.read_with(cx, |root, _| root.tooltip_overlay.clone());
+        (overlay, cx)
+    }
+
+    fn draw(cx: &mut VisualTestContext) {
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            _ = window.draw(cx);
+        });
+    }
+
+    fn hover_trigger(cx: &mut VisualTestContext) {
+        cx.simulate_event(MouseMoveEvent {
+            position: point(px(30.), px(30.)),
+            pressed_button: None,
+            modifiers: Default::default(),
+        });
+    }
+
+    fn right_mouse_down(cx: &mut VisualTestContext, x: f32, y: f32) {
+        cx.simulate_event(MouseDownEvent {
+            button: MouseButton::Right,
+            position: point(px(x), px(y)),
+            modifiers: Default::default(),
+            click_count: 1,
+            first_mouse: false,
+        });
+    }
+
+    fn show_tooltip(overlay: &Entity<TooltipOverlay>, cx: &mut VisualTestContext) {
+        draw(cx);
+        hover_trigger(cx);
+        overlay.read_with(cx, |o, _| assert!(o._show_task.is_some()));
+        cx.executor()
+            .advance_clock(SHOW_DELAY + Duration::from_millis(50));
+        draw(cx);
+        overlay.read_with(cx, |o, _| assert!(o.content.is_some()));
+    }
+
+    #[gpui::test]
+    fn managed_tooltip_hides_on_any_mouse_down(cx: &mut TestAppContext) {
+        let (overlay, cx) = setup(cx);
+        show_tooltip(&overlay, cx);
+
+        // A right press (e.g. opening a context menu) hides the tooltip
+        // immediately — the trigger-local left-only handler this replaces
+        // never saw it.
+        right_mouse_down(cx, 30., 30.);
+        overlay.read_with(cx, |o, _| {
+            assert!(o.content.is_none());
+            assert!(o._show_task.is_none());
+        });
+    }
+
+    #[gpui::test]
+    fn managed_tooltip_hides_on_scroll(cx: &mut TestAppContext) {
+        let (overlay, cx) = setup(cx);
+        show_tooltip(&overlay, cx);
+
+        cx.simulate_event(ScrollWheelEvent {
+            position: point(px(30.), px(30.)),
+            delta: ScrollDelta::Pixels(point(px(0.), px(-10.))),
+            ..Default::default()
+        });
+        overlay.read_with(cx, |o, _| assert!(o.content.is_none()));
+    }
+
+    #[gpui::test]
+    fn managed_tooltip_press_cancels_pending_show(cx: &mut TestAppContext) {
+        let (overlay, cx) = setup(cx);
+        draw(cx);
+
+        hover_trigger(cx);
+        overlay.read_with(cx, |o, _| assert!(o._show_task.is_some()));
+
+        // Press during the show delay: the delayed show must never fire
+        // (otherwise it would pop over whatever the press opened).
+        right_mouse_down(cx, 30., 30.);
+        overlay.read_with(cx, |o, _| assert!(o._show_task.is_none()));
+
+        cx.executor()
+            .advance_clock(SHOW_DELAY + Duration::from_millis(50));
+        draw(cx);
+        overlay.read_with(cx, |o, _| assert!(o.content.is_none()));
+    }
+
+    #[gpui::test]
+    fn request_show_is_suppressed_while_menu_focused(cx: &mut TestAppContext) {
+        let (overlay, cx) = setup(cx);
+        draw(cx);
+
+        // An open menu owns focus; while it does, show requests are ignored.
+        let menu = cx.update(|window, cx| {
+            let menu = crate::menu::PopupMenu::build(window, cx, |menu, _, _| menu);
+            menu.focus_handle(cx).focus(window, cx);
+            menu
+        });
+        draw(cx);
+
+        cx.update(|window, cx| {
+            overlay.update(cx, |o, cx| {
+                o.request_show(test_content(test_bounds(10., 10., 40., 20.)), window, cx);
+            });
+        });
+        overlay.read_with(cx, |o, _| {
+            assert!(o._show_task.is_none());
+            assert!(o.content.is_none());
+        });
+
+        // Focus released (menu closed): shows work again.
+        cx.update(|window, cx| {
+            window.blur();
+            overlay.update(cx, |o, cx| {
+                o.request_show(test_content(test_bounds(10., 10., 40., 20.)), window, cx);
+            });
+        });
+        overlay.read_with(cx, |o, _| assert!(o._show_task.is_some()));
+        drop(menu);
     }
 }

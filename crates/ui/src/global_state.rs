@@ -1,4 +1,4 @@
-use gpui::{App, ElementId, Entity, FocusHandle, Global, OwnedMenu};
+use gpui::{App, ElementId, Entity, FocusHandle, Global, OwnedMenu, WeakFocusHandle, Window};
 use std::collections::HashSet;
 
 use crate::text::{SelectionScope, TextViewState};
@@ -28,6 +28,11 @@ pub struct GlobalState {
     /// `TextView` reads the top of this stack when it registers, so window
     /// selection can be confined to the active modal.
     selection_scope_stack: Vec<SelectionScope>,
+    /// Weak focus handles of every live `PopupMenu`. A menu holds focus
+    /// exactly while it is open, so "any live handle contains focus" is a
+    /// level signal for "a menu is open in this window". The managed tooltip
+    /// overlay consults it to keep tooltips suppressed while menus are up.
+    menu_focus_handles: Vec<WeakFocusHandle>,
 }
 
 impl GlobalState {
@@ -38,6 +43,7 @@ impl GlobalState {
             app_menus: Vec::new(),
             suppress_text_selection: false,
             selection_scope_stack: Vec::new(),
+            menu_focus_handles: Vec::new(),
         }
     }
 
@@ -96,6 +102,24 @@ impl GlobalState {
     pub(crate) fn unregister_deferred_popover(&mut self, focus_handle: &FocusHandle) {
         let element_id: ElementId = format!("{focus_handle:?}").into();
         self.open_deferred_popovers.remove(&element_id);
+    }
+
+    /// Track a menu's focus handle for [`GlobalState::is_menu_focused`].
+    /// Weakly held: a dropped menu unregisters itself, so there is no
+    /// unregister call to forget.
+    pub(crate) fn register_menu_focus_handle(&mut self, focus_handle: &FocusHandle) {
+        self.menu_focus_handles.retain(|h| h.upgrade().is_some());
+        self.menu_focus_handles.push(focus_handle.downgrade());
+    }
+
+    /// True while an open menu owns focus in `window`. Menus hold focus
+    /// exactly while open (and closed menu entities may stay cached, e.g. by
+    /// `ContextMenu`), so focus — not liveness — is the open test.
+    pub(crate) fn is_menu_focused(&self, window: &Window, cx: &App) -> bool {
+        self.menu_focus_handles
+            .iter()
+            .filter_map(|h| h.upgrade())
+            .any(|h| h.contains_focused(window, cx))
     }
 
     /// Get the application menus
