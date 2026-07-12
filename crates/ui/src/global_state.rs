@@ -1,5 +1,8 @@
-use gpui::{App, ElementId, Entity, FocusHandle, Global, OwnedMenu, WeakFocusHandle, Window};
-use std::collections::HashSet;
+use gpui::{
+    App, Bounds, ElementId, Entity, EntityId, FocusHandle, Global, OwnedMenu, Pixels, Point,
+    WeakFocusHandle, Window,
+};
+use std::collections::{HashMap, HashSet};
 
 use crate::text::{SelectionScope, TextViewState};
 
@@ -33,6 +36,13 @@ pub struct GlobalState {
     /// level signal for "a menu is open in this window". The managed tooltip
     /// overlay consults it to keep tooltips suppressed while menus are up.
     menu_focus_handles: Vec<WeakFocusHandle>,
+    /// Live bounds of every open `PopupMenu`, keyed by menu entity. Upserted
+    /// on the menu's prepaint; removed on dismiss and on entity release (for
+    /// menus torn down without a dismiss). A `Popover` consults this before
+    /// dismissing on mouse-down-out: a press inside an open menu belongs to
+    /// the menu — which may be the popover's own deferred descendant painted
+    /// OUTSIDE the popover's bounds (a row's dropdown) — never a dismissal.
+    open_menu_bounds: HashMap<EntityId, Bounds<Pixels>>,
 }
 
 impl GlobalState {
@@ -44,6 +54,7 @@ impl GlobalState {
             suppress_text_selection: false,
             selection_scope_stack: Vec::new(),
             menu_focus_handles: Vec::new(),
+            open_menu_bounds: HashMap::new(),
         }
     }
 
@@ -102,6 +113,24 @@ impl GlobalState {
     pub(crate) fn unregister_deferred_popover(&mut self, focus_handle: &FocusHandle) {
         let element_id: ElementId = format!("{focus_handle:?}").into();
         self.open_deferred_popovers.remove(&element_id);
+    }
+
+    /// Upsert an open menu's bounds (called from the menu's prepaint, which
+    /// only runs while the menu is showing).
+    pub(crate) fn update_menu_bounds(&mut self, id: EntityId, bounds: Bounds<Pixels>) {
+        self.open_menu_bounds.insert(id, bounds);
+    }
+
+    /// Forget a menu's bounds — on dismiss, and on entity release for menus
+    /// torn down without one.
+    pub(crate) fn remove_menu_bounds(&mut self, id: EntityId) {
+        self.open_menu_bounds.remove(&id);
+    }
+
+    /// Whether `position` (window coordinates) falls inside any open
+    /// `PopupMenu`'s bounds.
+    pub(crate) fn position_in_open_menu(&self, position: &Point<Pixels>) -> bool {
+        self.open_menu_bounds.values().any(|b| b.contains(position))
     }
 
     /// Track a menu's focus handle for [`GlobalState::is_menu_focused`].

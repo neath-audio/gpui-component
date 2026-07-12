@@ -341,6 +341,16 @@ impl PopupMenu {
         f: impl FnOnce(Self, &mut Window, &mut Context<PopupMenu>) -> Self,
     ) -> Entity<Self> {
         cx.new(|cx| {
+            // Menus torn down without a dismiss (their host popover unmounts
+            // while they are open) must still leave the open-menu bounds
+            // registry — release is the one hook that always runs.
+            let entity_id = cx.entity().entity_id();
+            cx.on_release(move |_, cx| {
+                if cx.has_global::<GlobalState>() {
+                    GlobalState::global_mut(cx).remove_menu_bounds(entity_id);
+                }
+            })
+            .detach();
             let menu = f(Self::new(cx), window, cx);
             // Wire parent_menu on any submenu children that were added via
             // the PopupMenuItem::submenu(label, entity) data constructor —
@@ -1007,6 +1017,8 @@ impl PopupMenu {
     /// Internal dismiss: emits DismissEvent and propagates up the parent chain.
     /// Used by `confirm` (item click) and `handle_dismiss` (click-outside).
     fn dismiss_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let entity_id = cx.entity().entity_id();
+        GlobalState::global_mut(cx).remove_menu_bounds(entity_id);
         cx.emit(DismissEvent);
 
         // Focus back to the previous focused handle.
@@ -1419,7 +1431,13 @@ impl Render for PopupMenu {
                             .filter(|(ix, item)| !(*ix + 1 == items_count && item.is_separator()))
                             .map(|(ix, item)| self.render_item(ix, item, options, window, cx)),
                     )
-                    .on_prepaint(move |bounds, _, cx| view.update(cx, |r, _| r.bounds = bounds)),
+                    .on_prepaint(move |bounds, _, cx| {
+                        view.update(cx, |r, _| r.bounds = bounds);
+                        // Keep the open-menu registry current so a Popover's
+                        // mouse-down-out can tell a press inside this menu
+                        // from a genuine outside click.
+                        GlobalState::global_mut(cx).update_menu_bounds(view.entity_id(), bounds);
+                    }),
             )
             .when(self.scrollable, |this| {
                 // TODO: When the menu is limited by `overflow_y_scroll`, the sub-menu will cannot be displayed.

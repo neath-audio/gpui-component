@@ -484,7 +484,17 @@ impl RenderOnce for Popover {
                 .when(self.overlay_closable, |this| {
                     this.on_mouse_down_out({
                         let state = state.clone();
-                        move |_, window, cx| {
+                        move |e, window, cx| {
+                            // A press inside an open PopupMenu belongs to the
+                            // menu — it may be this popover's own deferred
+                            // descendant painted OUTSIDE these bounds (a row's
+                            // dropdown). Dismissing here would unmount the menu
+                            // before its item click can fire on mouse-up.
+                            // Mirrors PopupMenu::handle_dismiss's submenu
+                            // guard, one layer up.
+                            if GlobalState::global(cx).position_in_open_menu(&e.position) {
+                                return;
+                            }
                             state.update(cx, |state, cx| {
                                 state.dismiss(window, cx);
                             });
