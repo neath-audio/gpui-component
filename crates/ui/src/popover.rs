@@ -1,8 +1,8 @@
 use gpui::{
-    Anchor, AnyElement, App, Bounds, Context, Deferred, DismissEvent, Div, ElementId,
-    EventEmitter, FocusHandle, Focusable, InteractiveElement as _, IntoElement, KeyBinding,
-    MouseButton, ParentElement, Pixels, Point, Render, RenderOnce, Stateful, StyleRefinement,
-    Styled, Subscription, Window, anchored, deferred, div, prelude::FluentBuilder as _, px,
+    Anchor, AnyElement, App, Bounds, Context, Deferred, DismissEvent, Div, ElementId, EventEmitter,
+    FocusHandle, Focusable, InteractiveElement as _, IntoElement, KeyBinding, MouseButton,
+    ParentElement, Pixels, Point, Render, RenderOnce, Stateful, StyleRefinement, Styled,
+    Subscription, Window, anchored, deferred, div, prelude::FluentBuilder as _, px,
 };
 use std::{cell::Cell, rc::Rc};
 
@@ -268,7 +268,6 @@ impl PopoverState {
         }
         self.set_open(opening, cx);
         if self.open {
-            let state = cx.entity();
             let focus_handle = if let Some(tracked_focus_handle) = self.tracked_focus_handle.clone()
             {
                 tracked_focus_handle
@@ -277,9 +276,15 @@ impl PopoverState {
             };
             focus_handle.focus(window, cx);
 
+            // NOTE: Do not capture a strong `cx.entity()` here. This subscription
+            // lives in `self._dismiss_subscription`, and gpui holds the closure in
+            // the App until the subscription drops — a strong self-capture forms a
+            // retain cycle that keeps an unmounted-while-open PopoverState (and
+            // its deferred-popover registration) alive forever. `Window::subscribe`
+            // already hands the closure the emitter upgraded from a weak handle.
             self._dismiss_subscription =
                 Some(
-                    window.subscribe(&cx.entity(), cx, move |_, _: &DismissEvent, window, cx| {
+                    window.subscribe(&cx.entity(), cx, |state, _: &DismissEvent, window, cx| {
                         state.update(cx, |state, cx| {
                             state.dismiss(window, cx);
                         });
@@ -367,6 +372,17 @@ impl RenderOnce for Popover {
         let default_open = self.default_open;
         let tracked_focus_handle = self.tracked_focus_handle.clone();
         let state = window.use_keyed_state(self.id.clone(), cx, |_, cx| {
+            // The deferred-popover registry keys on this state's own focus
+            // handle, and `set_open(false)` (the only unregister call) runs only
+            // while this element renders. An element that unmounts while open —
+            // a gated trigger vanishing, a render branch that stops building it —
+            // never renders again with this state, so unregister on release or
+            // the stale key would suppress native context menus app-wide for the
+            // rest of the session (see `GlobalState::is_in_deferred_context`).
+            cx.on_release(|state: &mut PopoverState, cx| {
+                GlobalState::global_mut(cx).unregister_deferred_popover(&state.focus_handle);
+            })
+            .detach();
             PopoverState::new(default_open, cx)
         });
 
@@ -376,7 +392,25 @@ impl RenderOnce for Popover {
             }
             state.on_open_change = self.on_open_change.clone();
             if let Some(force_open) = force_open {
+                let was_open = state.open;
                 state.set_open(force_open, cx);
+                // A controlled close must perform the same cleanup as
+                // `toggle_open`'s closing branch: drop the dismiss subscription
+                // and restore the pre-open focus. Gated on the actual
+                // open→closed transition — the controlled `set_open` above runs
+                // on EVERY render of a controlled popover. The `contains_focused`
+                // guard (against the previous rendered frame, where the popover
+                // content is still present) ensures focus is only restored when
+                // it still sits inside the popover, never stolen from an element
+                // the user has since focused.
+                if was_open && !force_open {
+                    state._dismiss_subscription = None;
+                    if let Some(prev) = state.previous_focus_handle.take() {
+                        if state.focus_handle.contains_focused(window, cx) {
+                            prev.focus(window, cx);
+                        }
+                    }
+                }
             }
         });
 
