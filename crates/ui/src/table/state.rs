@@ -639,6 +639,10 @@ where
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // Stop the right-click from bubbling to the table-body empty-area
+        // handler (below), which would otherwise immediately reset
+        // `right_clicked_row` back to `None` right after a real row set it.
+        cx.stop_propagation();
         self.right_clicked_row = row_ix;
         self.right_clicked_cell = None;
         cx.emit(TableEvent::RightClickedRow(row_ix));
@@ -673,6 +677,10 @@ where
             return;
         }
 
+        // Stop the click from bubbling to the table-body empty-area handler
+        // (below), which would otherwise immediately clear the selection
+        // this click just made.
+        cx.stop_propagation();
         self.set_selected_row(row_ix, cx);
 
         if e.click_count() == 2 {
@@ -2294,79 +2302,103 @@ where
                     this.children(empty_view)
                 } else {
                     this.child(
-                        h_flex().id("table-body").flex_grow_1().size_full().child(
-                            uniform_list(
-                                "table-uniform-list",
-                                render_rows_count,
-                                cx.processor(
-                                    move |table, visible_range: Range<usize>, window, cx| {
-                                        // Use `col.width` (always up-to-date) rather than
-                                        // `col.bounds.size.width`, which is only set after
-                                        // prepaint and is therefore zero on the first frame.
-                                        let col_sizes: Rc<Vec<gpui::Size<Pixels>>> = Rc::new(
-                                            table
-                                                .col_groups
-                                                .iter()
-                                                .skip(left_columns_count)
-                                                .map(|col| gpui::Size {
-                                                    width: col.width,
-                                                    height: px(0.),
-                                                })
-                                                .collect(),
-                                        );
-
-                                        table.load_more_if_need(
-                                            rows_count,
-                                            visible_range.end,
-                                            window,
-                                            cx,
-                                        );
-                                        table.update_visible_range_if_need(
-                                            visible_range.clone(),
-                                            Axis::Vertical,
-                                            window,
-                                            cx,
-                                        );
-
-                                        if visible_range.end > rows_count {
-                                            table.scroll_to_row(
-                                                std::cmp::min(
-                                                    visible_range.start,
-                                                    rows_count.saturating_sub(1),
-                                                ),
-                                                cx,
-                                            );
-                                        }
-
-                                        let mut items = Vec::with_capacity(
-                                            visible_range.end.saturating_sub(visible_range.start),
-                                        );
-
-                                        // Render fake rows to fill the table
-                                        visible_range.for_each(|row_ix| {
-                                            // Render real rows for available data
-                                            items.push(table.render_table_row(
-                                                row_ix,
-                                                rows_count,
-                                                left_columns_count,
-                                                col_sizes.clone(),
-                                                columns_count,
-                                                is_filled,
-                                                window,
-                                                cx,
-                                            ));
-                                        });
-
-                                        items
-                                    },
-                                ),
-                            )
+                        h_flex()
+                            .id("table-body")
                             .flex_grow_1()
                             .size_full()
-                            .with_sizing_behavior(ListSizingBehavior::Auto)
-                            .track_scroll(&self.vertical_scroll_handle)
-                            .into_any_element(),
-                        ),
+                            // Empty-area clicks: real rows claim their own
+                            // clicks and `cx.stop_propagation()` before they
+                            // bubble here (see `on_row_right_click` /
+                            // `on_row_left_click`), so anything that reaches
+                            // this handler landed below the last row (or on
+                            // a non-interactive fake/fill row) — i.e. empty
+                            // table space.
+                            .on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(|table, e, window, cx| {
+                                    table.on_row_right_click(e, None, window, cx);
+                                }),
+                            )
+                            .on_click(cx.listener(|table, _, _, cx| {
+                                if table.has_selection() {
+                                    table.clear_selection(cx);
+                                }
+                            }))
+                            .child(
+                                uniform_list(
+                                    "table-uniform-list",
+                                    render_rows_count,
+                                    cx.processor(
+                                        move |table, visible_range: Range<usize>, window, cx| {
+                                            // Use `col.width` (always up-to-date) rather than
+                                            // `col.bounds.size.width`, which is only set after
+                                            // prepaint and is therefore zero on the first frame.
+                                            let col_sizes: Rc<Vec<gpui::Size<Pixels>>> = Rc::new(
+                                                table
+                                                    .col_groups
+                                                    .iter()
+                                                    .skip(left_columns_count)
+                                                    .map(|col| gpui::Size {
+                                                        width: col.width,
+                                                        height: px(0.),
+                                                    })
+                                                    .collect(),
+                                            );
+
+                                            table.load_more_if_need(
+                                                rows_count,
+                                                visible_range.end,
+                                                window,
+                                                cx,
+                                            );
+                                            table.update_visible_range_if_need(
+                                                visible_range.clone(),
+                                                Axis::Vertical,
+                                                window,
+                                                cx,
+                                            );
+
+                                            if visible_range.end > rows_count {
+                                                table.scroll_to_row(
+                                                    std::cmp::min(
+                                                        visible_range.start,
+                                                        rows_count.saturating_sub(1),
+                                                    ),
+                                                    cx,
+                                                );
+                                            }
+
+                                            let mut items = Vec::with_capacity(
+                                                visible_range
+                                                    .end
+                                                    .saturating_sub(visible_range.start),
+                                            );
+
+                                            // Render fake rows to fill the table
+                                            visible_range.for_each(|row_ix| {
+                                                // Render real rows for available data
+                                                items.push(table.render_table_row(
+                                                    row_ix,
+                                                    rows_count,
+                                                    left_columns_count,
+                                                    col_sizes.clone(),
+                                                    columns_count,
+                                                    is_filled,
+                                                    window,
+                                                    cx,
+                                                ));
+                                            });
+
+                                            items
+                                        },
+                                    ),
+                                )
+                                .flex_grow_1()
+                                .size_full()
+                                .with_sizing_behavior(ListSizingBehavior::Auto)
+                                .track_scroll(&self.vertical_scroll_handle)
+                                .into_any_element(),
+                            ),
                     )
                 }
             });
@@ -2406,5 +2438,115 @@ where
                         ),
                 )
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::{App, Entity, Modifiers, TestAppContext, VisualTestContext, point};
+
+    /// Minimal delegate: 1 column, `rows` rows, no context menus configured
+    /// (not needed — these tests only exercise `right_clicked_row` /
+    /// `selected_row` state, not the popup itself).
+    struct TestDelegate {
+        rows: usize,
+    }
+
+    impl TableDelegate for TestDelegate {
+        fn columns_count(&self, _cx: &App) -> usize {
+            1
+        }
+
+        fn rows_count(&self, _cx: &App) -> usize {
+            self.rows
+        }
+
+        fn column(&self, _col_ix: usize, _cx: &App) -> Column {
+            Column::new("col", "Col")
+        }
+
+        fn render_td(
+            &mut self,
+            row_ix: usize,
+            _col_ix: usize,
+            _window: &mut Window,
+            _cx: &mut Context<TableState<Self>>,
+        ) -> impl IntoElement {
+            div().child(format!("row {row_ix}"))
+        }
+    }
+
+    struct TestRoot {
+        table: Entity<TableState<TestDelegate>>,
+    }
+
+    impl TestRoot {
+        fn new(rows: usize, window: &mut Window, cx: &mut Context<Self>) -> Self {
+            let table = cx.new(|cx| TableState::new(TestDelegate { rows }, window, cx));
+            Self { table }
+        }
+    }
+
+    impl Render for TestRoot {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            // Tall enough that, with only 3 rows at the default row height,
+            // there is plenty of empty table area below the last row.
+            div().w(px(300.)).h(px(400.)).child(self.table.clone())
+        }
+    }
+
+    /// Below the last of 3 default-height rows, but still well within the
+    /// 400px-tall table body — i.e. the "empty area" that reproduces the bug.
+    fn empty_area_point() -> Point<Pixels> {
+        point(px(10.), px(350.))
+    }
+
+    /// Inside the first row.
+    fn row_0_point() -> Point<Pixels> {
+        point(px(10.), px(48.))
+    }
+
+    #[gpui::test]
+    fn right_click_on_empty_area_clears_right_clicked_row(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| TestRoot::new(3, window, cx));
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+
+        // Right-click a real row sets `right_clicked_row`.
+        cx.simulate_mouse_down(row_0_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), Some(0));
+
+        // Right-click on empty table area (below the last row) must clear
+        // it — otherwise the routing closure in `render` keeps showing the
+        // row's `context_menu` instead of `context_menu_empty`.
+        cx.simulate_mouse_down(empty_area_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), None);
+    }
+
+    #[gpui::test]
+    fn left_click_on_empty_area_clears_selection(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| TestRoot::new(3, window, cx));
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+
+        // Left-click a real row selects it.
+        cx.simulate_click(row_0_point(), Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.selected_row()), Some(0));
+
+        // Left-click on empty table area must clear the selection — rows
+        // can otherwise never be deselected by clicking empty space.
+        cx.simulate_click(empty_area_point(), Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.selected_row()), None);
     }
 }
