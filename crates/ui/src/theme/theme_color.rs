@@ -342,6 +342,22 @@ pub struct ThemeColor {
     pub cyan: Hsla,
     /// The base cyan light color.
     pub cyan_light: Hsla,
+
+    /// Sunken elevation surface override. Derived from `background` when None.
+    #[serde(default)]
+    pub elevation_sunken: Option<Hsla>,
+    /// Raised elevation surface override. Derived from `background` when None.
+    #[serde(default)]
+    pub elevation_raised: Option<Hsla>,
+    /// Overlay elevation surface override. Derived from `background` when None.
+    #[serde(default)]
+    pub elevation_overlay: Option<Hsla>,
+    /// Hairline border color. Derived from `border` when None.
+    #[serde(default)]
+    pub hairline: Option<Hsla>,
+    /// Strong hairline border color. Derived from `border` when None.
+    #[serde(default)]
+    pub hairline_strong: Option<Hsla>,
 }
 
 macro_rules! define_theme_tokens {

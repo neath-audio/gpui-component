@@ -1,8 +1,7 @@
 use crate::{ColorName, Sizable, Size, StyledExt, theme::ActiveTheme as _};
 use gpui::{
     AbsoluteLength, AnyElement, App, Hsla, InteractiveElement as _, IntoElement, ParentElement,
-    RenderOnce, StyleRefinement, Styled, Window, div, prelude::FluentBuilder as _, relative, rems,
-    transparent_white,
+    RenderOnce, StyleRefinement, Styled, Window, div, relative, rems, transparent_white,
 };
 
 /// The variant of the Tag.
@@ -240,24 +239,28 @@ impl RenderOnce for Tag {
         };
         let fg = self.variant.fg(self.outline, cx);
         let border = self.variant.border(cx);
+        // Radius stays keyed off the theme token (controller exception, not a
+        // metrics().radius consumer), scaled by the same compact/default
+        // split the padding below uses.
+        let compact = matches!(self.size, Size::XXSmall | Size::XSmall | Size::Small);
         let rounded = self.rounded.unwrap_or(
-            match self.size {
-                Size::XSmall | Size::Small => cx.theme().radius / 2.,
-                _ => cx.theme().radius,
+            if compact {
+                cx.theme().radius / 2.
+            } else {
+                cx.theme().radius
             }
             .into(),
         );
+        let m = self.size.metrics();
 
         div()
             .flex()
             .items_center()
             .border_1()
             .line_height(relative(1.))
-            .text_xs()
-            .map(|this| match self.size {
-                Size::XSmall | Size::Small => this.px_1p5().py_0p5(),
-                _ => this.px_2p5().py_1(),
-            })
+            .text_size(m.text)
+            .px(m.pad_x)
+            .py(m.pad_y)
             .bg(bg)
             .text_color(fg)
             .border_color(border)

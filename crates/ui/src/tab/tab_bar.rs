@@ -210,7 +210,7 @@ impl TabBar {
 
         let variant = self.variant;
         let size = self.size;
-        let inner_height = variant.inner_height(size);
+        let inner_height = variant.inner_height(size, window);
         let inner_radius = variant.inner_radius(size, cx);
 
         let indicator = div()
@@ -339,11 +339,12 @@ impl Sizable for TabBar {
 
 impl RenderOnce for TabBar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let default_gap = match self.size {
-            Size::Small | Size::XSmall => px(8.),
-            Size::Large => px(16.),
-            _ => px(12.),
-        };
+        let m = self.size.metrics();
+        let rem_size = window.rem_size();
+        // Tab-bar gap runs wider than the control-family gap ladder (tabs
+        // need more breathing room than button/input content); a uniform
+        // 2x multiple of metrics().gap reproduces the legacy scale exactly.
+        let default_gap = m.gap.to_pixels(rem_size) * 2.;
         let (bg, paddings, gap): (Background, _, _) = match self.variant {
             TabVariant::Tab => {
                 let padding = Edges::all(px(0.));
@@ -358,11 +359,10 @@ impl RenderOnce for TabBar {
                 (cx.theme().transparent.into(), padding, px(4.))
             }
             TabVariant::Segmented => {
-                let padding_x = match self.size {
-                    Size::XSmall => px(2.),
-                    Size::Small => px(3.),
-                    _ => px(4.),
-                };
+                // Segmented's outer inset tracks metrics().pad_y (the ladder's
+                // vertical-rhythm field), not pad_x — the segmented pill sits
+                // close to the bar's edge.
+                let padding_x = m.pad_y.to_pixels(rem_size);
                 let padding = Edges {
                     left: padding_x,
                     right: padding_x,
@@ -372,13 +372,13 @@ impl RenderOnce for TabBar {
                 (cx.theme().tokens.tab_bar_segmented.into(), padding, px(2.))
             }
             TabVariant::Underline => {
-                // This gap is same as the tab inner_paddings
-                let gap = match self.size {
-                    Size::XSmall => px(10.),
-                    Size::Small => px(12.),
-                    Size::Large => px(20.),
-                    _ => px(16.),
-                };
+                // Derives from metrics().pad_x + metrics().gap (not an
+                // independent per-size table): 12/14/16/16px at
+                // XSmall/Small/Medium/Large under the Nova ladder (Medium and
+                // Large land on the same value since pad_x and gap both
+                // plateau above Small — docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
+                // neath repo).
+                let gap = m.pad_x.to_pixels(rem_size) + m.gap.to_pixels(rem_size);
 
                 (cx.theme().transparent.into(), Edges::all(px(0.)), gap)
             }

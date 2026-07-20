@@ -10,8 +10,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ActiveTheme, FocusTrapElement as _, IconName, Placement, Sizable, StyledExt as _,
-    WindowExt as _,
+    ActiveTheme, ElevationLevel, FocusTrapElement as _, IconName, Placement, Sizable,
+    StyledExt as _, WindowExt as _,
     actions::Cancel,
     button::{Button, ButtonVariants as _},
     dialog::overlay_color,
@@ -145,6 +145,13 @@ impl RenderOnce for Sheet {
             );
         let top = cx.theme().sheet.margin_top;
         let on_close = self.on_close.clone();
+        // Sheet only borders the single edge facing the window interior (the
+        // other three sit flush against a window edge), so the full
+        // `.elevation()` helper (which forces `.border_1()` on all sides)
+        // doesn't fit here — apply the surface/hairline/shadow triple by
+        // hand instead, and lift the shadow tier to shadow_4 like Dialog.
+        let elevation = cx.theme().elevation(ElevationLevel::Overlay);
+        let shadow_4 = cx.theme().shadow_4();
 
         let base_size = window.text_style().font_size;
         let rem_size = window.rem_size();
@@ -205,9 +212,9 @@ impl RenderOnce for Sheet {
                             })
                             .absolute()
                             .occlude()
-                            .bg(cx.theme().tokens.background)
-                            .border_color(cx.theme().border)
-                            .shadow_xl()
+                            .bg(elevation.surface)
+                            .border_color(elevation.hairline)
+                            .shadow(shadow_4.into_vec())
                             .refine_style(&self.style)
                             .map(|this| {
                                 // Set the size of the sheet.

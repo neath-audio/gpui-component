@@ -7,8 +7,7 @@ use gpui::{
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
-    StyleSized, StyledExt,
+    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size, StyledExt,
     actions::{Cancel, Confirm, SelectDown, SelectUp},
     global_state::GlobalState,
     h_flex,
@@ -469,11 +468,12 @@ where
         // The focused ring is appearance chrome, like the border and
         // background — `appearance(false)` callers style the trigger
         // themselves (same contract as the combobox's `trigger_unstyled()`).
-        let outline_visible = self.state.appearance
-            && (self.state.open || (is_focused && !self.state.disabled));
+        let outline_visible =
+            self.state.appearance && (self.state.open || (is_focused && !self.state.disabled));
         let popup_radius = cx.theme().radius.min(px(8.));
 
         let (bg, fg) = input_style(self.state.disabled, cx);
+        let m = self.state.size.metrics();
 
         self.state.list.update(cx, |list, cx| {
             list.set_searchable(searchable, cx);
@@ -509,8 +509,10 @@ where
                         }
                     })
                     .overflow_hidden()
-                    .input_size(self.state.size)
-                    .input_text_size(self.state.size)
+                    .px(m.pad_x)
+                    .py(m.pad_y)
+                    .h(m.height)
+                    .text_size(m.text)
                     .refine_style(&self.state.style)
                     .when(outline_visible, |this| this.focused_border(cx))
                     .when(allow_open, |this| {

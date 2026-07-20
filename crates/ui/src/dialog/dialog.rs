@@ -3,15 +3,15 @@ use std::{rc::Rc, sync::LazyLock, time::Duration};
 use gpui::{
     Animation, AnimationExt as _, AnyElement, App, Bounds, BoxShadow, ClickEvent, Edges,
     FocusHandle, Hsla, InteractiveElement, IntoElement, KeyBinding, MouseButton, ParentElement,
-    Pixels, Point, RenderOnce, Role, SharedString, StatefulInteractiveElement as _, StyleRefinement,
-    Styled, Window, WindowControlArea, actions, anchored, div, hsla, point, prelude::FluentBuilder,
-    px,
+    Pixels, Point, RenderOnce, Role, SharedString, StatefulInteractiveElement as _,
+    StyleRefinement, Styled, Window, WindowControlArea, actions, anchored, div, hsla, point,
+    prelude::FluentBuilder, px,
 };
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme as _, FocusTrapElement as _, IconName, Root, Sizable as _, StyledExt,
-    TITLE_BAR_HEIGHT, WindowExt as _,
+    ActiveTheme as _, ElevationLevel, FocusTrapElement as _, IconName, Root, Sizable as _,
+    StyledExt, TITLE_BAR_HEIGHT, WindowExt as _,
     animation::cubic_bezier,
     button::{Button, ButtonVariant, ButtonVariants as _},
     dialog::{DialogContent, DialogTitle},
@@ -534,9 +534,7 @@ impl RenderOnce for Dialog {
                             .role(self.a11y_role)
                             .track_focus(&self.focus_handle)
                             .focus_trap(format!("dialog-{}", layer_ix), &self.focus_handle)
-                            .bg(cx.theme().tokens.background)
-                            .border_1()
-                            .border_color(cx.theme().border)
+                            .elevation(ElevationLevel::Overlay, cx)
                             .rounded(cx.theme().radius_lg)
                             .min_h_24()
                             .pt(paddings.top)
@@ -649,25 +647,21 @@ impl RenderOnce for Dialog {
                                         }
                                     })
                             }))
-                            .with_animation("slide-down", animation.clone(), move |this, delta| {
-                                // This is equivalent to `shadow_xl` with an extra opacity.
-                                let shadow = vec![
-                                    BoxShadow {
-                                        color: hsla(0., 0., 0., 0.1 * delta),
-                                        offset: point(px(0.), px(20.)),
-                                        blur_radius: px(25.),
-                                        spread_radius: px(-5.),
-                                        inset: false,
-                                    },
-                                    BoxShadow {
-                                        color: hsla(0., 0., 0., 0.1 * delta),
-                                        offset: point(px(0.), px(8.)),
-                                        blur_radius: px(10.),
-                                        spread_radius: px(-6.),
-                                        inset: false,
-                                    },
-                                ];
-                                this.top(y * delta).shadow(shadow)
+                            .with_animation("slide-down", animation.clone(), {
+                                // Dialogs sit above the Overlay elevation's default shadow_3 —
+                                // fade in shadow_4, scaling each layer's opacity by `delta` so
+                                // the shadow grows in with the slide instead of popping in solid.
+                                let target_shadow = cx.theme().shadow_4();
+                                move |this, delta| {
+                                    let shadow: Vec<BoxShadow> = target_shadow
+                                        .iter()
+                                        .map(|s| BoxShadow {
+                                            color: hsla(0., 0., 0., s.color.a * delta),
+                                            ..s.clone()
+                                        })
+                                        .collect();
+                                    this.top(y * delta).shadow(shadow)
+                                }
                             })
                             .selection_scope(SelectionScope::Dialog(layer_ix)),
                     )

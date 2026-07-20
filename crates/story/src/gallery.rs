@@ -60,6 +60,7 @@ impl Gallery {
                     StoryContainer::panel::<DialogStory>(window, cx),
                     StoryContainer::panel::<DropdownButtonStory>(window, cx),
                     StoryContainer::panel::<EditorStory>(window, cx),
+                    StoryContainer::panel::<ElevationStory>(window, cx),
                     StoryContainer::panel::<FormStory>(window, cx),
                     StoryContainer::panel::<GroupBoxStory>(window, cx),
                     StoryContainer::panel::<HoverCardStory>(window, cx),

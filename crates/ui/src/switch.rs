@@ -5,7 +5,7 @@ use crate::{
 use gpui::{
     Animation, AnimationExt as _, App, Background, ElementId, Hsla, InteractiveElement,
     IntoElement, ParentElement as _, RenderOnce, SharedString, StyleRefinement, Styled, Window,
-    div, prelude::FluentBuilder as _, px,
+    div, prelude::FluentBuilder as _, px, rems,
 };
 use std::{rc::Rc, time::Duration};
 
@@ -124,15 +124,23 @@ impl RenderOnce for Switch {
             (bg, toggle_bg)
         };
 
-        let (bg_width, bg_height) = match self.size {
-            Size::XSmall | Size::Small => (px(28.), px(16.)),
-            _ => (px(36.), px(20.)),
-        };
-        let bar_width = match self.size {
-            Size::XSmall | Size::Small => px(12.),
-            _ => px(16.),
-        };
+        // NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-color-
+        // language-design.md, neath repo), user-ruled 2026-07-20 (round 2:
+        // every `Size` step must stay visually distinct — the icon-tier
+        // keying made Medium and Large identical because that column
+        // plateaus at 16). Track derives from the control-height axis at an
+        // exact 2:1 ratio: width = `metrics().height` (20/24/28/32/36),
+        // height = half that (10/12/14/16/18) — XXSmall yields 20x10
+        // automatically from the dense-tier ladder row. The thumb is the
+        // track height minus the inset ring on both sides; its travel
+        // (`max_x` below) is derived from `bg_width` at every use, so it
+        // re-derives automatically and sits flush at both ends
+        // (10/12/14/16/18px of travel).
+        let m = self.size.metrics();
+        let bg_height = rems(m.height.0 * 0.5).to_pixels(window.rem_size());
+        let bg_width = m.height.to_pixels(window.rem_size());
         let inset = px(2.);
+        let bar_width = bg_height - inset * 2.;
         let radius = if cx.theme().radius >= px(4.) {
             bg_height
         } else {
@@ -202,12 +210,7 @@ impl RenderOnce for Switch {
                         ),
                 )
                 .when_some(self.label, |this, label| {
-                    this.child(div().line_height(bg_height).child(label).map(
-                        |this| match self.size {
-                            Size::XSmall | Size::Small => this.text_sm(),
-                            _ => this.text_base(),
-                        },
-                    ))
+                    this.child(div().line_height(bg_height).text_size(m.text).child(label))
                 })
                 .when_some(
                     on_click
@@ -224,5 +227,28 @@ impl RenderOnce for Switch {
                     },
                 ),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Size;
+
+    #[test]
+    fn track_derives_2_to_1_from_control_height() {
+        // Track = metrics().height wide, half that tall (see the named
+        // exception in `render`): 20x10 / 24x12 / 28x14 / 32x16 / 36x18.
+        // Pinned at the 16px rem base the ladder is authored against.
+        for (size, w, h) in [
+            (Size::XXSmall, 20., 10.),
+            (Size::XSmall, 24., 12.),
+            (Size::Small, 28., 14.),
+            (Size::Medium, 32., 16.),
+            (Size::Large, 36., 18.),
+        ] {
+            let height = size.metrics().height.0 * 16.;
+            assert_eq!(height, w);
+            assert_eq!(height * 0.5, h);
+        }
     }
 }

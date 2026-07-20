@@ -7,8 +7,9 @@ use crate::{Side, Size, StyledExt, global_state::GlobalState, kbd::Kbd};
 use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
-    ParentElement, Pixels, Render, Role, ScrollHandle, SharedString, StatefulInteractiveElement,
-    Styled, WeakEntity, Window, anchored, div, prelude::FluentBuilder, px, rems,
+    ParentElement, Pixels, Rems, Render, Role, ScrollHandle, SharedString,
+    StatefulInteractiveElement, Styled, WeakEntity, Window, anchored, div, prelude::FluentBuilder,
+    px, rems,
 };
 use gpui::{ClickEvent, Half, MouseDownEvent, OwnedMenuItem, Point, Subscription};
 
@@ -1116,6 +1117,10 @@ impl PopupMenu {
             Icon::empty()
         };
 
+        // 12px menu glyphs — deliberately SMALLER than Nova's 16px size-4
+        // catch-all: after seeing both rendered, the user prefers the
+        // lighter 12px glyph weight (ruled 2026-07-20, superseding the
+        // brief 16px round).
         Some(icon.xsmall())
     }
 
@@ -1160,23 +1165,54 @@ impl PopupMenu {
 
         let selected = self.selected_index == Some(ix);
         const EDGE_PADDING: Pixels = px(4.);
-        const INNER_PADDING: Pixels = px(8.);
+        // Nova dropdown parity, user-ruled 2026-07-20: 6px item inset (was
+        // 8px) and 6px icon/content gap (was 4px) —
+        // docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
+        // neath repo.
+        const INNER_PADDING: Rems = rems(0.375);
+        const ICON_GAP: Rems = rems(0.375);
 
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
         let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
-        let (item_height, radius) = match self.size {
-            Size::XSmall => (px(18.), options.radius.half()),
-            Size::Small => (px(20.), options.radius.half()),
-            _ => (px(26.), options.radius),
+        // Menu rows never grow past "Medium" chrome even at Large — clamp
+        // before reading the ladder. Note this fork's `Size::max` returns the
+        // SMALLER of the two sizes (see its doc comment), so
+        // `self.size.max(Size::Medium)` clamps Large down to Medium while
+        // leaving XSmall/Small untouched — the opposite of what the method
+        // name suggests.
+        //
+        // item_height is now content-derived rather than a fixed slice of
+        // the control-height ladder: the text's own line box plus the
+        // vertical padding on both edges, matching Nova's dropdown-item
+        // recipe (`py-1 text-sm` -> 2×py-1 + line-height). The line-height
+        // is Tailwind's text-sm ratio (1.25rem line / 0.875rem font =
+        // 10/7), applied to each tier's own `metrics().text` so smaller
+        // Size tiers still get smaller rows. At Medium/default (0.875rem
+        // text, 0.25rem pad_y) this resolves to 20px + 2×4px = 28px.
+        // Preserves the old "never grow past Medium" clamp semantics
+        // (docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
+        // neath repo).
+        const TEXT_LINE_RATIO: f32 = 10. / 7.;
+        let clamped = self.size.max(Size::Medium);
+        let metrics = clamped.metrics();
+        let rem_size = window.rem_size();
+        let text_line = metrics.text.to_pixels(rem_size) * TEXT_LINE_RATIO;
+        let item_height = text_line + metrics.pad_y.to_pixels(rem_size) * 2.;
+        // Radius stays keyed off the popover's own radius (controller
+        // exception, not a metrics().radius consumer); only whether it's
+        // halved is Size-driven.
+        // Menu metrics stay Medium-clamped (dense-tier ruling 2026-07-20);
+        // only the compact-radius split learns the new tier.
+        let radius = if matches!(self.size, Size::XXSmall | Size::XSmall | Size::Small) {
+            options.radius.half()
+        } else {
+            options.radius
         };
 
         let this = MenuItemElement::new(ix, &group_name)
             .relative()
-            .map(|this| match self.size {
-                Size::XSmall => this.text_xs(),
-                _ => this.text_sm(),
-            })
+            .text_size(self.size.metrics().text)
             .py_0()
             .px(INNER_PADDING)
             .rounded(radius)
@@ -1195,23 +1231,30 @@ impl PopupMenu {
             .when_some(item.a11y_label(), |this, label| this.aria_label(label));
 
         match item {
+            // 1px hairline with 4px vertical margins at every size —
+            // measured from the live Nova preview (user-ruled 2026-07-20;
+            // the old 2px Medium/Large rule read as heavy segmentation).
             PopupMenuItem::Separator => this
                 .h_auto()
                 .p_0()
-                .my_0p5()
+                .my_1()
                 .mx_neg_1()
-                .border_b(if matches!(self.size, Size::Small | Size::XSmall) {
-                    px(1.)
-                } else {
-                    px(2.)
-                })
+                .border_b(px(1.))
                 .border_color(cx.theme().border)
                 .disabled(true),
             PopupMenuItem::Label(label) => this.disabled(true).cursor_default().child(
                 h_flex()
                     .cursor_default()
                     .items_center()
-                    .gap_x_1()
+                    // Nova group-label recipe (`px-1.5 py-1 text-xs
+                    // font-medium text-muted-foreground`): 12px medium
+                    // muted text in a 24px box (16px text-xs line + 2×4px),
+                    // user-ruled 2026-07-20.
+                    .min_h(rems(1.5))
+                    .text_size(rems(0.75))
+                    .font_medium()
+                    .text_color(cx.theme().muted_foreground)
+                    .gap_x(ICON_GAP)
                     .children(Self::render_icon(has_left_icon, false, None, window, cx))
                     .child(div().flex_1().child(label.clone())),
             ),
@@ -1232,7 +1275,7 @@ impl PopupMenu {
                         .flex_1()
                         .min_h(item_height)
                         .items_center()
-                        .gap_x_1()
+                        .gap_x(ICON_GAP)
                         .children(Self::render_icon(
                             has_left_icon,
                             is_left_check,
@@ -1261,8 +1304,12 @@ impl PopupMenu {
                     )
                 })
                 .disabled(*disabled)
+                // Hard height, not min: standard action rows are single-line
+                // and must not stretch when a child (kbd badge, icon) is
+                // taller than the text line (user-ruled 2026-07-20, Nova
+                // 28px rows). Custom/element and submenu arms keep `min_h`.
                 .h(item_height)
-                .gap_x_1()
+                .gap_x(ICON_GAP)
                 .children(Self::render_icon(
                     has_left_icon,
                     is_left_check,
@@ -1309,7 +1356,7 @@ impl PopupMenu {
                         .min_h(item_height)
                         .size_full()
                         .items_center()
-                        .gap_x_1()
+                        .gap_x(ICON_GAP)
                         .children(Self::render_icon(
                             has_left_icon,
                             false,
@@ -1390,7 +1437,15 @@ impl Render for PopupMenu {
         let options = RenderOptions {
             has_left_icon,
             check_side: self.check_side,
-            radius: cx.theme().radius.min(px(8.)),
+            // Nova dropdown-item rounding, user-ruled 2026-07-20:
+            // `theme.radius - 2px`, floored at 0 — at the default 10px
+            // theme radius this is 8px. Computed directly rather than via
+            // `Size::control_radius`'s Small tier: that method also caps at
+            // 12px for buttons/toggles, a button-specific ceiling that has
+            // no bearing on menu-row rounding
+            // (docs/superpowers/specs/2026-07-19-depth-color-language-
+            // design.md, neath repo).
+            radius: (cx.theme().radius - px(2.)).max(px(0.)),
         };
 
         v_flex()
@@ -1414,7 +1469,9 @@ impl Render for PopupMenu {
                 v_flex()
                     .id("items")
                     .p_1()
-                    .gap_y_0p5()
+                    // No inter-item gap — the measured Nova tray stacks rows
+                    // flush (user-ruled 2026-07-20; the old 2px gap_y_0p5
+                    // added ~24px of air across a 13-row menu).
                     .min_w(rems(8.))
                     .when_some(self.min_width, |this, min_width| this.min_w(min_width))
                     .max_w(max_width)

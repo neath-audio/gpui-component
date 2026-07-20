@@ -2,7 +2,7 @@ use gpui::{
     AnyElement, App, AppContext as _, Context, Empty, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, ParentElement as _,
     Render, RenderOnce, SharedString, Styled as _, Subscription, Window, div,
-    prelude::FluentBuilder, px,
+    prelude::FluentBuilder,
 };
 
 use super::{InputEvent, blink_cursor::BlinkCursor, input::input_style, state::InputState};
@@ -277,13 +277,8 @@ impl RenderOnce for OtpInput {
         let blink_show = state.blink_cursor.read(cx).visible();
         let is_focused = state.focus_handle.is_focused(window);
 
-        let text_size = match self.size {
-            Size::XSmall => px(14.),
-            Size::Small => px(14.),
-            Size::Medium => px(16.),
-            Size::Large => px(18.),
-            Size::Size(v) => v * 0.5,
-        };
+        let m = self.size.metrics();
+        let text_size = m.text;
 
         let cursor_ix = state
             .value
@@ -321,13 +316,8 @@ impl RenderOnce for OtpInput {
                     .justify_center()
                     .rounded(cx.theme().radius)
                     .text_size(text_size)
-                    .map(|this| match self.size {
-                        Size::XSmall => this.w_6().h_6(),
-                        Size::Small => this.w_6().h_6(),
-                        Size::Medium => this.w_8().h_8(),
-                        Size::Large => this.w_11().h_11(),
-                        Size::Size(px) => this.w(px).h(px),
-                    })
+                    .w(m.height)
+                    .h(m.height)
                     .on_mouse_down(
                         MouseButton::Left,
                         window.listener_for(&self.state, OtpState::on_input_mouse_down),
@@ -341,7 +331,7 @@ impl RenderOnce for OtpInput {
                                         .when(self.disabled, |this| {
                                             this.text_color(cx.theme().muted_foreground)
                                         })
-                                        .with_size(text_size),
+                                        .with_size(text_size.to_pixels(window.rem_size())),
                                 )
                             } else {
                                 this.child(c.to_string())

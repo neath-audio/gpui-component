@@ -1,6 +1,6 @@
 use gpui::{
     App, Axis, IntoElement, ParentElement, Pixels, Rems, RenderOnce, StyleRefinement, Styled,
-    Window, px,
+    Window, rems,
 };
 
 use crate::{
@@ -92,15 +92,11 @@ impl RenderOnce for Form {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let props = self.props;
 
-        let gap = match props.size {
-            Size::XSmall | Size::Small => px(6.),
-            Size::Large => px(12.),
-            _ => px(8.),
-        };
+        let gap = props.size.metrics().gap;
 
         v_flex()
             .w_full()
-            .gap_x(gap * 3.)
+            .gap_x(rems(gap.0 * 3.))
             .gap_y(gap)
             .grid()
             .grid_cols(props.columns as u16)

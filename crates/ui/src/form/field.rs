@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use gpui::{
-    AlignItems, AnyElement, AnyView, App, Axis, Div, ElementId, InteractiveElement as _,
+    AlignItems, AnyElement, AnyView, App, Axis, Div, ElementId, Half, InteractiveElement as _,
     IntoElement, ParentElement, Pixels, Rems, RenderOnce, SharedString, StyleRefinement, Styled,
     Window, div, prelude::FluentBuilder as _, px,
 };
@@ -258,20 +258,16 @@ impl RenderOnce for Field {
             div().when_some(label_width, |this, width| this.w(width).flex_shrink_0())
         }
 
-        let gap = match self.props.size {
-            Size::Large => px(8.),
-            Size::XSmall | Size::Small => px(4.),
-            _ => px(4.),
-        };
+        let gap = self.props.size.metrics().gap;
         let inner_gap = if layout.is_horizontal() {
             gap
         } else {
-            gap / 2.
+            gap.half()
         };
 
         v_flex()
             .flex_1()
-            .gap(gap / 2.)
+            .gap(gap.half())
             .col_span(self.col_span)
             .when_some(self.col_start, |this, start| this.col_start(start))
             .when_some(self.col_end, |this, end| this.col_end(end))

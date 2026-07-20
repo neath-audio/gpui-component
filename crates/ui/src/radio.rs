@@ -2,12 +2,16 @@ use std::rc::Rc;
 
 use crate::{
     ActiveTheme, AxisExt, FocusableExt as _, Sizable, Size, StyledExt,
-    checkbox::checkbox_check_icon, h_flex, text::Text, tooltip::ComponentTooltip, v_flex,
+    checkbox::{checkbox_check_icon, indicator_size},
+    h_flex,
+    text::Text,
+    tooltip::ComponentTooltip,
+    v_flex,
 };
 use gpui::{
     AnyElement, App, Axis, Div, ElementId, InteractiveElement, IntoElement, ParentElement,
     RenderOnce, Role, SharedString, StatefulInteractiveElement, StyleRefinement, Styled, Window,
-    div, prelude::FluentBuilder, px, relative, rems,
+    div, prelude::FluentBuilder, px, relative,
 };
 
 /// A Radio element.
@@ -183,31 +187,26 @@ impl RenderOnce for Radio {
             .line_height(relative(1.))
             .rounded(cx.theme().radius * 0.5)
             .focus_ring(is_focused, px(2.), window, cx)
-            .map(|this| match self.size {
-                Size::XSmall => this.text_xs(),
-                Size::Small => this.text_sm(),
-                Size::Medium => this.text_base(),
-                Size::Large => this.text_lg(),
-                _ => this,
-            })
+            .text_size(self.size.metrics().text)
             .refine_style(&self.style)
             .child(
                 div()
-                    .relative()
-                    .map(|this| match self.size {
-                        Size::XSmall => this.size_3(),
-                        Size::Small => this.size_3p5(),
-                        Size::Medium => this.size_4(),
-                        Size::Large => this.size(rems(1.125)),
-                        _ => this.size_4(),
-                    })
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    // Compressed indicator ladder (named exception in
+                    // checkbox.rs, user-ruled 2026-07-20 round 2):
+                    // 12/14/15/16/17 box, distinct at every `Size`, shared
+                    // with Checkbox; custom sizes interpolate off
+                    // metrics().height.
+                    .size(indicator_size(self.size))
                     .flex_shrink_0()
                     .rounded_full()
                     .border_1()
                     .border_color(border_color)
                     .when(cx.theme().shadow && !disabled, |this| this.shadow_xs())
                     .map(|this| match self.checked {
-                        false => this.bg(cx.theme().input_background()),
+                        false => this.bg(cx.theme().input_fill()),
                         true if disabled => this.bg(bg),
                         true => this.bg(cx.theme().tokens.primary),
                     })
@@ -384,5 +383,23 @@ impl RenderOnce for RadioGroup {
                     )
                 })),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Size, checkbox::indicator_size};
+    use gpui::rems;
+
+    #[test]
+    fn radio_shares_checkbox_indicator_ladder() {
+        // Radio's circle uses the same compressed indicator ladder as
+        // Checkbox (12/14/15/16/17px across XXSmall-Large) — pinned here so
+        // a checkbox-side retune can't silently reshape radios.
+        assert_eq!(indicator_size(Size::XXSmall), rems(0.75));
+        assert_eq!(indicator_size(Size::XSmall), rems(0.875));
+        assert_eq!(indicator_size(Size::Small), rems(0.9375));
+        assert_eq!(indicator_size(Size::Medium), rems(1.0));
+        assert_eq!(indicator_size(Size::Large), rems(1.0625));
     }
 }

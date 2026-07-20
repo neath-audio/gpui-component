@@ -14,7 +14,8 @@ use gpui::{
 };
 
 use crate::{
-    ActiveTheme as _, Edges, Icon, IconName, Sizable as _, StyledExt, TITLE_BAR_HEIGHT,
+    ActiveTheme as _, Edges, ElevationLevel, Icon, IconName, Sizable as _, StyledExt,
+    TITLE_BAR_HEIGHT,
     animation::cubic_bezier,
     button::{Button, ButtonVariants as _},
     h_flex, v_flex,
@@ -315,11 +316,18 @@ impl Render for Notification {
             .occlude()
             .relative()
             .w_112()
-            .border_1()
-            .border_color(cx.theme().border)
-            .bg(cx.theme().tokens.popover)
+            .elevation(ElevationLevel::Overlay, cx)
+            // Toast shadow measured from shadcn's sonner (2026-07-20):
+            // a single `0 4px 12px @ 10%` layer — overrides the Overlay
+            // default (shadow-md) with the exact measured value.
+            .shadow(vec![gpui::BoxShadow {
+                color: gpui::hsla(0., 0., 0., 0.10),
+                offset: gpui::point(gpui::px(0.), gpui::px(4.)),
+                blur_radius: gpui::px(12.),
+                spread_radius: gpui::px(0.),
+                inset: false,
+            }])
             .rounded(cx.theme().radius_lg)
-            .shadow_md()
             .py_3p5()
             .px_4()
             .gap_3()

@@ -59,10 +59,12 @@ pub struct ThemeConfig {
     #[serde(rename = "mono_font.size")]
     pub mono_font_size: Option<f32>,
 
-    /// The border radius for general elements, default is 6.
+    /// The border radius for general elements, default is 10 (shadcn Nova
+    /// parity, user-ruled 2026-07-20).
     #[serde(rename = "radius")]
     pub radius: Option<usize>,
-    /// The border radius for large elements like Dialogs and Notifications, default is 8.
+    /// The border radius for large elements like Dialogs and Notifications,
+    /// default is 14 (shadcn Nova parity, user-ruled 2026-07-20).
     #[serde(rename = "radius.lg")]
     pub radius_lg: Option<usize>,
     /// Set shadows in the theme, for example the Input and Button, default is true.
@@ -471,6 +473,22 @@ pub struct ThemeConfigColors {
     #[serde(rename = "window.border")]
     pub window_border: Option<SharedString>,
 
+    /// Sunken elevation surface override. Derived from `background` when absent.
+    #[serde(rename = "elevation.sunken")]
+    pub elevation_sunken: Option<SharedString>,
+    /// Raised elevation surface override. Derived from `background` when absent.
+    #[serde(rename = "elevation.raised")]
+    pub elevation_raised: Option<SharedString>,
+    /// Overlay elevation surface override. Derived from `background` when absent.
+    #[serde(rename = "elevation.overlay")]
+    pub elevation_overlay: Option<SharedString>,
+    /// Hairline border color. Derived from `border` when absent.
+    #[serde(rename = "hairline")]
+    pub hairline: Option<SharedString>,
+    /// Strong hairline border color. Derived from `border` when absent.
+    #[serde(rename = "hairline.strong")]
+    pub hairline_strong: Option<SharedString>,
+
     /// Base blue color.
     #[serde(rename = "base.blue")]
     blue: Option<String>,
@@ -614,9 +632,12 @@ impl ThemeColor {
             fallback = self.muted.blend(self.foreground.opacity(0.7))
         );
 
-        // Button colors
-        let active_darken = if config.mode.is_dark() { 0.2 } else { 0.1 };
+        // Button colors. Pressed-state fallbacks mix toward black in OKLab
+        // (perceptually even step; chroma recedes with lightness) instead of
+        // the old HSL-lightness multiply, which stepped unevenly across hues.
+        let active_mix = if config.mode.is_dark() { 0.2 } else { 0.1 };
         let hover_opacity = 0.9;
+        let black = gpui::black();
         let transparent = gpui::transparent_black();
         let button_background = if config.mode.is_dark() {
             self.input.mix_oklab(transparent, 0.3)
@@ -641,7 +662,7 @@ impl ThemeColor {
         );
         apply_background_color!(
             primary_active,
-            fallback = self.primary.darken(active_darken)
+            fallback = self.primary.mix_oklab(black, active_mix)
         );
         apply_background_color!(button_primary, fallback = tokens.primary);
         apply_color!(
@@ -658,7 +679,7 @@ impl ThemeColor {
         );
         apply_background_color!(
             secondary_active,
-            fallback = self.secondary.darken(active_darken)
+            fallback = self.secondary.mix_oklab(black, active_mix)
         );
         apply_background_color!(button_secondary, fallback = tokens.secondary);
         apply_color!(
@@ -675,7 +696,7 @@ impl ThemeColor {
         );
         apply_background_color!(
             success_active,
-            fallback = self.success.darken(active_darken)
+            fallback = self.success.mix_oklab(black, active_mix)
         );
         apply_background_color!(
             button_success,
@@ -696,7 +717,10 @@ impl ThemeColor {
             info_hover,
             fallback = self.background.blend(self.info.opacity(hover_opacity))
         );
-        apply_background_color!(info_active, fallback = self.info.darken(active_darken));
+        apply_background_color!(
+            info_active,
+            fallback = self.info.mix_oklab(black, active_mix)
+        );
         apply_background_color!(
             button_info,
             fallback = self.info.mix_oklab(transparent, 0.2)
@@ -718,7 +742,9 @@ impl ThemeColor {
         );
         apply_background_color!(
             warning_active,
-            fallback = self.background.blend(self.warning.darken(active_darken))
+            // The old `background.blend(..)` wrapper was a no-op over the
+            // opaque darkened color; dropped to match the sibling arms.
+            fallback = self.warning.mix_oklab(black, active_mix)
         );
         apply_background_color!(
             button_warning,
@@ -758,7 +784,10 @@ impl ThemeColor {
         apply_color!(chart_bullish, fallback = self.green);
         apply_color!(chart_bearish, fallback = self.red);
         apply_background_color!(danger, fallback = self.red);
-        apply_background_color!(danger_active, fallback = self.danger.darken(active_darken));
+        apply_background_color!(
+            danger_active,
+            fallback = self.danger.mix_oklab(black, active_mix)
+        );
         apply_color!(danger_foreground, fallback = self.primary_foreground);
         apply_background_color!(
             danger_hover,
@@ -851,6 +880,26 @@ impl ThemeColor {
         apply_background_color!(tiles, fallback = tokens.background);
         apply_background_color!(overlay);
         apply_color!(window_border, fallback = self.border);
+
+        // Elevation overrides (`Option<Hsla>`): parsed when present, otherwise
+        // left `None` so `Theme::elevation` derives the surface/hairline from
+        // this theme's own `background`/`border` (mode-aware). Not folded into
+        // the `apply_color!`/`ThemeTokens` machinery because those operate on
+        // plain `Hsla` fields; these are optional overrides read directly by
+        // the elevation resolver.
+        macro_rules! apply_optional_color {
+            ($config_field:ident) => {
+                self.$config_field = colors
+                    .$config_field
+                    .as_deref()
+                    .and_then(|value| try_parse_color(value).ok());
+            };
+        }
+        apply_optional_color!(elevation_sunken);
+        apply_optional_color!(elevation_raised);
+        apply_optional_color!(elevation_overlay);
+        apply_optional_color!(hairline);
+        apply_optional_color!(hairline_strong);
 
         // TODO: Apply default fallback colors to highlight.
 

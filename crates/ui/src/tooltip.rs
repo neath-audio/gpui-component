@@ -9,7 +9,7 @@ use gpui::{
 };
 
 use crate::{
-    ActiveTheme, StyledExt,
+    ActiveTheme, ElevationLevel, StyledExt,
     animation::{Transition, ease_in_out_cubic, ease_out_cubic},
     global_state::GlobalState,
     h_flex,
@@ -36,6 +36,7 @@ pub struct Tooltip {
     content: TooltipContext,
     key_binding: Option<Kbd>,
     action: Option<(Box<dyn Action>, Option<SharedString>)>,
+    overlay_anchored: bool,
 }
 
 impl Tooltip {
@@ -46,7 +47,22 @@ impl Tooltip {
             content: TooltipContext::Text(text.into()),
             key_binding: None,
             action: None,
+            overlay_anchored: false,
         }
+    }
+
+    /// Mark this tooltip as rendered by the managed [`TooltipOverlay`], which
+    /// anchors and gaps the bubble itself (`ANCHOR_GAP`). The bubble then
+    /// carries NO outer margin: the overlay positions against the measured
+    /// element box, and a margin makes the painted bubble disagree with that
+    /// box (the tooltip-covers-trigger bug, 2026-07-21 — margin semantics in
+    /// the layout engine shifted under the gpui pin bump). Builders passed to
+    /// [`ManagedTooltipExt::managed_tooltip`] MUST set this; the native
+    /// mouse-anchored `.tooltip()` path keeps the default margin for cursor
+    /// clearance.
+    pub fn overlay_anchored(mut self) -> Self {
+        self.overlay_anchored = true;
+        self
     }
 
     /// Create a Tooltip with a custom element.
@@ -62,6 +78,7 @@ impl Tooltip {
             content: TooltipContext::Element(Box::new(move |window, cx| {
                 builder(window, cx).into_any_element()
             })),
+            overlay_anchored: false,
         }
     }
 
@@ -109,13 +126,14 @@ impl Render for Tooltip {
             // Wrap in a child, to ensure the left margin is applied to the tooltip
             h_flex()
                 .font_family(cx.theme().font_family.clone())
-                .m_3()
-                .bg(cx.theme().tokens.popover)
+                // Overlay-anchored bubbles are margin-free: the overlay
+                // positioner owns the trigger gap (`ANCHOR_GAP`) and measures
+                // the element box — an outer margin here would make the
+                // painted bubble disagree with the measured box. The native
+                // mouse-anchored path keeps the margin as cursor clearance.
+                .when(!self.overlay_anchored, |this| this.m_3())
+                .elevation(ElevationLevel::Overlay, cx)
                 .text_color(cx.theme().popover_foreground)
-                .bg(cx.theme().tokens.popover)
-                .border_1()
-                .border_color(cx.theme().border)
-                .shadow_md()
                 .rounded(px(6.))
                 .justify_between()
                 .py_0p5()
@@ -153,6 +171,10 @@ const ENTER_DURATION: Duration = Duration::from_millis(150);
 /// Duration of the position-slide animation when switching tooltips.
 const SLIDE_DURATION: Duration = Duration::from_millis(200);
 const TOOLTIP_WINDOW_MARGIN: Pixels = px(4.);
+/// Gap between the trigger edge and the bubble. Owned by the POSITIONER —
+/// never by a margin on the bubble view, which would desynchronize the
+/// painted bubble from the measured box (see `Tooltip::overlay_anchored`).
+const ANCHOR_GAP: Pixels = px(12.);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum TooltipPlacement {
@@ -174,10 +196,16 @@ fn tooltip_overlay_position(
 ) -> TooltipOverlayPosition {
     let centered_x = trigger_bounds.center().x - tooltip_size.width.half();
     let above_bounds = Bounds::new(
-        point(centered_x, trigger_bounds.top() - tooltip_size.height),
+        point(
+            centered_x,
+            trigger_bounds.top() - tooltip_size.height - ANCHOR_GAP,
+        ),
         tooltip_size,
     );
-    let below_bounds = Bounds::new(point(centered_x, trigger_bounds.bottom()), tooltip_size);
+    let below_bounds = Bounds::new(
+        point(centered_x, trigger_bounds.bottom() + ANCHOR_GAP),
+        tooltip_size,
+    );
 
     let bottom_limit = (viewport_size.height - margin).max(margin);
     let available_above = (trigger_bounds.top() - margin).max(px(0.));
@@ -225,7 +253,11 @@ fn clamp_tooltip_bounds(
 }
 
 struct TooltipOverlayPositioner {
-    trigger_bounds: Bounds<Pixels>,
+    /// Live cell refreshed by the trigger's prepaint — read fresh in THIS
+    /// element's prepaint each frame, so the bubble tracks a trigger that
+    /// reflows while the tooltip is visible (or between hover and the
+    /// delayed show).
+    trigger_bounds: Rc<Cell<Bounds<Pixels>>>,
     children: Vec<AnyElement>,
 }
 
@@ -233,7 +265,9 @@ struct TooltipOverlayPositionerState {
     child_layout_ids: Vec<LayoutId>,
 }
 
-fn tooltip_overlay_positioner(trigger_bounds: Bounds<Pixels>) -> TooltipOverlayPositioner {
+fn tooltip_overlay_positioner(
+    trigger_bounds: Rc<Cell<Bounds<Pixels>>>,
+) -> TooltipOverlayPositioner {
     TooltipOverlayPositioner {
         trigger_bounds,
         children: Vec::new(),
@@ -311,7 +345,7 @@ impl Element for TooltipOverlayPositioner {
         let tooltip_size: Size<Pixels> = (child_max - child_min).into();
         let client_inset = window.client_inset().unwrap_or(px(0.));
         let tooltip_position = tooltip_overlay_position(
-            self.trigger_bounds,
+            self.trigger_bounds.get(),
             tooltip_size,
             window.viewport_size(),
             TOOLTIP_WINDOW_MARGIN + client_inset,
@@ -352,10 +386,17 @@ impl IntoElement for TooltipOverlayPositioner {
 }
 
 /// Content for a managed tooltip.
+///
+/// `trigger_bounds` is the LIVE cell the trigger refreshes on every prepaint
+/// (see [`ManagedTooltipExt::managed_tooltip`]) — never a copied snapshot.
+/// The show path may fire up to `SHOW_DELAY` after hover-enter, and browse
+/// headers reflow asynchronously in that window; positioning against a
+/// frozen copy painted the bubble where the trigger USED to be (covering
+/// the moved control — user report 2026-07-21).
 #[derive(Clone)]
 pub(crate) struct TooltipContent {
     pub build: Rc<dyn Fn(&mut Window, &mut App) -> AnyView>,
-    pub trigger_bounds: Bounds<Pixels>,
+    pub trigger_bounds: Rc<Cell<Bounds<Pixels>>>,
 }
 
 /// Manages tooltip lifecycle: delay, grace period, animations, and rendering.
@@ -416,8 +457,10 @@ impl TooltipOverlay {
         let in_grace = self.had_recent_tooltip;
 
         if was_visible || in_grace {
-            // Switch: show immediately with slide animation
-            self.prev_trigger_bounds = self.content.as_ref().map(|c| c.trigger_bounds);
+            // Switch: show immediately with slide animation. The previous
+            // bounds are snapshotted (`.get()`) — only the ACTIVE tooltip
+            // tracks its trigger live.
+            self.prev_trigger_bounds = self.content.as_ref().map(|c| c.trigger_bounds.get());
             self.content = Some(content);
             self._show_task = None;
             self.is_switching = was_visible;
@@ -537,13 +580,17 @@ impl Render for TooltipOverlay {
         }
 
         let content_view = (content.build)(window, cx);
-        let trigger_bounds = content.trigger_bounds;
+        // Live cell for the positioner (re-read every prepaint, so the
+        // bubble tracks a trigger that reflows while visible); a `.get()`
+        // snapshot only for the slide-animation math below.
+        let trigger_bounds_cell = content.trigger_bounds.clone();
+        let trigger_bounds = content.trigger_bounds.get();
         let animation_epoch = self.animation_epoch;
         let is_switching = self.is_switching;
         let prev_trigger_bounds = self.prev_trigger_bounds;
 
         root.child(
-            deferred(tooltip_overlay_positioner(trigger_bounds).child(
+            deferred(tooltip_overlay_positioner(trigger_bounds_cell).child(
                 div().child(content_view).map(|el| {
                     if is_switching {
                         let Some(prev_bounds) = prev_trigger_bounds else {
@@ -618,6 +665,7 @@ impl ComponentTooltip {
         } else if let Some((text, action)) = self.text {
             el.managed_tooltip(move |window, cx| {
                 Tooltip::new(text.clone())
+                    .overlay_anchored()
                     .when_some(action.clone(), |this, (action, context)| {
                         this.action(
                             action.boxed_clone().as_ref(),
@@ -663,12 +711,15 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
             move |hovered, window, cx| {
                 if let Some(overlay) = Root::tooltip_overlay(window, cx) {
                     if *hovered {
-                        let bounds = trigger_bounds_cell.get();
                         overlay.update(cx, |o: &mut TooltipOverlay, cx| {
                             o.request_show(
                                 TooltipContent {
                                     build: build_tooltip.clone(),
-                                    trigger_bounds: bounds,
+                                    // The live cell itself — the overlay and
+                                    // positioner re-read it each frame, so
+                                    // the bubble tracks reflows instead of a
+                                    // hover-time snapshot.
+                                    trigger_bounds: trigger_bounds_cell.clone(),
                                 },
                                 window,
                                 cx,
@@ -701,7 +752,7 @@ mod tests {
     fn test_content(bounds: Bounds<Pixels>) -> TooltipContent {
         TooltipContent {
             build: Rc::new(|window, cx| Tooltip::new("Test tooltip").build(window, cx)),
-            trigger_bounds: bounds,
+            trigger_bounds: Rc::new(Cell::new(bounds)),
         }
     }
 
@@ -744,8 +795,8 @@ mod tests {
 
         assert_eq!(position.placement, TooltipPlacement::Above);
         assert_eq!(position.bounds.origin.x, px(80.));
-        assert_eq!(position.bounds.origin.y, px(50.));
-        assert_eq!(position.bounds.bottom(), trigger_bounds.top());
+        assert_eq!(position.bounds.origin.y, px(50.) - ANCHOR_GAP);
+        assert_eq!(position.bounds.bottom(), trigger_bounds.top() - ANCHOR_GAP);
     }
 
     #[test]
@@ -759,7 +810,7 @@ mod tests {
         );
 
         assert_eq!(position.placement, TooltipPlacement::Below);
-        assert_eq!(position.bounds.top(), trigger_bounds.bottom());
+        assert_eq!(position.bounds.top(), trigger_bounds.bottom() + ANCHOR_GAP);
         assert!(position.bounds.top() >= trigger_bounds.bottom());
     }
 
@@ -803,7 +854,9 @@ mod tests {
                     .id("trigger")
                     .w(px(60.))
                     .h(px(60.))
-                    .managed_tooltip(|window, cx| Tooltip::new("tip").build(window, cx)),
+                    .managed_tooltip(|window, cx| {
+                        Tooltip::new("tip").overlay_anchored().build(window, cx)
+                    }),
             )
         }
     }

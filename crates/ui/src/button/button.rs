@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     ActiveTheme, Colorize as _, Disableable, FocusableExt as _, Icon, IconName, Selectable,
-    Sizable, Size, StyleSized, StyledExt,
+    Sizable, Size, StyledExt,
     button::ButtonIcon,
     h_flex,
     tooltip::{ManagedTooltipExt as _, Tooltip},
@@ -11,7 +11,7 @@ use gpui::{
     AnyElement, App, Background, ClickEvent, Corners, Div, Edges, ElementId, Hsla,
     InteractiveElement, Interactivity, IntoElement, MouseButton, ParentElement, Pixels, RenderOnce,
     Role, SharedString, Stateful, StatefulInteractiveElement as _, StyleRefinement, Styled, Window,
-    div, prelude::FluentBuilder as _, px, relative, transparent_white,
+    div, hsla, prelude::FluentBuilder as _, px, relative, rems, transparent_white,
 };
 
 #[derive(Default, Clone, Copy)]
@@ -441,10 +441,12 @@ impl RenderOnce for Button {
         let is_disabled = self.disabled;
         let hoverable = self.hoverable();
         let normal_style = style.normal(self.outline, cx);
-        let icon_size = match self.size {
-            Size::Size(v) => Size::Size(v * 0.75),
-            _ => self.size,
-        };
+        // Single source of truth for geometry: derive every dimension from
+        // the canonical ladder, then hand the icon a resolved pixel size
+        // (`Icon`'s own `Size::Size(px)` arm applies it verbatim, so there
+        // is no second geometry decision downstream).
+        let m = self.size.metrics();
+        let icon_size = Size::Size(m.icon.to_pixels(window.rem_size()));
 
         let focus_handle = window
             .use_keyed_state(self.id.clone(), cx, |_, cx| cx.focus_handle())
@@ -452,10 +454,16 @@ impl RenderOnce for Button {
             .clone();
         let is_focused = focus_handle.is_focused(window);
 
+        // Per-size Nova radius curve (`Size::control_radius`) — the old flat
+        // `theme.radius` read as a pill on the short variants at radius 10;
+        // Small/Large variants step ±2px off the same curve (replacing the
+        // radius-6-era ×0.5/×2 multipliers, which at radius 10 guaranteed a
+        // pill for `Large`).
+        let base_rounding = self.size.control_radius(cx.theme());
         let rounding = match self.rounded {
-            ButtonRounded::Small => cx.theme().radius * 0.5,
-            ButtonRounded::Medium => cx.theme().radius,
-            ButtonRounded::Large => cx.theme().radius * 2.0,
+            ButtonRounded::Small => (base_rounding - px(2.)).max(Pixels::ZERO),
+            ButtonRounded::Medium => base_rounding,
+            ButtonRounded::Large => base_rounding + px(2.),
             ButtonRounded::Size(px) => px,
             ButtonRounded::None => Pixels::ZERO,
         };
@@ -489,27 +497,19 @@ impl RenderOnce for Button {
             })
             .when(!style.no_padding(), |this| {
                 if self.label.is_none() && self.children.is_empty() {
-                    // Icon Button
-                    match self.size {
-                        Size::Size(px) => this.size(px),
-                        Size::XSmall => this.size_5(),
-                        Size::Small => this.size_6(),
-                        Size::Large | Size::Medium => this.size_8(),
-                    }
+                    // Icon Button: square, side length = the row height.
+                    this.w(m.height).h(m.height)
                 } else {
                     // Normal Button
-                    match self.size {
-                        Size::Size(size) => this.px(size * 0.2),
-                        Size::XSmall => this.h_5().px_1().when(self.compact, |this| this.min_w_5()),
-                        Size::Small => this
-                            .h_6()
-                            .px_3()
-                            .when(self.compact, |this| this.min_w_6().px_1p5()),
-                        _ => this
-                            .h_8()
-                            .px_4()
-                            .when(self.compact, |this| this.min_w_8().px_2()),
-                    }
+                    this.h(m.height)
+                        .px(m.pad_x)
+                        .py(m.pad_y)
+                        .when(self.compact, |this| {
+                            // Compact keeps the semantic (reduced min-width,
+                            // tighter horizontal padding) but derives both
+                            // from the ladder instead of literal `px_N`s.
+                            this.min_w(m.height).px(rems(m.pad_x.0 * 0.5))
+                        })
                 }
             })
             .when(self.border_corners.top_left, |this| {
@@ -599,12 +599,8 @@ impl RenderOnce for Button {
                     .size_full()
                     .items_center()
                     .justify_center()
-                    .button_text_size(self.size)
-                    .map(|this| match self.size {
-                        Size::XSmall => this.gap_1(),
-                        Size::Small => this.gap_1(),
-                        _ => this.gap_2(),
-                    })
+                    .text_size(m.text)
+                    .gap(m.gap)
                     .when_some(self.icon, |this, icon| {
                         this.child(
                             icon.loading_icon(self.loading_icon)
@@ -638,6 +634,7 @@ impl RenderOnce for Button {
                 } else if let Some((tooltip, action)) = self.tooltip {
                     this.managed_tooltip(move |window, cx| {
                         Tooltip::new(tooltip.clone())
+                            .overlay_anchored()
                             .when_some(action.clone(), |this, (action, context)| {
                                 this.action(
                                     action.boxed_clone().as_ref(),
@@ -672,12 +669,20 @@ enum ButtonStyleState {
 impl ButtonVariant {
     fn outline_background(&self, state: ButtonStyleState, cx: &mut App) -> Background {
         match (self, state) {
-            (Self::Default, ButtonStyleState::Normal) => cx.theme().input_background().into(),
-            (Self::Default, ButtonStyleState::Hovered) => cx
-                .theme()
-                .input
-                .mix_oklab(cx.theme().transparent, 0.5)
-                .into(),
+            (Self::Default, ButtonStyleState::Normal) => cx.theme().input_fill().into(),
+            (Self::Default, ButtonStyleState::Hovered) => {
+                if cx.theme().is_dark() {
+                    // Hover bump over `input_fill()` — shadcn's dark
+                    // outline-button hover-accent analog, one step up from
+                    // the 5% resting fill.
+                    hsla(0., 0., 1., 0.08).into()
+                } else {
+                    cx.theme()
+                        .input
+                        .mix_oklab(cx.theme().transparent, 0.5)
+                        .into()
+                }
+            }
             (Self::Default, ButtonStyleState::Active) => cx
                 .theme()
                 .input
@@ -1114,7 +1119,7 @@ impl ButtonVariant {
             )
         } else if let Self::Default = self {
             (
-                cx.theme().input_background().opacity(0.5).into(),
+                cx.theme().input_fill().opacity(0.5).into(),
                 cx.theme().input.opacity(0.5),
             )
         } else {
@@ -1385,7 +1390,7 @@ mod tests {
             );
             assert_ne!(
                 ButtonVariant::Danger.disabled(true, cx).bg,
-                cx.theme().input_background().opacity(0.5).into()
+                cx.theme().input_fill().opacity(0.5).into()
             );
             assert_ne!(
                 ButtonVariant::Danger.disabled(true, cx).bg,

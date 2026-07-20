@@ -2,7 +2,7 @@ use crate::{ActiveTheme, Disableable, StyledExt, h_flex};
 use gpui::{
     AnyElement, App, ClickEvent, ElementId, InteractiveElement, IntoElement, MouseButton,
     ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement as _,
-    StyleRefinement, Styled, Window, prelude::FluentBuilder as _,
+    StyleRefinement, Styled, Window, prelude::FluentBuilder as _, rems,
 };
 use smallvec::SmallVec;
 
@@ -98,10 +98,17 @@ impl RenderOnce for MenuItemElement {
             .when_some(self.aria_label, |this, label| this.aria_label(label))
             .aria_selected(self.selected)
             .group(&self.group_name)
-            .gap_x_1()
+            // Nova dropdown parity, user-ruled 2026-07-20: 6px icon/content
+            // gap and 6px horizontal inset (was the Tailwind gap-1/px-2
+            // defaults, 4px/8px) — docs/superpowers/specs/
+            // 2026-07-19-depth-color-language-design.md, neath repo.
+            // No text-size override: popup containers set the ladder text
+            // (14 at default) and standalone hosts keep the ambient base —
+            // the old `.text_base()` forced 16px inside popups, which
+            // composed with content-derived row heights into ~32px rows.
+            .gap_x(rems(0.375))
             .py_1()
-            .px_2()
-            .text_base()
+            .px(rems(0.375))
             .text_color(cx.theme().foreground)
             .relative()
             .items_center()

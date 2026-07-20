@@ -627,7 +627,8 @@ impl Calendar {
         let disabled = view_mode.is_month();
         let multiple_months = self.number_of_months > 1;
         let icon_size = match self.size {
-            Size::Small | Size::XSmall => Size::Small,
+            // XXSmall shares the compact arm (Small/XSmall already share).
+            Size::Small | Size::XSmall | Size::XXSmall => Size::Small,
             Size::Large => Size::Medium,
             _ => Size::Medium,
         };
@@ -701,15 +702,12 @@ impl Calendar {
                 )
             })
             .when(multiple_months, |this| {
+                let gap = self.size.metrics().gap.to_pixels(window.rem_size()) * 2.;
                 this.child(h_flex().flex_1().justify_around().children(
                     (0..self.number_of_months).map(|n| {
                         h_flex()
                             .justify_center()
-                            .map(|this| match self.size {
-                                Size::Small | Size::XSmall => this.gap_2(),
-                                Size::Large => this.gap_4(),
-                                _ => this.gap_3(),
-                            })
+                            .gap(gap)
                             .child(state.month_name(n))
                             .child(state.year_name(n))
                     }),
@@ -743,16 +741,26 @@ impl Calendar {
         secondary_active: bool,
         muted: bool,
         disabled: bool,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) -> Stateful<Div> {
+        // Day/month/year cells are square badges (diameter, not the
+        // control-height axis) — derives proportionally from metrics().height
+        // like the button-family "square icon = height" convention.
+        let m = self.size.metrics();
+        let cell_size = m.height.to_pixels(window.rem_size()) * 1.25;
+        // Radius stays keyed off the theme token (controller exception).
+        let radius = match self.size {
+            // XXSmall shares the compact arm (Small/XSmall already share).
+            Size::Small | Size::XSmall | Size::XXSmall => cx.theme().radius / 2.,
+            Size::Large => cx.theme().radius * 2.,
+            _ => cx.theme().radius,
+        };
+
         h_flex()
             .id(id.into())
-            .map(|this| match self.size {
-                Size::Small | Size::XSmall => this.size_7().rounded(cx.theme().radius / 2.),
-                Size::Large => this.size_10().rounded(cx.theme().radius * 2.),
-                _ => this.size_9().rounded(cx.theme().radius),
-            })
+            .size(cell_size)
+            .rounded(radius)
             .justify_center()
             .when(muted, |this| {
                 this.text_color(if disabled {
@@ -794,12 +802,13 @@ impl Calendar {
             t!("Calendar.week.6"),
         ];
 
+        let m = self.size.metrics();
+        // Grid gap runs wider than the raw gap ladder; a uniform 2x + 4px
+        // transform reproduces the legacy per-size values exactly.
+        let gap = m.gap.to_pixels(window.rem_size()) * 2. + px(4.);
         h_flex()
-            .map(|this| match self.size {
-                Size::Small | Size::XSmall => this.gap_3().text_sm(),
-                Size::Large => this.gap_5().text_base(),
-                _ => this.gap_4().text_sm(),
-            })
+            .gap(gap)
+            .text_size(m.text)
             .justify_between()
             .children(
                 state
@@ -826,13 +835,19 @@ impl Calendar {
             )
     }
 
-    fn render_week(&self, week: impl Into<SharedString>, _: &mut Window, cx: &mut App) -> Div {
+    fn render_week(&self, week: impl Into<SharedString>, window: &mut Window, cx: &mut App) -> Div {
+        // Same square-badge diameter as `item_button`'s day cells above.
+        let cell_size = self.size.metrics().height.to_pixels(window.rem_size()) * 1.25;
+        // Radius stays keyed off the theme token (controller exception).
+        let radius = if matches!(self.size, Size::Small | Size::XSmall | Size::XXSmall) {
+            cx.theme().radius / 2.0
+        } else {
+            cx.theme().radius
+        };
+
         h_flex()
-            .map(|this| match self.size {
-                Size::Small | Size::XSmall => this.size_7().rounded(cx.theme().radius / 2.0),
-                Size::Large => this.size_10().rounded(cx.theme().radius),
-                _ => this.size_9().rounded(cx.theme().radius),
-            })
+            .size(cell_size)
+            .rounded(radius)
             .justify_center()
             .text_color(cx.theme().muted_foreground)
             .text_sm()
@@ -843,16 +858,20 @@ impl Calendar {
         let state = self.state.read(cx);
         let months = state.months();
         let current_month = state.current_month;
+        let m = self.size.metrics();
+        // Vertical rhythm (top margin + row gap) is a uniform 2x multiple of
+        // metrics().gap, same transform as the header/grid gaps above. The
+        // grid's own width is a fixed multiple of the square cell diameter
+        // (`item_button`'s `cell_size`) sized to fit its columns.
+        let spacing = m.gap.to_pixels(window.rem_size()) * 2.;
+        let cell_size = m.height.to_pixels(window.rem_size()) * 1.25;
+        let w = cell_size * 7.;
 
         h_flex()
-            .mt_3()
+            .mt(spacing)
             .gap_0p5()
-            .gap_y_3()
-            .map(|this| match self.size {
-                Size::Small | Size::XSmall => this.mt_2().gap_y_2().w(px(208.)),
-                Size::Large => this.mt_4().gap_y_4().w(px(292.)),
-                _ => this.mt_3().gap_y_3().w(px(264.)),
-            })
+            .gap_y(spacing)
+            .w(w)
             .justify_between()
             .flex_wrap()
             .children(
@@ -891,15 +910,18 @@ impl Calendar {
         let state = self.state.read(cx);
         let current_year = state.current_year;
         let current_page_years = &self.state.read(cx).years[state.year_page as usize].clone();
+        // Same vertical-rhythm and grid-width derivation as `render_months`.
+        let m = self.size.metrics();
+        let spacing = m.gap.to_pixels(window.rem_size()) * 2.;
+        let cell_size = m.height.to_pixels(window.rem_size()) * 1.25;
+        let w = cell_size * 7.;
 
         h_flex()
             .id("years")
             .gap_0p5()
-            .map(|this| match self.size {
-                Size::Small | Size::XSmall => this.mt_2().gap_y_2().w(px(208.)),
-                Size::Large => this.mt_4().gap_y_4().w(px(292.)),
-                _ => this.mt_3().gap_y_3().w(px(264.)),
-            })
+            .mt(spacing)
+            .gap_y(spacing)
+            .w(w)
             .justify_between()
             .flex_wrap()
             .children(
