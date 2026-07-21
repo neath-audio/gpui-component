@@ -473,21 +473,28 @@ pub struct ThemeConfigColors {
     #[serde(rename = "window.border")]
     pub window_border: Option<SharedString>,
 
-    /// Sunken elevation surface override. Derived from `background` when absent.
-    #[serde(rename = "elevation.sunken")]
-    pub elevation_sunken: Option<SharedString>,
+    /// Recessed well surface (window footers, transport lanes). Legacy
+    /// editor themes wrote `elevation.sunken` — kept as a read alias.
+    #[serde(rename = "well", alias = "elevation.sunken")]
+    pub well: Option<SharedString>,
     /// Raised elevation surface override. Derived from `background` when absent.
     #[serde(rename = "elevation.raised")]
     pub elevation_raised: Option<SharedString>,
     /// Overlay elevation surface override. Derived from `background` when absent.
     #[serde(rename = "elevation.overlay")]
     pub elevation_overlay: Option<SharedString>,
-    /// Hairline border color. Derived from `border` when absent.
+    /// Soft hairline: dialog edges, on-surface outlines (drop zones, wells).
     #[serde(rename = "hairline")]
     pub hairline: Option<SharedString>,
-    /// Strong hairline border color. Derived from `border` when absent.
+    /// Strong hairline: menu / popover / tooltip / sheet edges.
     #[serde(rename = "hairline.strong")]
     pub hairline_strong: Option<SharedString>,
+    /// Control-interior fill (input, checkbox, radio, outline button).
+    #[serde(rename = "input.fill")]
+    pub input_fill: Option<SharedString>,
+    /// Neutral fill for badges/chips painted ON another surface.
+    #[serde(rename = "surface.fill")]
+    pub surface_fill: Option<SharedString>,
 
     /// Base blue color.
     #[serde(rename = "base.blue")]
@@ -881,12 +888,19 @@ impl ThemeColor {
         apply_background_color!(overlay);
         apply_color!(window_border, fallback = self.border);
 
-        // Elevation overrides (`Option<Hsla>`): parsed when present, otherwise
-        // left `None` so `Theme::elevation` derives the surface/hairline from
-        // this theme's own `background`/`border` (mode-aware). Not folded into
-        // the `apply_color!`/`ThemeTokens` machinery because those operate on
-        // plain `Hsla` fields; these are optional overrides read directly by
-        // the elevation resolver.
+        // Plain surface/edge tokens (flat-token spec 2026-07-21, neath repo).
+        // Absent keys fall back to the mode default theme's values via the
+        // no-fallback macro arms — mode-correct by construction.
+        apply_color!(hairline);
+        apply_color!(hairline_strong);
+        apply_background_color!(well);
+        apply_background_color!(input_fill);
+        apply_color!(surface_fill);
+
+        // Remaining elevation surface overrides (`Option<Hsla>`): parsed when
+        // present, otherwise left `None` so `Theme::elevation` derives from
+        // this theme's own `background` (deleted with the resolver in the
+        // flat-token teardown's final fork task).
         macro_rules! apply_optional_color {
             ($config_field:ident) => {
                 self.$config_field = colors
@@ -895,11 +909,8 @@ impl ThemeColor {
                     .and_then(|value| try_parse_color(value).ok());
             };
         }
-        apply_optional_color!(elevation_sunken);
         apply_optional_color!(elevation_raised);
         apply_optional_color!(elevation_overlay);
-        apply_optional_color!(hairline);
-        apply_optional_color!(hairline_strong);
 
         // TODO: Apply default fallback colors to highlight.
 
@@ -995,6 +1006,15 @@ mod tests {
     use gpui::{linear_color_stop, linear_gradient};
 
     use crate::{Theme, ThemeConfig, ThemeMode, ThemeSet, try_parse_color};
+
+    #[test]
+    fn legacy_elevation_sunken_key_aliases_to_well() {
+        // Editor-saved themes from the elevation era wrote `elevation.sunken`;
+        // it must keep feeding the plain `well` token.
+        let json = r##"{"name":"t","mode":"dark","colors":{"elevation.sunken":"#060606"}}"##;
+        let config: ThemeConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.colors.well.as_deref(), Some("#060606"));
+    }
 
     #[test]
     fn test_apply_config_preserves_gradient_background_and_solid_color_fallback() {

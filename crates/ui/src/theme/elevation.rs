@@ -79,10 +79,7 @@ impl Theme {
         let bg = self.colors.background;
         let dark = self.is_dark();
         let surface = match level {
-            ElevationLevel::Sunken => self
-                .colors
-                .elevation_sunken
-                .unwrap_or_else(|| shift_l(bg, if dark { -0.02 } else { -0.035 })),
+            ElevationLevel::Sunken => self.colors.well,
             ElevationLevel::Base => bg,
             ElevationLevel::Raised => self
                 .colors
@@ -98,23 +95,8 @@ impl Theme {
                 .unwrap_or_else(|| shift_l(bg, if dark { 0.03 } else { 0. })),
         };
         let hairline = match level {
-            ElevationLevel::Sunken | ElevationLevel::Base => {
-                self.colors.hairline.unwrap_or_else(|| {
-                    if dark {
-                        hsla(0., 0., 1., 0.10)
-                    } else {
-                        let b = self.colors.border;
-                        Hsla { a: b.a * 0.6, ..b }
-                    }
-                })
-            }
-            _ => self.colors.hairline_strong.unwrap_or_else(|| {
-                if dark {
-                    hsla(0., 0., 1., 0.15)
-                } else {
-                    self.colors.border
-                }
-            }),
+            ElevationLevel::Sunken | ElevationLevel::Base => self.colors.hairline,
+            _ => self.colors.hairline_strong,
         };
         let shadow = match level {
             ElevationLevel::Sunken | ElevationLevel::Base => smallvec![],
@@ -145,11 +127,7 @@ impl Theme {
     /// reads the Sunken well directly (light hairlines/surfaces don't have
     /// the same cross-surface mismatch light leaks dark suffers).
     pub fn input_fill(&self) -> Hsla {
-        if self.is_dark() {
-            hsla(0., 0., 1., 0.05)
-        } else {
-            self.elevation(ElevationLevel::Sunken).surface
-        }
+        self.colors.input_fill
     }
 }
 
@@ -160,21 +138,24 @@ mod tests {
 
     #[test]
     fn old_theme_json_still_loads() {
-        // A ThemeColor JSON with none of the new fields must deserialize.
+        // A ThemeColor JSON without the new plain fields (or the surviving
+        // Option overrides) must still deserialize — `#[serde(default)]`.
         let json = serde_json::to_string(&ThemeColor::default()).unwrap();
         let stripped: serde_json::Value = serde_json::from_str(&json).unwrap();
         let mut obj = stripped.as_object().unwrap().clone();
         for k in [
-            "elevation_sunken",
             "elevation_raised",
             "elevation_overlay",
             "hairline",
             "hairline_strong",
+            "well",
+            "input_fill",
+            "surface_fill",
         ] {
             obj.remove(k);
         }
         let restored: ThemeColor = serde_json::from_value(serde_json::Value::Object(obj)).unwrap();
-        assert!(restored.elevation_sunken.is_none());
+        assert!(restored.elevation_raised.is_none());
     }
 
     #[test]
@@ -182,6 +163,7 @@ mod tests {
         let mut theme = Theme::default();
         theme.mode = crate::ThemeMode::Dark;
         theme.colors.background = gpui::hsla(0., 0., 0.12, 1.);
+        theme.colors.well = gpui::hsla(0., 0., 0.10, 1.);
         let sunken = theme.elevation(ElevationLevel::Sunken).surface;
         let base = theme.elevation(ElevationLevel::Base).surface;
         let raised = theme.elevation(ElevationLevel::Raised).surface;

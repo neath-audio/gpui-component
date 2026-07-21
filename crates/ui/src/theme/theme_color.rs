@@ -343,21 +343,27 @@ pub struct ThemeColor {
     /// The base cyan light color.
     pub cyan_light: Hsla,
 
-    /// Sunken elevation surface override. Derived from `background` when None.
-    #[serde(default)]
-    pub elevation_sunken: Option<Hsla>,
     /// Raised elevation surface override. Derived from `background` when None.
     #[serde(default)]
     pub elevation_raised: Option<Hsla>,
     /// Overlay elevation surface override. Derived from `background` when None.
     #[serde(default)]
     pub elevation_overlay: Option<Hsla>,
-    /// Hairline border color. Derived from `border` when None.
+    /// Soft hairline: dialog edges, on-surface outlines (drop zones, wells).
     #[serde(default)]
-    pub hairline: Option<Hsla>,
-    /// Strong hairline border color. Derived from `border` when None.
+    pub hairline: Hsla,
+    /// Strong hairline: menu / popover / tooltip / sheet edges.
     #[serde(default)]
-    pub hairline_strong: Option<Hsla>,
+    pub hairline_strong: Hsla,
+    /// Recessed well surface (window footers, transport lanes).
+    #[serde(default)]
+    pub well: Hsla,
+    /// Control-interior fill (input, checkbox, radio, outline button).
+    #[serde(default)]
+    pub input_fill: Hsla,
+    /// Neutral fill for badges/chips painted ON another surface.
+    #[serde(default)]
+    pub surface_fill: Hsla,
 }
 
 macro_rules! define_theme_tokens {
@@ -439,11 +445,14 @@ define_theme_tokens! {
     drag_border,
     drop_target,
     foreground,
+    hairline,
+    hairline_strong,
     info,
     info_active,
     info_foreground,
     info_hover,
     input,
+    input_fill,
     link,
     link_active,
     link_hover,
@@ -485,6 +494,7 @@ define_theme_tokens! {
     success_foreground,
     success_hover,
     success_active,
+    surface_fill,
     switch,
     switch_thumb,
     tab,
@@ -512,6 +522,7 @@ define_theme_tokens! {
     warning_active,
     warning_hover,
     warning_foreground,
+    well,
     overlay,
     window_border,
     red,
