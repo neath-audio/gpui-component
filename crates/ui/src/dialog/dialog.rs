@@ -535,6 +535,11 @@ impl RenderOnce for Dialog {
                             .track_focus(&self.focus_handle)
                             .focus_trap(format!("dialog-{}", layer_ix), &self.focus_handle)
                             .elevation(ElevationLevel::Overlay, cx)
+                            // Nova dialogs edge with ring-foreground/10, one step
+                            // softer than the Overlay default hairline_strong —
+                            // dialog-scoped; menus/popovers keep the strong edge.
+                            .border_color(cx.theme().elevation(ElevationLevel::Base).hairline)
+                            .text_sm()
                             .rounded(cx.theme().radius_lg)
                             .min_h_24()
                             .pt(paddings.top)

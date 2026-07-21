@@ -15,8 +15,8 @@ use crate::{
 /// and expects a response.
 ///
 /// It is built on top of the Dialog component with opinionated defaults:
-/// - Footer buttons are center-aligned (vs right-aligned in Dialog)
-/// - Icon is optional (disabled by default, enable with `.show_icon(true)`)
+/// - Not closable via overlay click or close button (interruption requires a response)
+/// - Icon is optional (disabled by default, set one with `.icon(...)`)
 /// - Simplified API for common alert scenarios
 /// - Uses declarative DialogHeader, DialogTitle, DialogDescription, and DialogFooter components
 /// - Supports both imperative and declarative API styles
@@ -201,7 +201,7 @@ impl AlertDialog {
         self
     }
 
-    /// Sets the width of the alert dialog, defaults to 420px.
+    /// Sets the width of the alert dialog, defaults to 448px (the Dialog default).
     pub fn width(mut self, width: impl Into<Pixels>) -> Self {
         self.base = self.base.width(width);
         self
@@ -287,7 +287,7 @@ impl AlertDialog {
                                 v_flex()
                                     .flex_1()
                                     .min_w_0()
-                                    .gap_1()
+                                    .gap_1p5()
                                     .when_some(self.title, |this, title| {
                                         this.child(DialogTitle::new().child(title))
                                     })
