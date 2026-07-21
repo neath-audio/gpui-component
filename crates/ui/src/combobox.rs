@@ -684,14 +684,16 @@ where
             .into_any_element()
         };
 
-        // `.size_full()` is correct for the styled trigger container (it's
-        // meant to fill its parent like an input field). For the unstyled
-        // case the custom trigger is content-sized, so we let the wrapper
-        // size to content as well — otherwise the trigger stretches to fill
-        // a flex parent.
+        // `.w_full()` is correct for the styled trigger container (it's
+        // meant to fill its parent's width like an input field); the
+        // trigger sizes its own height, and `h_full` stretched the slot in
+        // auto-height flex parents (dialog bodies) after the Taffy 0.12
+        // gpui bump. For the unstyled case the custom trigger is
+        // content-sized, so we let the wrapper size to content as well —
+        // otherwise the trigger stretches to fill a flex parent.
         let unstyled = has_custom_trigger && self.trigger_unstyled;
         div()
-            .when(!unstyled, |this| this.size_full())
+            .when(!unstyled, |this| this.w_full())
             .relative()
             .child(trigger_el)
             .when(self.state.open, |this| {
@@ -906,10 +908,12 @@ where
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let disabled = self.options.disabled;
         let focus_handle = self.state.focus_handle(cx);
-        // `unstyled` gates `.size_full()` on the outer wrapper: a styled
-        // trigger fills its container like an input; an unstyled custom
-        // trigger is content-sized and must not claim 100% width or it
-        // stretches in a flex parent.
+        // `unstyled` gates `.w_full()` on the outer wrapper: a styled
+        // trigger fills its container's width like an input (height is the
+        // trigger's own — h_full stretched auto-height flex parents after
+        // the Taffy 0.12 gpui bump); an unstyled custom trigger is
+        // content-sized and must not claim 100% width or it stretches in a
+        // flex parent.
         let unstyled = self.options.trigger_unstyled && self.render_trigger.is_some();
         let render_trigger = self.render_trigger;
         let footer = self.footer;
@@ -951,7 +955,7 @@ where
             .on_action(window.listener_for(&self.state, ComboboxState::down))
             .on_action(window.listener_for(&self.state, ComboboxState::enter))
             .on_action(window.listener_for(&self.state, ComboboxState::escape))
-            .when(!unstyled, |this| this.size_full())
+            .when(!unstyled, |this| this.w_full())
             .child(self.state)
     }
 }

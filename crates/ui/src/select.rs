@@ -482,7 +482,11 @@ where
         });
 
         div()
-            .size_full()
+            // w_full only: the trigger below carries its own h(m.height).
+            // h_full here stretched the slot in auto-height flex parents
+            // (dialog bodies) after the Taffy 0.12 gpui bump, opening a
+            // phantom gap below the trigger.
+            .w_full()
             .relative()
             .child(
                 div()
@@ -796,7 +800,7 @@ where
             .on_action(window.listener_for(&self.state, SelectState::down))
             .on_action(window.listener_for(&self.state, SelectState::enter))
             .on_action(window.listener_for(&self.state, SelectState::escape))
-            .size_full()
+            .w_full()
             .child(self.state)
     }
 }
