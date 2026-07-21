@@ -125,22 +125,22 @@ impl RenderOnce for Switch {
         };
 
         // NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-color-
-        // language-design.md, neath repo), user-ruled 2026-07-20 (round 2:
-        // every `Size` step must stay visually distinct — the icon-tier
-        // keying made Medium and Large identical because that column
-        // plateaus at 16). Track derives from the control-height axis at an
-        // exact 2:1 ratio: width = `metrics().height` (20/24/28/32/36),
-        // height = half that (10/12/14/16/18) — XXSmall yields 20x10
-        // automatically from the dense-tier ladder row. The thumb is the
-        // track height minus the inset ring on both sides; its travel
-        // (`max_x` below) is derived from `bg_width` at every use, so it
-        // re-derives automatically and sits flush at both ends
-        // (10/12/14/16/18px of travel).
+        // language-design.md, neath repo), re-ruled 2026-07-21: the first
+        // ladder pass stretched tracks to 2:1 with a height-minus-inset
+        // thumb, which read as "width and thumb not matching" in smoke.
+        // Nova's real relationship (default 32x18.4/16, sm 24x14/12) is
+        // thumb = HALF the track width, track height = thumb + 1px inset
+        // per side. Width still keys off the control-height axis
+        // (20/24/28/32/36) so every `Size` step stays visually distinct
+        // (user ruling 2026-07-20): tracks 20x12 / 24x14 / 28x16 / 32x18 /
+        // 36x20 with 10/12/14/16/18 thumbs — XSmall lands Nova sm exactly,
+        // Medium lands Nova default (rounded to integer height). Thumb
+        // travel (`max_x` below) re-derives from these at every use.
         let m = self.size.metrics();
-        let bg_height = rems(m.height.0 * 0.5).to_pixels(window.rem_size());
         let bg_width = m.height.to_pixels(window.rem_size());
-        let inset = px(2.);
-        let bar_width = bg_height - inset * 2.;
+        let bar_width = rems(m.height.0 * 0.5).to_pixels(window.rem_size());
+        let inset = px(1.);
+        let bg_height = bar_width + inset * 2.;
         let radius = if cx.theme().radius >= px(4.) {
             bg_height
         } else {
@@ -235,20 +235,24 @@ mod tests {
     use crate::Size;
 
     #[test]
-    fn track_derives_2_to_1_from_control_height() {
-        // Track = metrics().height wide, half that tall (see the named
-        // exception in `render`): 20x10 / 24x12 / 28x14 / 32x16 / 36x18.
-        // Pinned at the 16px rem base the ladder is authored against.
-        for (size, w, h) in [
-            (Size::XXSmall, 20., 10.),
-            (Size::XSmall, 24., 12.),
-            (Size::Small, 28., 14.),
-            (Size::Medium, 32., 16.),
-            (Size::Large, 36., 18.),
+    fn track_derives_nova_proportions_from_control_height() {
+        // Track = metrics().height wide; thumb = half that; track height =
+        // thumb + 2px of inset (see the named exception in `render`):
+        // 20x12/10 / 24x14/12 / 28x16/14 / 32x18/16 / 36x20/18. XSmall is
+        // Nova's sm switch exactly (24x14, 12 thumb); Medium is Nova's
+        // default (32x18.4, 16 thumb) at integer height. Pinned at the
+        // 16px rem base the ladder is authored against.
+        for (size, w, h, thumb) in [
+            (Size::XXSmall, 20., 12., 10.),
+            (Size::XSmall, 24., 14., 12.),
+            (Size::Small, 28., 16., 14.),
+            (Size::Medium, 32., 18., 16.),
+            (Size::Large, 36., 20., 18.),
         ] {
-            let height = size.metrics().height.0 * 16.;
-            assert_eq!(height, w);
-            assert_eq!(height * 0.5, h);
+            let width = size.metrics().height.0 * 16.;
+            assert_eq!(width, w);
+            assert_eq!(width * 0.5, thumb);
+            assert_eq!(width * 0.5 + 2., h);
         }
     }
 }
