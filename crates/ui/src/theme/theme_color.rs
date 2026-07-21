@@ -343,12 +343,6 @@ pub struct ThemeColor {
     /// The base cyan light color.
     pub cyan_light: Hsla,
 
-    /// Raised elevation surface override. Derived from `background` when None.
-    #[serde(default)]
-    pub elevation_raised: Option<Hsla>,
-    /// Overlay elevation surface override. Derived from `background` when None.
-    #[serde(default)]
-    pub elevation_overlay: Option<Hsla>,
     /// Soft hairline: dialog edges, on-surface outlines (drop zones, wells).
     #[serde(default)]
     pub hairline: Hsla,

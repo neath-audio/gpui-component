@@ -477,12 +477,6 @@ pub struct ThemeConfigColors {
     /// editor themes wrote `elevation.sunken` — kept as a read alias.
     #[serde(rename = "well", alias = "elevation.sunken")]
     pub well: Option<SharedString>,
-    /// Raised elevation surface override. Derived from `background` when absent.
-    #[serde(rename = "elevation.raised")]
-    pub elevation_raised: Option<SharedString>,
-    /// Overlay elevation surface override. Derived from `background` when absent.
-    #[serde(rename = "elevation.overlay")]
-    pub elevation_overlay: Option<SharedString>,
     /// Soft hairline: dialog edges, on-surface outlines (drop zones, wells).
     #[serde(rename = "hairline")]
     pub hairline: Option<SharedString>,
@@ -897,21 +891,6 @@ impl ThemeColor {
         apply_background_color!(input_fill);
         apply_color!(surface_fill);
 
-        // Remaining elevation surface overrides (`Option<Hsla>`): parsed when
-        // present, otherwise left `None` so `Theme::elevation` derives from
-        // this theme's own `background` (deleted with the resolver in the
-        // flat-token teardown's final fork task).
-        macro_rules! apply_optional_color {
-            ($config_field:ident) => {
-                self.$config_field = colors
-                    .$config_field
-                    .as_deref()
-                    .and_then(|value| try_parse_color(value).ok());
-            };
-        }
-        apply_optional_color!(elevation_raised);
-        apply_optional_color!(elevation_overlay);
-
         // TODO: Apply default fallback colors to highlight.
 
         // Ensure opacity for list_active, table_active, selection.
@@ -1006,6 +985,27 @@ mod tests {
     use gpui::{linear_color_stop, linear_gradient};
 
     use crate::{Theme, ThemeConfig, ThemeMode, ThemeSet, try_parse_color};
+
+    #[test]
+    fn theme_color_json_without_surface_fields_still_loads() {
+        // A ThemeColor JSON predating the flat surface tokens must
+        // deserialize — `#[serde(default)]` on the plain fields.
+        let json = serde_json::to_string(&crate::ThemeColor::default()).unwrap();
+        let stripped: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let mut obj = stripped.as_object().unwrap().clone();
+        for k in [
+            "hairline",
+            "hairline_strong",
+            "well",
+            "input_fill",
+            "surface_fill",
+        ] {
+            obj.remove(k);
+        }
+        let restored: crate::ThemeColor =
+            serde_json::from_value(serde_json::Value::Object(obj)).unwrap();
+        assert_eq!(restored.well.a, 0.);
+    }
 
     #[test]
     fn legacy_elevation_sunken_key_aliases_to_well() {

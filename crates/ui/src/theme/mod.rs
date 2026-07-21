@@ -12,14 +12,12 @@ use std::{
 };
 
 mod color;
-mod elevation;
 mod registry;
 mod schema;
 mod shadow;
 mod theme_color;
 
 pub use color::*;
-pub use elevation::*;
 pub use registry::*;
 pub use schema::*;
 pub use theme_color::*;
