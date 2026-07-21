@@ -87,13 +87,15 @@ impl Theme {
             ElevationLevel::Raised => self
                 .colors
                 .elevation_raised
-                .unwrap_or_else(|| shift_l(bg, if dark { 0.05 } else { 0.01 })),
+                .unwrap_or_else(|| shift_l(bg, if dark { 0.02 } else { 0.01 })),
             ElevationLevel::Overlay => self
                 .colors
                 .elevation_overlay
-                // 0.06 = shadcn's dark card lift (0.145 → 0.205), user-ruled
-                // 2026-07-20; a 0.07 lift read too pale on tinted themes.
-                .unwrap_or_else(|| shift_l(bg, if dark { 0.06 } else { 0. })),
+                // Subtle: the earlier shadcn-derived 0.06 lift made large
+                // overlays (dialogs) read as foreign to tinted themes —
+                // user-ruled 2026-07-21 that hairline + shadow carry the
+                // depth and the surface stays in the theme's family.
+                .unwrap_or_else(|| shift_l(bg, if dark { 0.03 } else { 0. })),
         };
         let hairline = match level {
             ElevationLevel::Sunken | ElevationLevel::Base => {
