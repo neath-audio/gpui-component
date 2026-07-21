@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ActiveTheme, ElevationLevel, FocusTrapElement as _, IconName, Placement, Sizable,
+    ActiveTheme, FocusTrapElement as _, IconName, Placement, Sizable,
     StyledExt as _, WindowExt as _,
     actions::Cancel,
     button::{Button, ButtonVariants as _},
@@ -146,11 +146,12 @@ impl RenderOnce for Sheet {
         let top = cx.theme().sheet.margin_top;
         let on_close = self.on_close.clone();
         // Sheet only borders the single edge facing the window interior (the
-        // other three sit flush against a window edge), so the full
-        // `.elevation()` helper (which forces `.border_1()` on all sides)
-        // doesn't fit here — apply the surface/hairline/shadow triple by
-        // hand instead, and lift the shadow tier to shadow_4 like Dialog.
-        let elevation = cx.theme().elevation(ElevationLevel::Overlay);
+        // other three sit flush against a window edge), so it applies the
+        // popover surface/edge by hand instead of `popover_style` (which
+        // forces `.border_1()` on all sides), and lifts the shadow tier to
+        // shadow_4 like Dialog.
+        let surface = cx.theme().popover;
+        let edge = cx.theme().hairline_strong;
         let shadow_4 = cx.theme().shadow_4();
 
         let base_size = window.text_style().font_size;
@@ -212,8 +213,8 @@ impl RenderOnce for Sheet {
                             })
                             .absolute()
                             .occlude()
-                            .bg(elevation.surface)
-                            .border_color(elevation.hairline)
+                            .bg(surface)
+                            .border_color(edge)
                             .shadow(shadow_4.into_vec())
                             .refine_style(&self.style)
                             .map(|this| {

@@ -312,7 +312,7 @@ impl RenderOnce for Checkbox {
                     .rounded(radius)
                     .when(cx.theme().shadow && !self.disabled, |this| this.shadow_xs())
                     .map(|this| match checked {
-                        false => this.bg(cx.theme().input_fill()),
+                        false => this.bg(cx.theme().input_fill),
                         true if self.disabled => this.bg(color),
                         true => this.bg(cx.theme().tokens.primary),
                     })

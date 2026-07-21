@@ -1,17 +1,9 @@
 //! Elevation: surface / hairline / shadow triples per semantic level.
-//! Initial constants per the depth-color spec; tuned via theme presets.
-//!
-//! Dark-mode hairlines are luminous alpha-white rather than opaque lifted
-//! grays: `hairline` fallback = white @ 10% (`hsla(0., 0., 1., 0.10)`),
-//! `hairline_strong` fallback = white @ 15% (`hsla(0., 0., 1., 0.15)`) — a
-//! translucent edge reads correctly over ANY dark surface it happens to sit
-//! on, whereas an opaque gray only matched the one surface it was tuned
-//! against. Light mode is unchanged (opaque steps off `border`). Ruling
-//! 2026-07-20, shadcn v4 dark tokens
-//! (docs/superpowers/specs/2026-07-19-depth-color-language-design.md, neath
-//! repo).
+//! DEPRECATED by the flat-token teardown (neath spec
+//! 2026-07-21-flat-token-system-design.md) — the resolver now only relays
+//! plain theme tokens; the module is deleted once the last consumer is gone.
 
-use gpui::{BoxShadow, Hsla, hsla, point, px};
+use gpui::{BoxShadow, Hsla};
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
@@ -39,40 +31,7 @@ fn shift_l(c: Hsla, dl: f32) -> Hsla {
     }
 }
 
-fn layer(y: f32, blur: f32, spread: f32, alpha: f32) -> BoxShadow {
-    BoxShadow {
-        color: hsla(0., 0., 0., alpha),
-        offset: point(px(0.), px(y)),
-        blur_radius: px(blur),
-        spread_radius: px(spread),
-        inset: false,
-    }
-}
-
-// Shadow tiers = Tailwind's sm/md/lg/xl recipes (which Nova uses), SAME
-// values in both modes — browser-measured from the live Nova preview
-// (user-ruled 2026-07-20): dark mode does NOT boost shadows; dark depth
-// comes from lighter surfaces + luminous alpha-white hairlines. The
-// earlier mode-gated alphas (dark .30-.50) read far heavier than the
-// reference.
 impl Theme {
-    /// Tailwind `shadow-sm`.
-    pub fn shadow_1(&self) -> SmallVec<[BoxShadow; 2]> {
-        smallvec![layer(1., 3., 0., 0.10), layer(1., 2., -1., 0.10)]
-    }
-    /// Tailwind `shadow-md` — the measured Nova menu/popover shadow.
-    pub fn shadow_2(&self) -> SmallVec<[BoxShadow; 2]> {
-        smallvec![layer(4., 6., -1., 0.10), layer(2., 4., -2., 0.10)]
-    }
-    /// Tailwind `shadow-lg`.
-    pub fn shadow_3(&self) -> SmallVec<[BoxShadow; 2]> {
-        smallvec![layer(10., 15., -3., 0.10), layer(4., 6., -4., 0.10)]
-    }
-    /// Tailwind `shadow-xl` — dialogs/sheets.
-    pub fn shadow_4(&self) -> SmallVec<[BoxShadow; 2]> {
-        smallvec![layer(20., 25., -5., 0.10), layer(8., 10., -6., 0.10)]
-    }
-
     /// Resolve the elevation triple for a level: explicit theme override
     /// first, otherwise derived from `background` (mode-aware).
     pub fn elevation(&self, level: ElevationLevel) -> Elevation {
@@ -179,13 +138,4 @@ mod tests {
         assert_eq!(theme.elevation(ElevationLevel::Raised).surface, custom);
     }
 
-    #[test]
-    fn shadow_ladder_grows() {
-        let theme = Theme::default();
-        assert!(theme.shadow_1().len() >= 1);
-        assert!(
-            theme.shadow_4().last().unwrap().blur_radius
-                > theme.shadow_1().last().unwrap().blur_radius
-        );
-    }
 }

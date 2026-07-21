@@ -9,7 +9,7 @@ use gpui::{
 };
 
 use crate::{
-    ActiveTheme, ElevationLevel, StyledExt,
+    ActiveTheme, StyledExt,
     animation::{Transition, ease_in_out_cubic, ease_out_cubic},
     global_state::GlobalState,
     h_flex,
@@ -132,7 +132,10 @@ impl Render for Tooltip {
                 // painted bubble disagree with the measured box. The native
                 // mouse-anchored path keeps the margin as cursor clearance.
                 .when(!self.overlay_anchored, |this| this.m_3())
-                .elevation(ElevationLevel::Overlay, cx)
+                .bg(cx.theme().popover)
+                .border_1()
+                .border_color(cx.theme().hairline_strong)
+                .shadow(cx.theme().shadow_2().into_vec())
                 .text_color(cx.theme().popover_foreground)
                 .rounded(px(6.))
                 .justify_between()

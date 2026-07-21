@@ -10,7 +10,7 @@ use gpui::{
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme as _, ElevationLevel, FocusTrapElement as _, IconName, Root, Sizable as _,
+    ActiveTheme as _, FocusTrapElement as _, IconName, Root, Sizable as _,
     StyledExt, TITLE_BAR_HEIGHT, WindowExt as _,
     animation::cubic_bezier,
     button::{Button, ButtonVariant, ButtonVariants as _},
@@ -534,11 +534,13 @@ impl RenderOnce for Dialog {
                             .role(self.a11y_role)
                             .track_focus(&self.focus_handle)
                             .focus_trap(format!("dialog-{}", layer_ix), &self.focus_handle)
-                            .elevation(ElevationLevel::Overlay, cx)
-                            // Nova dialogs edge with ring-foreground/10, one step
-                            // softer than the Overlay default hairline_strong —
-                            // dialog-scoped; menus/popovers keep the strong edge.
-                            .border_color(cx.theme().elevation(ElevationLevel::Base).hairline)
+                            .bg(cx.theme().popover)
+                            .border_1()
+                            // Nova dialogs edge with ring-foreground/10, one
+                            // step softer than the strong menu/popover edge —
+                            // dialog-scoped soft hairline.
+                            .border_color(cx.theme().hairline)
+                            .shadow(cx.theme().shadow_2().into_vec())
                             .text_sm()
                             .rounded(cx.theme().radius_lg)
                             .min_h_24()

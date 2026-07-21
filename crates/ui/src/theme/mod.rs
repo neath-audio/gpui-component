@@ -15,6 +15,7 @@ mod color;
 mod elevation;
 mod registry;
 mod schema;
+mod shadow;
 mod theme_color;
 
 pub use color::*;
@@ -184,23 +185,15 @@ impl Theme {
         }
     }
 
-    /// Get the input background color.
-    #[deprecated(note = "use theme.input_fill()")]
-    #[inline]
-    pub fn input_background(&self) -> Hsla {
-        self.input_fill()
-    }
-
     /// Get the editor background color, if not set, use the input fill
     /// (the editor viewport is a control interior like input/checkbox/radio,
-    /// so it gets the same relative dark-mode treatment — see
-    /// `Theme::input_fill`).
+    /// so it shares the `input.fill` token).
     #[inline]
     pub(crate) fn editor_background(&self) -> Hsla {
         self.highlight_theme
             .style
             .editor_background
-            .unwrap_or_else(|| self.input_fill())
+            .unwrap_or(self.colors.input_fill)
     }
 }
 

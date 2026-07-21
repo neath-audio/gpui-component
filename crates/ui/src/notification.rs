@@ -14,7 +14,7 @@ use gpui::{
 };
 
 use crate::{
-    ActiveTheme as _, Edges, ElevationLevel, Icon, IconName, Sizable as _, StyledExt,
+    ActiveTheme as _, Edges, Icon, IconName, Sizable as _, StyledExt,
     TITLE_BAR_HEIGHT,
     animation::cubic_bezier,
     button::{Button, ButtonVariants as _},
@@ -316,7 +316,9 @@ impl Render for Notification {
             .occlude()
             .relative()
             .w_112()
-            .elevation(ElevationLevel::Overlay, cx)
+            .bg(cx.theme().popover)
+            .border_1()
+            .border_color(cx.theme().hairline_strong)
             // Toast shadow measured from shadcn's sonner (2026-07-20):
             // a single `0 4px 12px @ 10%` layer — overrides the Overlay
             // default (shadow-md) with the exact measured value.

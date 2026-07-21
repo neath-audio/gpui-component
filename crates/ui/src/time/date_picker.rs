@@ -10,7 +10,7 @@ use gpui::{
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme, Disableable, ElevationLevel, Icon, IconName, Sizable, Size, StyleSized as _,
+    ActiveTheme, Disableable, Icon, IconName, Sizable, Size, StyleSized as _,
     StyledExt as _,
     actions::{Cancel, Confirm},
     button::{Button, ButtonVariants as _},
@@ -461,7 +461,10 @@ impl RenderOnce for DatePicker {
                                 .occlude()
                                 .mt_1p5()
                                 .p_3()
-                                .elevation(ElevationLevel::Overlay, cx)
+                                .bg(cx.theme().popover)
+                                .border_1()
+                                .border_color(cx.theme().hairline_strong)
+                                .shadow(cx.theme().shadow_2().into_vec())
                                 .rounded((cx.theme().radius * 2.).min(px(8.)))
                                 .text_color(cx.theme().popover_foreground)
                                 .on_mouse_up_out(

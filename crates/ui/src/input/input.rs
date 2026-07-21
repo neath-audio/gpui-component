@@ -28,7 +28,7 @@ pub(crate) fn input_style(disabled: bool, cx: &App) -> (Hsla, Hsla) {
             cx.theme().muted_foreground,
         )
     } else {
-        (cx.theme().input_fill(), cx.theme().foreground)
+        (cx.theme().input_fill, cx.theme().foreground)
     }
 }
 

@@ -194,7 +194,7 @@ impl Render for FormStory {
                                 .gap_2()
                                 .border_1()
                                 .border_color(cx.theme().input)
-                                .bg(cx.theme().input_fill())
+                                .bg(cx.theme().input_fill)
                                 .rounded(cx.theme().radius)
                                 .child(
                                     div().w(px(90.)).child(

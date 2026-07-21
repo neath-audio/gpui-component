@@ -669,10 +669,10 @@ enum ButtonStyleState {
 impl ButtonVariant {
     fn outline_background(&self, state: ButtonStyleState, cx: &mut App) -> Background {
         match (self, state) {
-            (Self::Default, ButtonStyleState::Normal) => cx.theme().input_fill().into(),
+            (Self::Default, ButtonStyleState::Normal) => cx.theme().input_fill.into(),
             (Self::Default, ButtonStyleState::Hovered) => {
                 if cx.theme().is_dark() {
-                    // Hover bump over `input_fill()` — shadcn's dark
+                    // Hover bump over `input_fill` — shadcn's dark
                     // outline-button hover-accent analog, one step up from
                     // the 5% resting fill.
                     hsla(0., 0., 1., 0.08).into()
@@ -1119,7 +1119,7 @@ impl ButtonVariant {
             )
         } else if let Self::Default = self {
             (
-                cx.theme().input_fill().opacity(0.5).into(),
+                cx.theme().input_fill.opacity(0.5).into(),
                 cx.theme().input.opacity(0.5),
             )
         } else {
@@ -1390,7 +1390,7 @@ mod tests {
             );
             assert_ne!(
                 ButtonVariant::Danger.disabled(true, cx).bg,
-                cx.theme().input_fill().opacity(0.5).into()
+                cx.theme().input_fill.opacity(0.5).into()
             );
             assert_ne!(
                 ButtonVariant::Danger.disabled(true, cx).bg,

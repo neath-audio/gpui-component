@@ -176,7 +176,10 @@ pub trait StyledExt: Styled + Sized {
     /// Set as Popover style
     #[inline]
     fn popover_style(self, cx: &App) -> Self {
-        self.elevation(crate::ElevationLevel::Overlay, cx)
+        self.bg(cx.theme().popover)
+            .border_1()
+            .border_color(cx.theme().hairline_strong)
+            .shadow(cx.theme().shadow_2().into_vec())
             .text_color(cx.theme().popover_foreground)
             .rounded(cx.theme().radius)
     }
@@ -189,15 +192,6 @@ pub trait StyledExt: Styled + Sized {
             .rounded_br(radius.bottom_right)
     }
 
-    /// Apply an elevation level's full triple: surface, hairline, shadow.
-    #[inline]
-    fn elevation(self, level: crate::ElevationLevel, cx: &App) -> Self {
-        let e = cx.theme().elevation(level);
-        self.bg(e.surface)
-            .border_1()
-            .border_color(e.hairline)
-            .shadow(e.shadow.into_vec())
-    }
 }
 
 impl<E: Styled> StyledExt for E {}
