@@ -637,7 +637,12 @@ impl RenderOnce for Button {
                     this.managed_tooltip(move |window, cx| builder(window, cx))
                 } else if let Some((tooltip, action)) = self.tooltip {
                     this.managed_tooltip(move |window, cx| {
+                        // Overlay-anchored: the managed overlay owns the trigger
+                        // gap (`ANCHOR_GAP`), so the bubble must drop its default
+                        // `m_3()` margin (see `Tooltip::overlay_anchored`) or it
+                        // renders offset from the trigger.
                         Tooltip::new(tooltip.clone())
+                            .overlay_anchored()
                             .when_some(action.clone(), |this, (action, context)| {
                                 this.action(
                                     action.boxed_clone().as_ref(),

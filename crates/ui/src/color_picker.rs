@@ -841,7 +841,12 @@ impl RenderOnce for ColorPickerButton {
                         })
                         .when_some(self.tooltip, |this, tooltip| {
                             this.managed_tooltip(move |window, cx| {
-                                Tooltip::new(tooltip.clone()).build(window, cx)
+                                // Overlay-anchored: drop the default margin so the
+                                // bubble isn't offset from the swatch (see
+                                // `Tooltip::overlay_anchored`).
+                                Tooltip::new(tooltip.clone())
+                                    .overlay_anchored()
+                                    .build(window, cx)
                             })
                         }),
                 )
