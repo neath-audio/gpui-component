@@ -534,7 +534,10 @@ impl RenderOnce for Dialog {
                             .role(self.a11y_role)
                             .track_focus(&self.focus_handle)
                             .focus_trap(format!("dialog-{}", layer_ix), &self.focus_handle)
-                            .bg(cx.theme().popover)
+                            // Fill on the window background (pre-elevation,
+                            // user-ruled 2026-07-22): the border + shadow carry
+                            // the separation, not a lighter elevated surface.
+                            .bg(cx.theme().tokens.background)
                             .border_1()
                             // Nova dialogs edge with ring-foreground/10, one
                             // step softer than the strong menu/popover edge —

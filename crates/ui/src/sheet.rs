@@ -147,10 +147,12 @@ impl RenderOnce for Sheet {
         let on_close = self.on_close.clone();
         // Sheet only borders the single edge facing the window interior (the
         // other three sit flush against a window edge), so it applies the
-        // popover surface/edge by hand instead of `popover_style` (which
-        // forces `.border_1()` on all sides), and lifts the shadow tier to
-        // shadow_4 like Dialog.
-        let surface = cx.theme().popover;
+        // surface/edge by hand instead of `popover_style` (which forces
+        // `.border_1()` on all sides), and lifts the shadow tier to shadow_4
+        // like Dialog.
+        // Fill on the window background (pre-elevation, user-ruled 2026-07-22):
+        // the hairline edge + shadow carry the separation.
+        let surface = cx.theme().tokens.background;
         let edge = cx.theme().hairline_strong;
         let shadow_4 = cx.theme().shadow_4();
 
