@@ -1173,17 +1173,18 @@ impl PopupMenu {
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
         let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
-        // item_height is content-derived: the text's own line box plus the
-        // vertical padding on both edges, matching Nova's dropdown-item
-        // recipe (`py-1 text-sm` -> 2×py-1 + line-height). The line-height is
-        // Tailwind's text-sm ratio (1.25rem / 0.875rem = 10/7). Menu rows use
-        // a fixed text-sm tier, so this resolves to 20px + 2×4px = 28px at the
-        // default rem.
-        const TEXT_LINE_RATIO: f32 = 10. / 7.;
-        let menu_text = rems(0.875);
-        let rem_size = window.rem_size();
-        let text_line = menu_text.to_pixels(rem_size) * TEXT_LINE_RATIO;
-        let item_height = text_line + rems(0.25).to_pixels(rem_size) * 2.;
+        // Size-driven text + row height. XSmall is the compact tool-surface
+        // tier — 12px text in 18px rows, for menus opened over dense surfaces
+        // (waveform/EQ/corpus). Small keeps 14px text in a tightened 20px
+        // row. The default (Medium/Large) is the standard menu tier: 13px
+        // text in a roomy 25px row (context, inspector, agent, table rows,
+        // …) — a beat below the old 14px, one above the compact 12px. Only
+        // the compact tier drops its text below the default.
+        let (menu_text, item_height) = match self.size {
+            Size::XSmall => (rems(0.75), px(18.)),
+            Size::Small => (rems(0.875), px(20.)),
+            _ => (rems(0.8125), px(25.)),
+        };
         // Radius is keyed off the popover's own radius, halved only for the
         // compact `XSmall | Small` tiers.
         let radius = if matches!(self.size, Size::XSmall | Size::Small) {
