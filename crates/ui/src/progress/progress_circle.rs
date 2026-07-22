@@ -161,26 +161,19 @@ impl RenderOnce for ProgressCircle {
 
         let color = self.color.unwrap_or(cx.theme().progress_bar);
 
-        // The circle's diameter is not the control-height axis (it's a
-        // free-standing indicator, not a form control); it derives
-        // proportionally from metrics().icon, matching the diameter =
-        // f(metrics) pattern used elsewhere for non-control-height circular
-        // elements (Switch's track height). Checkbox/Radio boxes are a
-        // separate fixed-size exception under Nova (no longer metrics().icon-
-        // derived — see checkbox.rs). Named exception:
-        // docs/superpowers/specs/2026-07-19-depth-color-language-design.md
-        let diameter = match self.size {
-            Size::Size(s) => s * 0.75,
-            _ => self.size.metrics().icon.to_pixels(window.rem_size()),
-        };
-
         div()
             .id(self.id.clone())
             .flex()
             .items_center()
             .justify_center()
             .line_height(relative(1.))
-            .size(diameter)
+            .map(|this| match self.size {
+                Size::XSmall => this.size_2(),
+                Size::Small => this.size_3(),
+                Size::Medium => this.size_4(),
+                Size::Large => this.size_5(),
+                Size::Size(s) => this.size(s * 0.75),
+            })
             .refine_style(&self.style)
             .children(self.children)
             .map(|this| {

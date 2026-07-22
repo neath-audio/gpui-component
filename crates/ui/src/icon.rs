@@ -157,12 +157,11 @@ impl RenderOnce for Icon {
             .text_color(text_color)
             .when(!has_base_size, |this| this.size(text_size))
             .when_some(self.size, |this, size| match size {
-                // docs/superpowers/specs/2026-07-19-depth-color-language-design.md:
-                // standalone glyph scale — in-control glyphs receive explicit
-                // sizes from ControlMetrics.icon via their parent control.
                 Size::Size(px) => this.size(px),
+                Size::XSmall => this.size_3(),
+                Size::Small => this.size_3p5(),
+                Size::Medium => this.size_4(),
                 Size::Large => this.size_6(),
-                _ => this.size(size.metrics().icon),
             })
             .path(self.path)
     }
@@ -187,11 +186,11 @@ impl Render for Icon {
             .text_color(text_color)
             .when(!has_base_size, |this| this.size(text_size))
             .when_some(self.size, |this, size| match size {
-                // docs/superpowers/specs/2026-07-19-depth-color-language-design.md:
-                // standalone glyph scale — see the `RenderOnce` impl above.
                 Size::Size(px) => this.size(px),
+                Size::XSmall => this.size_3(),
+                Size::Small => this.size_3p5(),
+                Size::Medium => this.size_4(),
                 Size::Large => this.size_6(),
-                _ => this.size(size.metrics().icon),
             })
             .path(self.path.clone())
             .when_some(self.rotation, |this, rotation| {

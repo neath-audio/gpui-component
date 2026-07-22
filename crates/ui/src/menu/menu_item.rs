@@ -100,8 +100,7 @@ impl RenderOnce for MenuItemElement {
             .group(&self.group_name)
             // Nova dropdown parity, user-ruled 2026-07-20: 6px icon/content
             // gap and 6px horizontal inset (was the Tailwind gap-1/px-2
-            // defaults, 4px/8px) — docs/superpowers/specs/
-            // 2026-07-19-depth-color-language-design.md, neath repo.
+            // defaults, 4px/8px).
             // No text-size override: popup containers set the ladder text
             // (14 at default) and standalone hosts keep the ambient base —
             // the old `.text_base()` forced 16px inside popups, which

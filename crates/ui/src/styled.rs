@@ -176,11 +176,11 @@ pub trait StyledExt: Styled + Sized {
     /// Set as Popover style
     #[inline]
     fn popover_style(self, cx: &App) -> Self {
-        self.bg(cx.theme().popover)
+        self.bg(cx.theme().tokens.popover)
+            .text_color(cx.theme().popover_foreground)
             .border_1()
             .border_color(cx.theme().hairline_strong)
             .shadow(cx.theme().shadow_2().into_vec())
-            .text_color(cx.theme().popover_foreground)
             .rounded(cx.theme().radius)
     }
 
@@ -191,7 +191,6 @@ pub trait StyledExt: Styled + Sized {
             .rounded_bl(radius.bottom_left)
             .rounded_br(radius.bottom_right)
     }
-
 }
 
 impl<E: Styled> StyledExt for E {}
@@ -200,9 +199,6 @@ impl<E: Styled> StyledExt for E {}
 #[derive(Clone, Default, Copy, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub enum Size {
     Size(Pixels),
-    /// Neath's dense-chrome tier (user ruling 2026-07-20), one 4px step
-    /// below the untouched Nova ladder (XSmall-Large).
-    XXSmall,
     XSmall,
     Small,
     #[default]
@@ -214,7 +210,6 @@ impl Size {
     fn as_f32(&self) -> f32 {
         match self {
             Size::Size(val) => val.as_f32(),
-            Size::XXSmall => -1.,
             Size::XSmall => 0.,
             Size::Small => 1.,
             Size::Medium => 2.,
@@ -225,7 +220,6 @@ impl Size {
     /// Returns the size as a static string.
     pub fn as_str(&self) -> &'static str {
         match self {
-            Size::XXSmall => "xxs",
             Size::XSmall => "xs",
             Size::Small => "sm",
             Size::Medium => "md",
@@ -236,7 +230,6 @@ impl Size {
 
     /// Create a Size from a static string.
     ///
-    /// - "xxs" or "xxsmall"
     /// - "xs" or "xsmall"
     /// - "sm" or "small"
     /// - "md" or "medium"
@@ -245,7 +238,6 @@ impl Size {
     /// Any other value will return Size::Medium.
     pub fn from_str(size: &str) -> Self {
         match size.to_lowercase().as_str() {
-            "xxs" | "xxsmall" => Size::XXSmall,
             "xs" | "xsmall" => Size::XSmall,
             "sm" | "small" => Size::Small,
             "md" | "medium" => Size::Medium,
@@ -255,48 +247,22 @@ impl Size {
     }
 
     /// Returns the height for table row.
-    ///
-    /// NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
-    /// neath repo): dense grid rows read cramped at exact control height, so
-    /// table density keeps its own visual scale rather than sharing the
-    /// control-height axis verbatim. It still derives from the canonical
-    /// ladder (`metrics().height`) plus a fixed per-variant delta (preserving
-    /// the stock 26/30/32/40 row heights) instead of an independent
-    /// hand-authored table, so the scale constraint holds.
     #[inline]
     pub fn table_row_height(&self) -> Pixels {
-        // Deltas retuned for the Nova ladder (24/28/32/36 heights): +2/+2/+0/+4
-        // preserves the stock 26/30/32/40 row heights exactly. XXSmall
-        // continues the trend one 4px step below XSmall's rendered value
-        // (26 - 4 = 22 -> delta +2 against the 20px control height).
-        let delta = match self {
-            Size::Size(size) => return *size,
-            Size::XXSmall | Size::XSmall | Size::Small => 2.,
-            Size::Medium => 0.,
-            Size::Large => 4.,
-        };
-        // SCALE-DEBT: rem base pinned at 16 (theme reasserts); revisit in the
-        // UI-scale phase — docs/superpowers/specs/2026-07-19-depth-color-language-design.md
-        // (neath repo). No `Window` in this signature (called from many
-        // non-render sites in table/state.rs and table/loading.rs), so it
-        // can't reach `window.rem_size()` without a wider threading change.
-        px(self.metrics().height.0 * 16. + delta)
+        match self {
+            Size::Size(size) => *size,
+            Size::XSmall => px(26.),
+            Size::Small => px(30.),
+            Size::Large => px(40.),
+            _ => px(32.),
+        }
     }
 
     /// Returns the padding for a table cell.
-    ///
-    /// NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
-    /// neath repo): shares `table_row_height`'s density exception above. The
-    /// stock per-size padding predates the canonical ladder and its values
-    /// don't decompose into a uniform `metrics().pad_*` formula, so it keeps
-    /// its own literal table instead of deriving from metrics.
     #[inline]
     pub fn table_cell_padding(&self) -> Edges<Pixels> {
         match self {
-            // Dense floor: XXSmall shares XSmall's cell padding (2/4) — the
-            // downward trend bottoms out here, and the values coincide with
-            // XXSmall's own metrics() pad_y/pad_x (2/4).
-            Size::XXSmall | Size::XSmall => Edges {
+            Size::XSmall => Edges {
                 top: px(2.),
                 bottom: px(2.),
                 left: px(4.),
@@ -326,24 +292,22 @@ impl Size {
     /// Returns a smaller size.
     pub fn smaller(&self) -> Self {
         match self {
-            Size::XXSmall => Size::XXSmall,
-            Size::XSmall => Size::XXSmall,
+            Size::XSmall => Size::XSmall,
             Size::Small => Size::XSmall,
             Size::Medium => Size::Small,
             Size::Large => Size::Medium,
-            Size::Size(val) => Size::Size((*val - px(4.)).max(px(4.))),
+            Size::Size(val) => Size::Size(*val * 0.2),
         }
     }
 
     /// Returns a larger size.
     pub fn larger(&self) -> Self {
         match self {
-            Size::XXSmall => Size::XSmall,
             Size::XSmall => Size::Small,
             Size::Small => Size::Medium,
             Size::Medium => Size::Large,
             Size::Large => Size::Large,
-            Size::Size(val) => Size::Size(*val + px(4.)),
+            Size::Size(val) => Size::Size(*val * 1.2),
         }
     }
 
@@ -370,6 +334,28 @@ impl Size {
             (_, Size::Size(b)) => Size::Size(b),
             (a, b) if a.as_f32() > b.as_f32() => *a,
             _ => other,
+        }
+    }
+
+    /// Returns the horizontal input padding.
+    pub fn input_px(&self) -> Pixels {
+        match self {
+            Self::Large => px(16.),
+            Self::Medium => px(12.),
+            Self::Small => px(8.),
+            Self::XSmall => px(4.),
+            _ => px(8.),
+        }
+    }
+
+    /// Returns the vertical input padding.
+    pub fn input_py(&self) -> Pixels {
+        match self {
+            Size::Large => px(10.),
+            Size::Medium => px(8.),
+            Size::Small => px(2.),
+            Size::XSmall => px(0.),
+            _ => px(2.),
         }
     }
 }
@@ -412,12 +398,6 @@ pub trait Sizable: Sized {
     /// Or a `Pixels` to set a custom size: `px(30.)`
     fn with_size(mut self, size: impl Into<Size>) -> Self;
 
-    /// Set to Size::XXSmall
-    #[inline(always)]
-    fn xxsmall(self) -> Self {
-        self.with_size(Size::XXSmall)
-    }
-
     /// Set to Size::XSmall
     #[inline(always)]
     fn xsmall(self) -> Self {
@@ -440,6 +420,12 @@ pub trait Sizable: Sized {
 #[allow(unused)]
 pub trait StyleSized<T: Styled> {
     fn input_text_size(self, size: Size) -> Self;
+    fn input_size(self, size: Size) -> Self;
+    fn input_pl(self, size: Size) -> Self;
+    fn input_pr(self, size: Size) -> Self;
+    fn input_px(self, size: Size) -> Self;
+    fn input_py(self, size: Size) -> Self;
+    fn input_h(self, size: Size) -> Self;
     fn list_size(self, size: Size) -> Self;
     fn list_px(self, size: Size) -> Self;
     fn list_py(self, size: Size) -> Self;
@@ -447,12 +433,55 @@ pub trait StyleSized<T: Styled> {
     fn size_with(self, size: Size) -> Self;
     /// Apply the table cell size (Font size, padding) with the given `Size`.
     fn table_cell_size(self, size: Size) -> Self;
+    fn button_text_size(self, size: Size) -> Self;
 }
 
 impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn input_text_size(self, size: Size) -> Self {
-        self.text_size(size.metrics().text)
+        match size {
+            Size::XSmall => self.text_xs(),
+            Size::Small => self.text_sm(),
+            Size::Medium => self.text_sm(),
+            Size::Large => self.text_base(),
+            Size::Size(size) => self.text_size(size * 0.875),
+        }
+    }
+
+    #[inline]
+    fn input_size(self, size: Size) -> Self {
+        self.input_px(size).input_py(size).input_h(size)
+    }
+
+    #[inline]
+    fn input_pl(self, size: Size) -> Self {
+        self.pl(size.input_px())
+    }
+
+    #[inline]
+    fn input_pr(self, size: Size) -> Self {
+        self.pr(size.input_px())
+    }
+
+    #[inline]
+    fn input_px(self, size: Size) -> Self {
+        self.px(size.input_px())
+    }
+
+    #[inline]
+    fn input_py(self, size: Size) -> Self {
+        self.py(size.input_py())
+    }
+
+    #[inline]
+    fn input_h(self, size: Size) -> Self {
+        match size {
+            Size::Large => self.h_11(),
+            Size::Medium => self.h_8(),
+            Size::Small => self.h_6(),
+            Size::XSmall => self.h_5(),
+            _ => self.h_6(),
+        }
     }
 
     #[inline]
@@ -462,35 +491,56 @@ impl<T: Styled> StyleSized<T> for T {
 
     #[inline]
     fn list_px(self, size: Size) -> Self {
-        self.px(size.metrics().pad_x)
+        match size {
+            Size::XSmall => self.px_1p5(),
+            Size::Small => self.px_2(),
+            _ => self.px_3(),
+        }
     }
 
     #[inline]
     fn list_py(self, size: Size) -> Self {
-        self.py(size.metrics().pad_y)
+        match size {
+            Size::Large => self.py_2(),
+            Size::Medium => self.py_1(),
+            Size::Small | Size::XSmall => self.py_0p5(),
+            _ => self.py_1(),
+        }
     }
 
     #[inline]
     fn size_with(self, size: Size) -> Self {
         match size {
-            // Verbatim passthrough, mirroring Icon's `Size::Size(px)` convention.
+            Size::Large => self.size_11(),
+            Size::Medium => self.size_8(),
+            Size::Small => self.size_5(),
+            Size::XSmall => self.size_4(),
             Size::Size(size) => self.size(size),
-            _ => self.size(size.metrics().height),
         }
     }
 
     #[inline]
     fn table_cell_size(self, size: Size) -> Self {
         let padding = size.table_cell_padding();
-        // Shares the table-density exception on `table_cell_padding` above;
-        // text stays coarse-only (compact vs default) rather than following
-        // the full metrics().text ladder.
-        let compact_text = matches!(size, Size::XXSmall | Size::XSmall | Size::Small);
-        (if compact_text { self.text_sm() } else { self })
-            .pl(padding.left)
-            .pr(padding.right)
-            .pt(padding.top)
-            .pb(padding.bottom)
+        match size {
+            Size::XSmall => self.text_sm(),
+            Size::Small => self.text_sm(),
+            _ => self,
+        }
+        .pl(padding.left)
+        .pr(padding.right)
+        .pt(padding.top)
+        .pb(padding.bottom)
+    }
+
+    fn button_text_size(self, size: Size) -> Self {
+        match size {
+            Size::XSmall => self.text_xs(),
+            Size::Small => self.text_sm(),
+            Size::Medium => self.text_sm(),
+            Size::Large => self.text_base(),
+            Size::Size(_) => self.text_base(),
+        }
     }
 }
 
@@ -594,8 +644,6 @@ mod tests {
 
     #[test]
     fn test_size_max_min() {
-        assert_eq!(Size::XSmall.min(Size::XXSmall), Size::XSmall);
-        assert_eq!(Size::XXSmall.max(Size::XSmall), Size::XXSmall);
         assert_eq!(Size::Small.min(Size::XSmall), Size::Small);
         assert_eq!(Size::XSmall.min(Size::Small), Size::Small);
         assert_eq!(Size::Small.min(Size::Medium), Size::Medium);
@@ -622,7 +670,6 @@ mod tests {
 
     #[test]
     fn test_size_as_str() {
-        assert_eq!(Size::XXSmall.as_str(), "xxs");
         assert_eq!(Size::XSmall.as_str(), "xs");
         assert_eq!(Size::Small.as_str(), "sm");
         assert_eq!(Size::Medium.as_str(), "md");
@@ -632,11 +679,6 @@ mod tests {
 
     #[test]
     fn test_table_row_height() {
-        // Derived from metrics().height + a fixed per-variant density delta,
-        // preserving the stock 26/30/32/40 row heights
-        // (docs/superpowers/specs/2026-07-19-depth-color-language-design.md).
-        // XXSmall continues the 4px staircase below XSmall: 20 + 2 = 22.
-        assert_eq!(Size::XXSmall.table_row_height(), px(22.));
         assert_eq!(Size::XSmall.table_row_height(), px(26.));
         assert_eq!(Size::Small.table_row_height(), px(30.));
         assert_eq!(Size::Medium.table_row_height(), px(32.));
@@ -646,8 +688,6 @@ mod tests {
 
     #[test]
     fn test_size_from_str() {
-        assert_eq!(Size::from_str("xxs"), Size::XXSmall);
-        assert_eq!(Size::from_str("xxsmall"), Size::XXSmall);
         assert_eq!(Size::from_str("xs"), Size::XSmall);
         assert_eq!(Size::from_str("xsmall"), Size::XSmall);
         assert_eq!(Size::from_str("sm"), Size::Small);

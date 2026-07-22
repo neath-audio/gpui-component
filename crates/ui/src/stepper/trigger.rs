@@ -131,20 +131,15 @@ impl RenderOnce for StepperTrigger {
                         this.bg(cx.theme().tokens.primary)
                             .text_color(cx.theme().primary_foreground)
                     })
-                    .when(
-                        // XXSmall shares XSmall's number-less 8px dot
-                        // (see icon_size in item.rs).
-                        !matches!(self.size, Size::XSmall | Size::XXSmall),
-                        |this| {
-                            this.map(|this| {
-                                this.child(if let Some(icon) = self.icon {
-                                    icon.into_any_element()
-                                } else {
-                                    div().child(format!("{}", self.step + 1)).into_any_element()
-                                })
+                    .when(self.size != Size::XSmall, |this| {
+                        this.map(|this| {
+                            this.child(if let Some(icon) = self.icon {
+                                icon.into_any_element()
+                            } else {
+                                div().child(format!("{}", self.step + 1)).into_any_element()
                             })
-                        },
-                    ),
+                        })
+                    }),
             )
             .children(self.children)
             .when(!self.disabled, |this| {

@@ -21,32 +21,61 @@ pub enum TabVariant {
 }
 
 impl TabVariant {
-    /// Outer tab height. Non-underline variants sit at the control-height
-    /// axis (`metrics().height`); Underline adds a fixed +6px allowance for
-    /// its bottom accent bar.
-    fn height(&self, size: Size, window: &Window) -> Pixels {
-        let m = size.metrics();
-        let base = m.height.to_pixels(window.rem_size());
-        match self {
-            TabVariant::Underline => base + px(6.),
-            _ => base,
+    fn height(&self, size: Size) -> Pixels {
+        match size {
+            Size::XSmall => match self {
+                TabVariant::Underline => px(26.),
+                _ => px(20.),
+            },
+            Size::Small => match self {
+                TabVariant::Underline => px(30.),
+                _ => px(24.),
+            },
+            Size::Large => match self {
+                TabVariant::Underline => px(44.),
+                _ => px(36.),
+            },
+            _ => match self {
+                TabVariant::Underline => px(36.),
+                _ => px(32.),
+            },
         }
     }
 
-    /// Inner (pill/highlight) height, inset from the outer `height()` above.
-    /// Segmented's pill sits further inset within the tab-bar background.
-    pub(super) fn inner_height(&self, size: Size, window: &Window) -> Pixels {
-        let m = size.metrics();
-        let base = m.height.to_pixels(window.rem_size());
-        match self {
-            TabVariant::Segmented => base - px(4.),
-            _ => base - px(2.),
+    pub(super) fn inner_height(&self, size: Size) -> Pixels {
+        match size {
+            Size::XSmall => match self {
+                TabVariant::Tab | TabVariant::Outline | TabVariant::Pill => px(18.),
+                TabVariant::Segmented => px(16.),
+                TabVariant::Underline => px(20.),
+            },
+            Size::Small => match self {
+                TabVariant::Tab | TabVariant::Outline | TabVariant::Pill => px(22.),
+                TabVariant::Segmented => px(18.),
+                TabVariant::Underline => px(22.),
+            },
+            Size::Large => match self {
+                TabVariant::Tab | TabVariant::Outline | TabVariant::Pill => px(36.),
+                TabVariant::Segmented => px(28.),
+                TabVariant::Underline => px(32.),
+            },
+            _ => match self {
+                TabVariant::Tab => px(30.),
+                TabVariant::Outline | TabVariant::Pill => px(26.),
+                TabVariant::Segmented => px(24.),
+                TabVariant::Underline => px(26.),
+            },
         }
     }
 
     /// Default px(12) to match panel px_3, See [`crate::dock::TabPanel`]
-    fn inner_paddings(&self, size: Size, window: &Window) -> Edges<Pixels> {
-        let mut padding_x = size.metrics().pad_x.to_pixels(window.rem_size());
+    fn inner_paddings(&self, size: Size) -> Edges<Pixels> {
+        let mut padding_x = match size {
+            Size::XSmall => px(8.),
+            Size::Small => px(10.),
+            Size::Large => px(16.),
+            _ => px(12.),
+        };
 
         if matches!(self, TabVariant::Underline) {
             padding_x = px(0.);
@@ -59,19 +88,40 @@ impl TabVariant {
         }
     }
 
-    /// Underline's accent bar needs a small top/bottom offset; other variants
-    /// carry no inner margin. Both derive from `metrics().pad_y`, which
-    /// already matches these values exactly across the ladder.
-    fn inner_margins(&self, size: Size, window: &Window) -> Edges<Pixels> {
-        if !matches!(self, TabVariant::Underline) {
-            return Edges::all(px(0.));
-        }
-
-        let bottom = size.metrics().pad_y.to_pixels(window.rem_size());
-        Edges {
-            top: bottom - px(1.),
-            bottom,
-            ..Default::default()
+    fn inner_margins(&self, size: Size) -> Edges<Pixels> {
+        match size {
+            Size::XSmall => match self {
+                TabVariant::Underline => Edges {
+                    top: px(1.),
+                    bottom: px(2.),
+                    ..Default::default()
+                },
+                _ => Edges::all(px(0.)),
+            },
+            Size::Small => match self {
+                TabVariant::Underline => Edges {
+                    top: px(2.),
+                    bottom: px(3.),
+                    ..Default::default()
+                },
+                _ => Edges::all(px(0.)),
+            },
+            Size::Large => match self {
+                TabVariant::Underline => Edges {
+                    top: px(5.),
+                    bottom: px(6.),
+                    ..Default::default()
+                },
+                _ => Edges::all(px(0.)),
+            },
+            _ => match self {
+                TabVariant::Underline => Edges {
+                    top: px(3.),
+                    bottom: px(4.),
+                    ..Default::default()
+                },
+                _ => Edges::all(px(0.)),
+            },
         }
     }
 
@@ -286,11 +336,8 @@ impl TabVariant {
             return px(0.);
         }
 
-        // Radius stays keyed off theme tokens (controller exception, not a
-        // metrics().radius consumer, per the button/input-family precedent).
         match size {
-            // XXSmall shares the compact arm (XSmall/Small already share).
-            Size::XXSmall | Size::XSmall | Size::Small => cx.theme().radius,
+            Size::XSmall | Size::Small => cx.theme().radius,
             Size::Large => cx.theme().radius_lg,
             _ => cx.theme().radius_lg,
         }
@@ -299,9 +346,8 @@ impl TabVariant {
     fn radius(&self, size: Size, cx: &App) -> Pixels {
         match self {
             TabVariant::Outline | TabVariant::Pill => px(99.),
-            // Controller exception, same as `tab_bar_radius` above.
             TabVariant::Segmented => match size {
-                Size::XXSmall | Size::XSmall | Size::Small => cx.theme().radius,
+                Size::XSmall | Size::Small => cx.theme().radius,
                 Size::Large => cx.theme().radius_lg,
                 _ => cx.theme().radius_lg,
             },
@@ -311,7 +357,6 @@ impl TabVariant {
 
     pub(super) fn inner_radius(&self, size: Size, cx: &App) -> Pixels {
         match self {
-            // Controller exception, same as `tab_bar_radius` above.
             TabVariant::Segmented => match size {
                 Size::Large => self.tab_bar_radius(size, cx) - px(3.),
                 _ => self.tab_bar_radius(size, cx) - px(2.),
@@ -560,7 +605,7 @@ impl Sizable for Tab {
 }
 
 impl RenderOnce for Tab {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let mut tab_style = if self.selected {
             self.variant.selected(cx)
         } else {
@@ -580,19 +625,11 @@ impl RenderOnce for Tab {
         }
         let radius = self.variant.radius(self.size, cx);
         let inner_radius = self.variant.inner_radius(self.size, cx);
-        let inner_paddings = self.variant.inner_paddings(self.size, window);
-        let inner_margins = self.variant.inner_margins(self.size, window);
-        let inner_height = self.variant.inner_height(self.size, window);
-        let height = self.variant.height(self.size, window);
-        let m = self.size.metrics();
+        let inner_paddings = self.variant.inner_paddings(self.size);
+        let inner_margins = self.variant.inner_margins(self.size);
+        let inner_height = self.variant.inner_height(self.size);
+        let height = self.variant.height(self.size);
         let aria_label = self.a11y_label();
-        // docs/superpowers/specs/2026-07-19-depth-color-language-design.md:
-        // pass the resolved pixel size explicitly (mirrors button.rs's
-        // `icon_size`) so Icon's `Size::Size(px)` arm applies it verbatim.
-        // Passing `self.size` straight through would hit Icon's standalone
-        // glyph-scale exception (`Size::Large` => 24px) instead of the
-        // control-family ladder (12/14/16/16), which is what tab icons want.
-        let icon_size = Size::Size(m.icon.to_pixels(window.rem_size()));
 
         let segmented_indicator_active =
             self.variant == TabVariant::Segmented && self.indicator_active;
@@ -655,7 +692,14 @@ impl RenderOnce for Tab {
             .margins(inner_margins)
             .flex_shrink_0()
             .map(|this| match self.icon {
-                Some(icon) => this.w(inner_height * 1.25).child(icon.with_size(icon_size)),
+                Some(icon) => this
+                    .w(inner_height * 1.25)
+                    .child(icon.map(|this| match self.size {
+                        Size::XSmall => this.size_2p5(),
+                        Size::Small => this.size_3p5(),
+                        Size::Large => this.size_4(),
+                        _ => this.size_4(),
+                    })),
                 None => this
                     .paddings(inner_paddings)
                     .map(|this| match self.label {
@@ -695,7 +739,11 @@ impl RenderOnce for Tab {
             .h(height)
             .overflow_hidden()
             .text_color(tab_style.fg)
-            .text_size(m.text)
+            .map(|this| match self.size {
+                Size::XSmall => this.text_xs(),
+                Size::Large => this.text_base(),
+                _ => this.text_sm(),
+            })
             .bg(outer_bg)
             .border_l(tab_style.borders.left)
             .border_r(tab_style.borders.right)

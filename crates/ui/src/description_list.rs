@@ -1,6 +1,6 @@
 use gpui::{
     AnyElement, App, Axis, DefiniteLength, IntoElement, ParentElement, RenderOnce, SharedString,
-    Styled, Window, div, prelude::FluentBuilder as _, px, relative, rems,
+    Styled, Window, div, prelude::FluentBuilder as _, px, relative,
 };
 
 use crate::{ActiveTheme as _, AxisExt, Sizable, Size, h_flex, text::Text, v_flex};
@@ -249,10 +249,20 @@ impl Sizable for DescriptionList {
 
 impl RenderOnce for DescriptionList {
     fn render(self, _: &mut Window, cx: &mut gpui::App) -> impl gpui::IntoElement {
-        let m = self.size.metrics();
-        let base_gap = m.gap;
+        let base_gap = match self.size {
+            Size::XSmall | Size::Small => px(2.),
+            Size::Medium => px(4.),
+            Size::Large => px(8.),
+            _ => px(4.),
+        };
+
         // Only for Horizontal layout
-        let (mut padding_x, mut padding_y) = (m.pad_x, m.pad_y);
+        let (mut padding_x, mut padding_y) = match self.size {
+            Size::XSmall | Size::Small => (px(4.), px(2.)),
+            Size::Medium => (px(8.), px(4.)),
+            Size::Large => (px(12.), px(6.)),
+            _ => (px(8.), px(4.)),
+        };
 
         let label_width = if self.layout.is_horizontal() {
             Some(self.label_width)
@@ -260,10 +270,10 @@ impl RenderOnce for DescriptionList {
             None
         };
         if !self.bordered {
-            padding_x = rems(0.);
-            padding_y = rems(0.);
+            padding_x = px(0.);
+            padding_y = px(0.);
         }
-        let gap = if self.bordered { rems(0.) } else { base_gap };
+        let gap = if self.bordered { px(0.) } else { base_gap };
 
         // Group items by columns
         let rows = Self::group_item_rows(self.items, self.columns);

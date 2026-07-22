@@ -13,7 +13,6 @@ mod index_path;
 mod inspector;
 #[cfg(all(target_os = "macos", not(test)))]
 mod macos_accessibility;
-mod metrics;
 mod root;
 mod styled;
 mod time;
@@ -93,7 +92,6 @@ pub use index_path::IndexPath;
 pub use input::{Rope, RopeExt, RopeLines};
 #[cfg(any(feature = "inspector", debug_assertions))]
 pub use inspector::*;
-pub use metrics::*;
 pub use root::Root;
 pub use styled::*;
 pub use theme::*;

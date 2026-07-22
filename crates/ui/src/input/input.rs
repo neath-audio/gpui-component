@@ -7,7 +7,6 @@ use gpui::{
     StatefulInteractiveElement as _, StyleRefinement, Styled, TextAlign, Window, div, px, relative,
 };
 
-use crate::Sizable;
 use crate::button::{Button, ButtonVariants as _};
 use crate::input::clear_button;
 use crate::native_menu::NativeMenu;
@@ -15,6 +14,7 @@ use crate::spinner::Spinner;
 use crate::{ActiveTheme, Colorize, v_flex};
 use crate::{IconName, Size};
 use crate::{Selectable, StyledExt, h_flex};
+use crate::{Sizable, StyleSized};
 
 use super::{
     InputContentType, InputState, content_type::sync_native_content_type, element::EditorScrollbar,
@@ -28,7 +28,7 @@ pub(crate) fn input_style(disabled: bool, cx: &App) -> (Hsla, Hsla) {
             cx.theme().muted_foreground,
         )
     } else {
-        (cx.theme().input_fill, cx.theme().foreground)
+        (cx.theme().input_background(), cx.theme().foreground)
     }
 }
 
@@ -365,8 +365,11 @@ impl RenderOnce for Input {
             sync_native_content_type(window, content_type, state.disabled);
         }
 
-        let m = self.size.metrics();
-        let gap_x = m.gap;
+        let gap_x = match self.size {
+            Size::Small => px(4.),
+            Size::Large => px(8.),
+            _ => px(6.),
+        };
 
         let (bg, _) = input_style(state.disabled, cx);
         let bg = if state.mode.is_code_editor() {
@@ -478,10 +481,10 @@ impl RenderOnce for Input {
             .on_scroll_wheel(window.listener_for(&self.state, InputState::on_scroll_wheel))
             .size_full()
             .line_height(LINE_HEIGHT)
-            .px(m.pad_x)
-            .py(m.pad_y)
-            .h(m.height)
-            .text_size(m.text)
+            .input_px(self.size)
+            .input_py(self.size)
+            .input_h(self.size)
+            .input_text_size(self.size)
             .when(!self.disabled, |this| this.cursor_text())
             .items_center()
             .when(state.mode.is_multi_line(), |this| {

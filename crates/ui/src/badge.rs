@@ -105,15 +105,10 @@ impl RenderOnce for Badge {
             BadgeVariant::Dot | BadgeVariant::Icon(_) => true,
         };
 
-        // docs/superpowers/specs/2026-07-19-depth-color-language-design.md:
-        // named exception — the badge is a decorative overlay indicator, not
-        // control geometry, so it keeps its own stock diameter/text ladder
-        // rather than deriving from ControlMetrics.
         let (size, text_size) = match self.size {
             Size::Large => (px(24.), px(14.)),
             Size::Medium | Size::Size(_) => (px(16.), px(10.)),
-            // XXSmall shares the XSmall floor (Small/XSmall already share).
-            Size::Small | Size::XSmall | Size::XXSmall => (px(10.), px(8.)),
+            Size::Small | Size::XSmall => (px(10.), px(8.)),
         };
 
         div()
@@ -139,20 +134,12 @@ impl RenderOnce for Badge {
                                     self.count.to_string()
                                 };
 
-                                // docs/superpowers/specs/2026-07-19-depth-color-language-design.md:
-                                // named exception — overlay chrome, not a control;
-                                // fine-tuned count-pill corner offset, not a single
-                                // metrics field.
                                 let (top, left) = match self.size {
                                     Size::Large => (px(2.), -px(count.len() as f32)),
                                     Size::Medium | Size::Size(_) => {
                                         (-px(3.), -px(3.) * count.len())
                                     }
-                                    // XXSmall shares the XSmall offsets
-                                    // (same 10px diameter above).
-                                    Size::Small | Size::XSmall | Size::XXSmall => {
-                                        (-px(4.), -px(4.) * count.len())
-                                    }
+                                    Size::Small | Size::XSmall => (-px(4.), -px(4.) * count.len()),
                                 };
 
                                 this.top(top)

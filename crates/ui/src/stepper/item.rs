@@ -114,16 +114,8 @@ impl Styled for StepperItem {
 impl RenderOnce for StepperItem {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
         let is_passed = self.step < self.checked_step;
-        // The circular step indicator's diameter is a free-standing badge
-        // scale (0.4x-2x the control-height ladder's own range), not the
-        // control-height axis itself — neither metrics().height nor .icon
-        // reproduces it without a jarring visual jump at either end, so it
-        // keeps its own component-local ladder. Named exception:
-        // docs/superpowers/specs/2026-07-19-depth-color-language-design.md
         let icon_size = match self.size {
-            // XXSmall shares XSmall's 8px dot floor — XSmall is already the
-            // number-less minimal dot (see trigger.rs), and smaller vanishes.
-            Size::XXSmall | Size::XSmall => px(8.),
+            Size::XSmall => px(8.),
             Size::Small => px(18.),
             Size::Large => px(32.),
             _ => px(24.),
@@ -232,13 +224,8 @@ impl RenderOnce for StepperSeparator {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let icon_size = self.icon_size;
         let text_center = self.text_center;
-        // Connector-line stroke width, same free-standing-badge exception as
-        // the indicator diameter in `StepperItem::render` above (not a
-        // control-height/padding quantity). Named exception:
-        // docs/superpowers/specs/2026-07-19-depth-color-language-design.md
         let separator_wide = match self.size {
-            // XXSmall shares XSmall's stroke floor (hairline territory).
-            Size::XXSmall | Size::XSmall => px(1.5),
+            Size::XSmall => px(1.5),
             Size::Large => px(3.),
             _ => px(2.),
         };

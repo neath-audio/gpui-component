@@ -841,9 +841,7 @@ impl RenderOnce for ColorPickerButton {
                         })
                         .when_some(self.tooltip, |this, tooltip| {
                             this.managed_tooltip(move |window, cx| {
-                                Tooltip::new(tooltip.clone())
-                                    .overlay_anchored()
-                                    .build(window, cx)
+                                Tooltip::new(tooltip.clone()).build(window, cx)
                             })
                         }),
                 )

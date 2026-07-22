@@ -467,10 +467,12 @@ impl TextElement {
                 }
             }
 
-            // cursor bounds: caret height scales with the control's text
-            // metric, normalized against the ladder's largest step.
-            let m = state.size.metrics();
-            let cursor_height = (m.text.0 / crate::Size::Large.metrics().text.0) * line_height;
+            // cursor bounds
+            let cursor_height = match state.size {
+                crate::Size::Large => 1.,
+                crate::Size::Small => 0.75,
+                _ => 0.85,
+            } * line_height;
 
             // Match the caret to the deferred scroll target (applied below) that
             // the text paints at; otherwise the caret follows the cursor-scroll

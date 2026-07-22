@@ -5,7 +5,7 @@ use crate::{
 use gpui::{
     Animation, AnimationExt as _, App, Background, ElementId, Hsla, InteractiveElement,
     IntoElement, ParentElement as _, RenderOnce, SharedString, StyleRefinement, Styled, Window,
-    div, prelude::FluentBuilder as _, px, rems,
+    div, prelude::FluentBuilder as _, px,
 };
 use std::{rc::Rc, time::Duration};
 
@@ -124,23 +124,15 @@ impl RenderOnce for Switch {
             (bg, toggle_bg)
         };
 
-        // NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-color-
-        // language-design.md, neath repo), re-ruled 2026-07-21: the first
-        // ladder pass stretched tracks to 2:1 with a height-minus-inset
-        // thumb, which read as "width and thumb not matching" in smoke.
-        // Nova's real relationship (default 32x18.4/16, sm 24x14/12) is
-        // thumb = HALF the track width, track height = thumb + 1px inset
-        // per side. Width still keys off the control-height axis
-        // (20/24/28/32/36) so every `Size` step stays visually distinct
-        // (user ruling 2026-07-20): tracks 20x12 / 24x14 / 28x16 / 32x18 /
-        // 36x20 with 10/12/14/16/18 thumbs — XSmall lands Nova sm exactly,
-        // Medium lands Nova default (rounded to integer height). Thumb
-        // travel (`max_x` below) re-derives from these at every use.
-        let m = self.size.metrics();
-        let bg_width = m.height.to_pixels(window.rem_size());
-        let bar_width = rems(m.height.0 * 0.5).to_pixels(window.rem_size());
-        let inset = px(1.);
-        let bg_height = bar_width + inset * 2.;
+        let (bg_width, bg_height) = match self.size {
+            Size::XSmall | Size::Small => (px(28.), px(16.)),
+            _ => (px(36.), px(20.)),
+        };
+        let bar_width = match self.size {
+            Size::XSmall | Size::Small => px(12.),
+            _ => px(16.),
+        };
+        let inset = px(2.);
         let radius = if cx.theme().radius >= px(4.) {
             bg_height
         } else {
@@ -210,7 +202,12 @@ impl RenderOnce for Switch {
                         ),
                 )
                 .when_some(self.label, |this, label| {
-                    this.child(div().line_height(bg_height).text_size(m.text).child(label))
+                    this.child(div().line_height(bg_height).child(label).map(
+                        |this| match self.size {
+                            Size::XSmall | Size::Small => this.text_sm(),
+                            _ => this.text_base(),
+                        },
+                    ))
                 })
                 .when_some(
                     on_click
@@ -227,32 +224,5 @@ impl RenderOnce for Switch {
                     },
                 ),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::Size;
-
-    #[test]
-    fn track_derives_nova_proportions_from_control_height() {
-        // Track = metrics().height wide; thumb = half that; track height =
-        // thumb + 2px of inset (see the named exception in `render`):
-        // 20x12/10 / 24x14/12 / 28x16/14 / 32x18/16 / 36x20/18. XSmall is
-        // Nova's sm switch exactly (24x14, 12 thumb); Medium is Nova's
-        // default (32x18.4, 16 thumb) at integer height. Pinned at the
-        // 16px rem base the ladder is authored against.
-        for (size, w, h, thumb) in [
-            (Size::XXSmall, 20., 12., 10.),
-            (Size::XSmall, 24., 14., 12.),
-            (Size::Small, 28., 16., 14.),
-            (Size::Medium, 32., 18., 16.),
-            (Size::Large, 36., 20., 18.),
-        ] {
-            let width = size.metrics().height.0 * 16.;
-            assert_eq!(width, w);
-            assert_eq!(width * 0.5, thumb);
-            assert_eq!(width * 0.5 + 2., h);
-        }
     }
 }

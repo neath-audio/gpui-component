@@ -10,8 +10,7 @@ use gpui::{
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme, Disableable, Icon, IconName, Sizable, Size, StyleSized as _,
-    StyledExt as _,
+    ActiveTheme, Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _,
     actions::{Cancel, Confirm},
     button::{Button, ButtonVariants as _},
     h_flex,
@@ -414,9 +413,7 @@ impl RenderOnce for DatePicker {
                     })
                     .overflow_hidden()
                     .input_text_size(self.size)
-                    .h(self.size.metrics().height)
-                    .px(self.size.metrics().pad_x)
-                    .py(self.size.metrics().pad_y)
+                    .input_size(self.size)
                     .when(!state.open && !self.disabled, |this| {
                         this.on_click(
                             window.listener_for(&self.state, DatePickerState::toggle_calendar),

@@ -176,18 +176,12 @@ impl RenderOnce for Alert {
             return Empty.into_any_element();
         }
 
-        // Radius stays keyed off the theme token (controller exception, not a
-        // metrics().radius consumer); only Large steps up to the large-radius
-        // token, matching the button-family radius convention.
-        let radius = if self.size == Size::Large {
-            cx.theme().radius_lg
-        } else {
-            cx.theme().radius
+        let (radius, padding_x, padding_y, gap) = match self.size {
+            Size::XSmall => (cx.theme().radius, px(12.), px(6.), px(6.)),
+            Size::Small => (cx.theme().radius, px(12.), px(8.), px(6.)),
+            Size::Large => (cx.theme().radius_lg, px(20.), px(14.), px(12.)),
+            _ => (cx.theme().radius, px(16.), px(10.), px(12.)),
         };
-        let m = self.size.metrics();
-        let padding_x = m.pad_x;
-        let padding_y = m.pad_y;
-        let gap = m.gap;
 
         let bg = self.variant.bg(cx);
         let fg = self.variant.fg(cx);

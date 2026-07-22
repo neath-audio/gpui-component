@@ -662,7 +662,10 @@ where
             .when_some(query_input, |this, input| {
                 this.child(
                     div()
-                        .px(self.options.size.metrics().pad_x)
+                        .map(|this| match self.options.size {
+                            Size::Small => this.px_1p5(),
+                            _ => this.px_2(),
+                        })
                         .border_b_1()
                         .border_color(cx.theme().border)
                         .child(

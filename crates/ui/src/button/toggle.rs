@@ -31,18 +31,6 @@ pub trait ToggleVariants: Sized {
     }
 }
 
-/// A `Toggle` child, in call order — either an opaque rendered element (from
-/// `.label()`/`.child()`/`.children()`) or an `Icon` kept unconverted so
-/// render time can still resize it to `metrics().icon` and, when it's the
-/// *only* kind of child present, detect the icon-only case (see
-/// `Toggle::is_icon_only` and `RenderOnce for Toggle`).
-enum ToggleChild {
-    Element(AnyElement),
-    // Boxed: `Icon` is much larger than `AnyElement`, and clippy's
-    // large-enum-variant lint flags the resulting size gap otherwise.
-    Icon(Box<Icon>),
-}
-
 #[derive(IntoElement)]
 pub struct Toggle {
     id: ElementId,
@@ -53,7 +41,7 @@ pub struct Toggle {
     disabled: bool,
     border_corners: Corners<bool>,
     border_edges: Edges<bool>,
-    children: SmallVec<[ToggleChild; 1]>,
+    children: SmallVec<[AnyElement; 1]>,
     on_click: Option<Box<dyn Fn(&bool, &mut Window, &mut App) + 'static>>,
     tooltip: ComponentTooltip,
 }
@@ -90,34 +78,15 @@ impl Toggle {
     /// Add a label to the toggle.
     pub fn label(mut self, label: impl Into<SharedString>) -> Self {
         let label: SharedString = label.into();
-        self.children
-            .push(ToggleChild::Element(label.into_any_element()));
+        self.children.push(label.into_any_element());
         self
     }
 
     /// Add icon to the toggle.
     pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
         let icon: Icon = icon.into();
-        self.children.push(ToggleChild::Icon(Box::new(icon)));
+        self.children.push(icon.into());
         self
-    }
-
-    /// Whether every child added so far is an `Icon` (i.e. no
-    /// `.label()`/`.child()`/`.children()` element was ever added). Icon-only
-    /// toggles render as a square button — see `RenderOnce for Toggle`.
-    ///
-    /// NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
-    /// neath repo): the stock toggle was square only by coincidence before
-    /// the Nova ladder retune (Medium: `min_w` 32 == `icon` 16 + `pad_x` 2x8);
-    /// the retuned `pad_x` (8/10/10/10) breaks that arithmetic, so icon-only
-    /// toggles now size explicitly off `metrics().height` instead of relying
-    /// on `min_w` + content width to coincidentally match it.
-    fn is_icon_only(&self) -> bool {
-        !self.children.is_empty()
-            && self
-                .children
-                .iter()
-                .all(|child| matches!(child, ToggleChild::Icon(_)))
     }
 
     /// Set the checked state of the toggle, default: false
@@ -154,8 +123,7 @@ impl ToggleVariants for Toggle {
 
 impl ParentElement for Toggle {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children
-            .extend(elements.into_iter().map(ToggleChild::Element));
+        self.children.extend(elements);
     }
 }
 
@@ -180,38 +148,16 @@ impl Styled for Toggle {
 }
 
 impl RenderOnce for Toggle {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let checked = self.checked;
         let disabled = self.disabled;
         let hoverable = !disabled && !checked;
-        // Per-size Nova radius curve — matches Button (see
-        // `Size::control_radius`); flat `theme.radius` pilled the short sizes.
-        let rounding = self.size.control_radius(cx.theme());
-        let m = self.size.metrics();
-        let icon_only = self.is_icon_only();
-        // Icons are rendered at metrics size like Button does (see
-        // button.rs's `icon_size`), converting each `ToggleChild` into its
-        // final `AnyElement` in call order — this preserves the exact
-        // interleaving of labels and icons a caller built up via
-        // `.label()`/`.icon()`/`.child()`.
-        let icon_px = m.icon.to_pixels(window.rem_size());
-        let children = self
-            .children
-            .into_iter()
-            .map(|child| match child {
-                ToggleChild::Element(el) => el,
-                ToggleChild::Icon(icon) => (*icon).with_size(Size::Size(icon_px)).into(),
-            })
-            .collect::<Vec<AnyElement>>();
+        let rounding = cx.theme().radius;
 
         div()
             .id(self.id)
             .role(Role::Button)
-            .aria_toggled(if checked {
-                Toggled::True
-            } else {
-                Toggled::False
-            })
+            .aria_toggled(if checked { Toggled::True } else { Toggled::False })
             .when_some(
                 self.tooltip.text.as_ref().map(|(text, _)| text.clone()),
                 |this, label| this.aria_label(label),
@@ -220,18 +166,12 @@ impl RenderOnce for Toggle {
             .flex_row()
             .items_center()
             .justify_center()
-            // NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
-            // neath repo): icon-only toggles are sized explicitly off
-            // `metrics().height` (both axes, no padding) to stay square;
-            // labeled toggles keep the `min_w` + `pad_x`/`pad_y` box model.
-            .map(|this| {
-                if icon_only {
-                    this.w(m.height).h(m.height).px_0()
-                } else {
-                    this.min_w(m.height).h(m.height).px(m.pad_x).py(m.pad_y)
-                }
+            .map(|this| match self.size {
+                Size::XSmall => this.min_w_5().h_5().px_0p5().text_xs(),
+                Size::Small => this.min_w_6().h_6().px_1().text_sm(),
+                Size::Large => this.min_w_9().h_9().px_3().text_lg(),
+                _ => this.min_w_8().h_8().px_2(),
             })
-            .text_size(m.text)
             .when(self.border_corners.top_left, |this| {
                 this.rounded_tl(rounding)
             })
@@ -264,7 +204,7 @@ impl RenderOnce for Toggle {
                     .text_color(cx.theme().accent_foreground)
             })
             .refine_style(&self.style)
-            .children(children)
+            .children(self.children)
             .when(!disabled, |this| {
                 this.when_some(self.on_click, |this, on_click| {
                     this.on_click(move |_, window, cx| on_click(&!checked, window, cx))
@@ -468,29 +408,6 @@ mod tests {
         assert_eq!(toggle.size, Size::Large);
         assert!(!toggle.disabled);
         assert!(toggle.on_click.is_some());
-        // A label was added alongside the icon, so this is not icon-only.
-        assert!(!toggle.is_icon_only());
-    }
-
-    #[gpui::test]
-    fn test_toggle_icon_only_detection(_cx: &mut gpui::TestAppContext) {
-        // Only `.icon()` was ever called: icon-only, must stay square.
-        let icon_only = Toggle::new("icon-only").icon(IconName::Check);
-        assert!(icon_only.is_icon_only());
-
-        // Icon followed by a label: no longer icon-only.
-        let icon_then_label = Toggle::new("icon-then-label")
-            .icon(IconName::Check)
-            .label("Enabled");
-        assert!(!icon_then_label.is_icon_only());
-
-        // Label only, no icon at all: not icon-only (and not empty either).
-        let label_only = Toggle::new("label-only").label("Enabled");
-        assert!(!label_only.is_icon_only());
-
-        // No children at all: not icon-only (nothing to be square about).
-        let empty = Toggle::new("empty");
-        assert!(!empty.is_icon_only());
     }
 
     #[gpui::test]

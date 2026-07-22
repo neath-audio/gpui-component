@@ -9,7 +9,8 @@ use gpui::{
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size, StyledExt,
+    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
+    StyleSized, StyledExt,
     actions::{Cancel, Confirm, SelectDown, SelectUp},
     global_state::GlobalState,
     h_flex,
@@ -979,8 +980,6 @@ fn render_trigger_container(
     prepaint_handler: Box<dyn Fn(Bounds<Pixels>, &mut Window, &mut App) + 'static>,
     cx: &mut App,
 ) -> impl IntoElement {
-    let m = size.metrics();
-
     div()
         .id("input")
         .relative()
@@ -999,10 +998,8 @@ fn render_trigger_container(
         })
         .map(|this| if disabled { this.shadow_none() } else { this })
         .overflow_hidden()
-        .px(m.pad_x)
-        .py(m.pad_y)
-        .h(m.height)
-        .text_size(m.text)
+        .input_size(size)
+        .input_text_size(size)
         .refine_style(style)
         // The focused ring is appearance chrome, like the border and
         // background — `appearance(false)` callers style the trigger

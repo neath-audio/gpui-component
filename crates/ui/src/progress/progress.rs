@@ -2,7 +2,7 @@ use crate::{ActiveTheme, Sizable, Size, StyledExt};
 use gpui::{
     Animation, AnimationExt as _, App, Background, ElementId, Hsla, InteractiveElement as _,
     IntoElement, ParentElement, RenderOnce, Role, StatefulInteractiveElement as _, StyleRefinement,
-    Styled, Window, div, ease_in_out, prelude::FluentBuilder, relative, rems,
+    Styled, Window, div, ease_in_out, prelude::FluentBuilder, px, relative,
 };
 use instant::Duration;
 
@@ -82,26 +82,12 @@ impl RenderOnce for Progress {
         let mut inner_style = StyleRefinement::default();
         inner_style.corner_radii = radius;
 
-        // The progress bar's thickness is not the control-height axis (it's a
-        // thin track, not a form control), and a pad_y-keyed derivation
-        // plateaus at Medium (4/6/8/8) — every `Size` step must stay
-        // visually distinct (user-ruled 2026-07-20).
         let (height, radius) = match self.size {
+            Size::XSmall => (px(4.), px(2.)),
+            Size::Small => (px(6.), px(3.)),
+            Size::Medium => (px(8.), px(4.)),
+            Size::Large => (px(10.), px(5.)),
             Size::Size(s) => (s, s / 2.),
-            _ => {
-                // NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-
-                // color-language-design.md, neath repo): thickness ladder.
-                let h = match self.size {
-                    // XXSmall shares XSmall's 4px floor (thinner tracks
-                    // disappear; dense-tier ruling 2026-07-20).
-                    Size::XXSmall | Size::XSmall => rems(0.25), // 4px
-                    Size::Small => rems(0.375),                 // 6px
-                    Size::Large => rems(0.625),                 // 10px
-                    _ => rems(0.5),                             // 8px (Medium)
-                }
-                .to_pixels(window.rem_size());
-                (h, h / 2.)
-            }
         };
 
         let state = window.use_keyed_state(self.id.clone(), cx, |_, _| ProgressState::new(value));

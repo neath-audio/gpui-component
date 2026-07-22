@@ -183,15 +183,26 @@ impl Theme {
         }
     }
 
-    /// Get the editor background color, if not set, use the input fill
-    /// (the editor viewport is a control interior like input/checkbox/radio,
-    /// so it shares the `input.fill` token).
+    /// Get the input background color.
+    ///
+    /// For dark, use a transparent color mixed with the input border: `cx.theme().input`,
+    /// otherwise use the `cx.theme().background` color.
+    #[inline]
+    pub fn input_background(&self) -> Hsla {
+        if self.is_dark() {
+            self.input.mix_oklab(self.transparent, 0.3)
+        } else {
+            self.background
+        }
+    }
+
+    /// Get the editor background color, if not set, use the input background color.
     #[inline]
     pub(crate) fn editor_background(&self) -> Hsla {
         self.highlight_theme
             .style
             .editor_background
-            .unwrap_or(self.colors.input_fill)
+            .unwrap_or_else(|| self.input_background())
     }
 }
 
@@ -211,14 +222,8 @@ impl From<&ThemeColor> for Theme {
                 "DejaVu Sans Mono".into()
             },
             mono_font_size: px(13.),
-            // shadcn Nova parity: default radius = 10px (Nova's `rounded-lg`),
-            // radius_lg scaled proportionally (+4 → 14px), user-ruled
-            // 2026-07-20 (docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
-            // neath repo). Rust-side default only — `radius`/`radius.lg` are
-            // not set in default-theme.json (see ThemeConfig in schema.rs),
-            // so this is the sole source of the shipped default.
-            radius: px(10.),
-            radius_lg: px(14.),
+            radius: px(6.),
+            radius_lg: px(8.),
             shadow: true,
             scrollbar_show: ScrollbarShow::default(),
             notification: NotificationSettings::default(),

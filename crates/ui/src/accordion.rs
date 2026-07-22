@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc, sync::Arc};
 use gpui::{
     AnyElement, App, ElementId, InteractiveElement as _, IntoElement, ParentElement, RenderOnce,
     Role, SharedString, StatefulInteractiveElement as _, Styled, Window, div,
-    prelude::FluentBuilder as _,
+    prelude::FluentBuilder as _, rems,
 };
 
 use crate::{ActiveTheme as _, Icon, IconName, Sizable, Size, h_flex, v_flex};
@@ -220,7 +220,11 @@ impl Sizable for AccordionItem {
 
 impl RenderOnce for AccordionItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let m = self.size.metrics();
+        let text_size = match self.size {
+            Size::XSmall => rems(0.875),
+            Size::Small => rems(0.875),
+            _ => rems(1.0),
+        };
 
         div().flex_1().child(
             v_flex()
@@ -232,7 +236,7 @@ impl RenderOnce for AccordionItem {
                         .rounded(cx.theme().radius)
                         .border_color(cx.theme().border)
                 })
-                .text_size(m.text)
+                .text_size(text_size)
                 .child(
                     h_flex()
                         .id(self.index)
@@ -240,8 +244,12 @@ impl RenderOnce for AccordionItem {
                         .aria_expanded(self.open)
                         .justify_between()
                         .gap_3()
-                        .py(m.pad_y)
-                        .px(m.pad_x)
+                        .map(|this| match self.size {
+                            Size::XSmall => this.py_0().px_1p5(),
+                            Size::Small => this.py_0p5().px_2(),
+                            Size::Large => this.py_1p5().px_4(),
+                            _ => this.py_1().px_3(),
+                        })
                         .when(self.open, |this| {
                             this.when(self.bordered, |this| {
                                 this.text_color(cx.theme().foreground)
@@ -255,7 +263,11 @@ impl RenderOnce for AccordionItem {
                         .child(
                             h_flex()
                                 .items_center()
-                                .gap(m.gap)
+                                .map(|this| match self.size {
+                                    Size::XSmall => this.gap_1(),
+                                    Size::Small => this.gap_1(),
+                                    _ => this.gap_2(),
+                                })
                                 .when_some(self.icon, |this, icon| {
                                     this.child(
                                         icon.with_size(self.size)
@@ -285,7 +297,16 @@ impl RenderOnce for AccordionItem {
                         }),
                 )
                 .when(self.open, |this| {
-                    this.child(div().p(m.pad_x).children(self.children))
+                    this.child(
+                        div()
+                            .map(|this| match self.size {
+                                Size::XSmall => this.p_1p5(),
+                                Size::Small => this.p_2(),
+                                Size::Large => this.p_4(),
+                                _ => this.p_3(),
+                            })
+                            .children(self.children),
+                    )
                 }),
         )
     }

@@ -59,12 +59,10 @@ pub struct ThemeConfig {
     #[serde(rename = "mono_font.size")]
     pub mono_font_size: Option<f32>,
 
-    /// The border radius for general elements, default is 10 (shadcn Nova
-    /// parity, user-ruled 2026-07-20).
+    /// The border radius for general elements, default is 6.
     #[serde(rename = "radius")]
     pub radius: Option<usize>,
-    /// The border radius for large elements like Dialogs and Notifications,
-    /// default is 14 (shadcn Nova parity, user-ruled 2026-07-20).
+    /// The border radius for large elements like Dialogs and Notifications, default is 8.
     #[serde(rename = "radius.lg")]
     pub radius_lg: Option<usize>,
     /// Set shadows in the theme, for example the Input and Button, default is true.
@@ -473,22 +471,12 @@ pub struct ThemeConfigColors {
     #[serde(rename = "window.border")]
     pub window_border: Option<SharedString>,
 
-    /// Recessed well surface (window footers, transport lanes). Legacy
-    /// editor themes wrote `elevation.sunken` — kept as a read alias.
-    #[serde(rename = "well", alias = "elevation.sunken")]
-    pub well: Option<SharedString>,
     /// Soft hairline: dialog edges, on-surface outlines (drop zones, wells).
     #[serde(rename = "hairline")]
     pub hairline: Option<SharedString>,
     /// Strong hairline: menu / popover / tooltip / sheet edges.
     #[serde(rename = "hairline.strong")]
     pub hairline_strong: Option<SharedString>,
-    /// Control-interior fill (input, checkbox, radio, outline button).
-    #[serde(rename = "input.fill")]
-    pub input_fill: Option<SharedString>,
-    /// Neutral fill for badges/chips painted ON another surface.
-    #[serde(rename = "surface.fill")]
-    pub surface_fill: Option<SharedString>,
 
     /// Base blue color.
     #[serde(rename = "base.blue")]
@@ -633,12 +621,9 @@ impl ThemeColor {
             fallback = self.muted.blend(self.foreground.opacity(0.7))
         );
 
-        // Button colors. Pressed-state fallbacks mix toward black in OKLab
-        // (perceptually even step; chroma recedes with lightness) instead of
-        // the old HSL-lightness multiply, which stepped unevenly across hues.
-        let active_mix = if config.mode.is_dark() { 0.2 } else { 0.1 };
+        // Button colors
+        let active_darken = if config.mode.is_dark() { 0.2 } else { 0.1 };
         let hover_opacity = 0.9;
-        let black = gpui::black();
         let transparent = gpui::transparent_black();
         let button_background = if config.mode.is_dark() {
             self.input.mix_oklab(transparent, 0.3)
@@ -663,7 +648,7 @@ impl ThemeColor {
         );
         apply_background_color!(
             primary_active,
-            fallback = self.primary.mix_oklab(black, active_mix)
+            fallback = self.primary.darken(active_darken)
         );
         apply_background_color!(button_primary, fallback = tokens.primary);
         apply_color!(
@@ -680,7 +665,7 @@ impl ThemeColor {
         );
         apply_background_color!(
             secondary_active,
-            fallback = self.secondary.mix_oklab(black, active_mix)
+            fallback = self.secondary.darken(active_darken)
         );
         apply_background_color!(button_secondary, fallback = tokens.secondary);
         apply_color!(
@@ -697,7 +682,7 @@ impl ThemeColor {
         );
         apply_background_color!(
             success_active,
-            fallback = self.success.mix_oklab(black, active_mix)
+            fallback = self.success.darken(active_darken)
         );
         apply_background_color!(
             button_success,
@@ -718,10 +703,7 @@ impl ThemeColor {
             info_hover,
             fallback = self.background.blend(self.info.opacity(hover_opacity))
         );
-        apply_background_color!(
-            info_active,
-            fallback = self.info.mix_oklab(black, active_mix)
-        );
+        apply_background_color!(info_active, fallback = self.info.darken(active_darken));
         apply_background_color!(
             button_info,
             fallback = self.info.mix_oklab(transparent, 0.2)
@@ -743,9 +725,7 @@ impl ThemeColor {
         );
         apply_background_color!(
             warning_active,
-            // The old `background.blend(..)` wrapper was a no-op over the
-            // opaque darkened color; dropped to match the sibling arms.
-            fallback = self.warning.mix_oklab(black, active_mix)
+            fallback = self.background.blend(self.warning.darken(active_darken))
         );
         apply_background_color!(
             button_warning,
@@ -785,10 +765,7 @@ impl ThemeColor {
         apply_color!(chart_bullish, fallback = self.green);
         apply_color!(chart_bearish, fallback = self.red);
         apply_background_color!(danger, fallback = self.red);
-        apply_background_color!(
-            danger_active,
-            fallback = self.danger.mix_oklab(black, active_mix)
-        );
+        apply_background_color!(danger_active, fallback = self.danger.darken(active_darken));
         apply_color!(danger_foreground, fallback = self.primary_foreground);
         apply_background_color!(
             danger_hover,
@@ -881,15 +858,8 @@ impl ThemeColor {
         apply_background_color!(tiles, fallback = tokens.background);
         apply_background_color!(overlay);
         apply_color!(window_border, fallback = self.border);
-
-        // Plain surface/edge tokens (flat-token spec 2026-07-21, neath repo).
-        // Absent keys fall back to the mode default theme's values via the
-        // no-fallback macro arms — mode-correct by construction.
         apply_color!(hairline);
         apply_color!(hairline_strong);
-        apply_background_color!(well);
-        apply_background_color!(input_fill);
-        apply_color!(surface_fill);
 
         // TODO: Apply default fallback colors to highlight.
 
@@ -985,36 +955,6 @@ mod tests {
     use gpui::{linear_color_stop, linear_gradient};
 
     use crate::{Theme, ThemeConfig, ThemeMode, ThemeSet, try_parse_color};
-
-    #[test]
-    fn theme_color_json_without_surface_fields_still_loads() {
-        // A ThemeColor JSON predating the flat surface tokens must
-        // deserialize — `#[serde(default)]` on the plain fields.
-        let json = serde_json::to_string(&crate::ThemeColor::default()).unwrap();
-        let stripped: serde_json::Value = serde_json::from_str(&json).unwrap();
-        let mut obj = stripped.as_object().unwrap().clone();
-        for k in [
-            "hairline",
-            "hairline_strong",
-            "well",
-            "input_fill",
-            "surface_fill",
-        ] {
-            obj.remove(k);
-        }
-        let restored: crate::ThemeColor =
-            serde_json::from_value(serde_json::Value::Object(obj)).unwrap();
-        assert_eq!(restored.well.a, 0.);
-    }
-
-    #[test]
-    fn legacy_elevation_sunken_key_aliases_to_well() {
-        // Editor-saved themes from the elevation era wrote `elevation.sunken`;
-        // it must keep feeding the plain `well` token.
-        let json = r##"{"name":"t","mode":"dark","colors":{"elevation.sunken":"#060606"}}"##;
-        let config: ThemeConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.colors.well.as_deref(), Some("#060606"));
-    }
 
     #[test]
     fn test_apply_config_preserves_gradient_background_and_solid_color_fallback() {

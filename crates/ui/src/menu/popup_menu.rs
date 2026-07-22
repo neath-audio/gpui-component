@@ -1166,45 +1166,27 @@ impl PopupMenu {
         let selected = self.selected_index == Some(ix);
         const EDGE_PADDING: Pixels = px(4.);
         // Nova dropdown parity, user-ruled 2026-07-20: 6px item inset (was
-        // 8px) and 6px icon/content gap (was 4px) —
-        // docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
-        // neath repo.
+        // 8px) and 6px icon/content gap (was 4px).
         const INNER_PADDING: Rems = rems(0.375);
         const ICON_GAP: Rems = rems(0.375);
 
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
         let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
-        // Menu rows never grow past "Medium" chrome even at Large — clamp
-        // before reading the ladder. Note this fork's `Size::max` returns the
-        // SMALLER of the two sizes (see its doc comment), so
-        // `self.size.max(Size::Medium)` clamps Large down to Medium while
-        // leaving XSmall/Small untouched — the opposite of what the method
-        // name suggests.
-        //
-        // item_height is now content-derived rather than a fixed slice of
-        // the control-height ladder: the text's own line box plus the
+        // item_height is content-derived: the text's own line box plus the
         // vertical padding on both edges, matching Nova's dropdown-item
-        // recipe (`py-1 text-sm` -> 2×py-1 + line-height). The line-height
-        // is Tailwind's text-sm ratio (1.25rem line / 0.875rem font =
-        // 10/7), applied to each tier's own `metrics().text` so smaller
-        // Size tiers still get smaller rows. At Medium/default (0.875rem
-        // text, 0.25rem pad_y) this resolves to 20px + 2×4px = 28px.
-        // Preserves the old "never grow past Medium" clamp semantics
-        // (docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
-        // neath repo).
+        // recipe (`py-1 text-sm` -> 2×py-1 + line-height). The line-height is
+        // Tailwind's text-sm ratio (1.25rem / 0.875rem = 10/7). Menu rows use
+        // a fixed text-sm tier, so this resolves to 20px + 2×4px = 28px at the
+        // default rem.
         const TEXT_LINE_RATIO: f32 = 10. / 7.;
-        let clamped = self.size.max(Size::Medium);
-        let metrics = clamped.metrics();
+        let menu_text = rems(0.875);
         let rem_size = window.rem_size();
-        let text_line = metrics.text.to_pixels(rem_size) * TEXT_LINE_RATIO;
-        let item_height = text_line + metrics.pad_y.to_pixels(rem_size) * 2.;
-        // Radius stays keyed off the popover's own radius (controller
-        // exception, not a metrics().radius consumer); only whether it's
-        // halved is Size-driven.
-        // Menu metrics stay Medium-clamped (dense-tier ruling 2026-07-20);
-        // only the compact-radius split learns the new tier.
-        let radius = if matches!(self.size, Size::XXSmall | Size::XSmall | Size::Small) {
+        let text_line = menu_text.to_pixels(rem_size) * TEXT_LINE_RATIO;
+        let item_height = text_line + rems(0.25).to_pixels(rem_size) * 2.;
+        // Radius is keyed off the popover's own radius, halved only for the
+        // compact `XSmall | Small` tiers.
+        let radius = if matches!(self.size, Size::XSmall | Size::Small) {
             options.radius.half()
         } else {
             options.radius
@@ -1212,7 +1194,7 @@ impl PopupMenu {
 
         let this = MenuItemElement::new(ix, &group_name)
             .relative()
-            .text_size(self.size.metrics().text)
+            .text_size(menu_text)
             .py_0()
             .px(INNER_PADDING)
             .rounded(radius)
@@ -1437,14 +1419,8 @@ impl Render for PopupMenu {
         let options = RenderOptions {
             has_left_icon,
             check_side: self.check_side,
-            // Nova dropdown-item rounding, user-ruled 2026-07-20:
-            // `theme.radius - 2px`, floored at 0 — at the default 10px
-            // theme radius this is 8px. Computed directly rather than via
-            // `Size::control_radius`'s Small tier: that method also caps at
-            // 12px for buttons/toggles, a button-specific ceiling that has
-            // no bearing on menu-row rounding
-            // (docs/superpowers/specs/2026-07-19-depth-color-language-
-            // design.md, neath repo).
+            // Dropdown-item rounding: `theme.radius - 2px`, floored at 0 —
+            // at the default 6px theme radius this is 4px.
             radius: (cx.theme().radius - px(2.)).max(px(0.)),
         };
 

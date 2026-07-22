@@ -7,7 +7,8 @@ use gpui::{
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size, StyledExt,
+    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
+    StyleSized, StyledExt,
     actions::{Cancel, Confirm, SelectDown, SelectUp},
     global_state::GlobalState,
     h_flex,
@@ -473,7 +474,6 @@ where
         let popup_radius = cx.theme().radius.min(px(8.));
 
         let (bg, fg) = input_style(self.state.disabled, cx);
-        let m = self.state.size.metrics();
 
         self.state.list.update(cx, |list, cx| {
             list.set_searchable(searchable, cx);
@@ -482,7 +482,7 @@ where
         });
 
         div()
-            // w_full only: the trigger below carries its own h(m.height).
+            // w_full only: the trigger below carries its own height.
             // h_full here stretched the slot in auto-height flex parents
             // (dialog bodies) after the Taffy 0.12 gpui bump, opening a
             // phantom gap below the trigger.
@@ -513,10 +513,8 @@ where
                         }
                     })
                     .overflow_hidden()
-                    .px(m.pad_x)
-                    .py(m.pad_y)
-                    .h(m.height)
-                    .text_size(m.text)
+                    .input_size(self.state.size)
+                    .input_text_size(self.state.size)
                     .refine_style(&self.state.style)
                     .when(outline_visible, |this| this.focused_border(cx))
                     .when(allow_open, |this| {

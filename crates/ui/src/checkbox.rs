@@ -6,62 +6,9 @@ use crate::{
 };
 use gpui::{
     Animation, AnimationExt, AnyElement, App, Div, ElementId, InteractiveElement, IntoElement,
-    ParentElement, Rems, RenderOnce, Role, SharedString, StatefulInteractiveElement,
-    StyleRefinement, Styled, Toggled, Window, div, prelude::FluentBuilder as _, px, relative, rems,
-    svg,
+    ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, StyleRefinement,
+    Styled, Toggled, Window, div, prelude::FluentBuilder as _, px, relative, rems, svg,
 };
-
-/// NAMED EXCEPTION (docs/superpowers/specs/2026-07-19-depth-color-language-design.md,
-/// neath repo): compressed indicator ladder, user-ruled 2026-07-20 (round 2).
-/// Neither the control-tier icon column (12/12/14/16/16 — Medium/Large read
-/// too large beside their labels) nor Nova's single fixed 16px (sizes became
-/// indistinguishable): the box steps 12/14/15/16/17px — distinct at every
-/// `Size`, narrow range, roughly label-text + 2px (text tier is
-/// 12/12/13/14/14; XXSmall floors at 12 = its text size, per the dense-tier
-/// ruling 2026-07-20). Custom sizes interpolate between adjacent tiers keyed
-/// off the size's `metrics().height`, clamped at the ends (mirrors
-/// metrics.rs `interpolated()`). Shared by `Radio` (see radio.rs).
-pub(crate) fn indicator_size(size: Size) -> Rems {
-    /// (control_height_px, indicator_px) anchors on the canonical
-    /// 20/24/28/32/36 control-height ladder.
-    const ANCHORS: [(f32, f32); 5] = [
-        (20., 12.), // XXSmall
-        (24., 14.), // XSmall
-        (28., 15.), // Small
-        (32., 16.), // Medium
-        (36., 17.), // Large
-    ];
-    const REM: f32 = 16.;
-    match size {
-        Size::XXSmall => rems(0.75), // 12px
-        Size::XSmall => rems(0.875), // 14px
-        Size::Small => rems(0.9375), // 15px
-        Size::Medium => rems(1.0),   // 16px
-        Size::Large => rems(1.0625), // 17px
-        Size::Size(_) => {
-            // metrics().height passes the raw custom height through, so key
-            // the interpolation off it directly (px at the 16px rem base).
-            let h = size.metrics().height.0 * REM;
-            if h <= ANCHORS[0].0 {
-                return rems(ANCHORS[0].1 / REM);
-            }
-            if h >= ANCHORS[4].0 {
-                return rems(ANCHORS[4].1 / REM);
-            }
-            let i = (0..4)
-                .find(|&i| h < ANCHORS[i + 1].0)
-                .expect("height inside anchor bounds");
-            let (lo, hi) = (ANCHORS[i], ANCHORS[i + 1]);
-            let t = (h - lo.0) / (hi.0 - lo.0);
-            rems((lo.1 + (hi.1 - lo.1) * t) / REM)
-        }
-    }
-}
-
-/// Check glyph = box − 4px: 1px border + 1px breathing room per side.
-fn glyph_size(size: Size) -> Rems {
-    rems(indicator_size(size).0 - 0.25)
-}
 
 /// A Checkbox element.
 #[derive(IntoElement)]
@@ -208,12 +155,17 @@ pub(crate) fn checkbox_check_icon(
         cx.theme().primary_foreground
     };
 
-    // Sized per the compressed indicator ladder (module-level named
-    // exception above). Positioned by the parent box's flex centering —
-    // never by absolute offsets, which silently break when the box/glyph
-    // arithmetic changes.
     svg()
-        .size(glyph_size(size))
+        .absolute()
+        .top_px()
+        .left_px()
+        .map(|this| match size {
+            Size::XSmall => this.size_2(),
+            Size::Small => this.size_2p5(),
+            Size::Medium => this.size_3(),
+            Size::Large => this.size_3p5(),
+            _ => this.size_3(),
+        })
         .text_color(color)
         .map(|this| match checked {
             true => this.path(IconName::Check.path()),
@@ -291,7 +243,13 @@ impl RenderOnce for Checkbox {
             .items_start()
             .line_height(relative(1.))
             .text_color(cx.theme().foreground)
-            .text_size(self.size.metrics().text)
+            .map(|this| match self.size {
+                Size::XSmall => this.text_xs(),
+                Size::Small => this.text_sm(),
+                Size::Medium => this.text_base(),
+                Size::Large => this.text_lg(),
+                _ => this,
+            })
             .when(self.disabled, |this| {
                 this.text_color(cx.theme().muted_foreground)
             })
@@ -300,19 +258,21 @@ impl RenderOnce for Checkbox {
             .refine_style(&self.style)
             .child(
                 div()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    // Compressed indicator ladder, not control-height- or
-                    // icon-tier-sized (see the named exception above).
-                    .size(indicator_size(self.size))
+                    .relative()
+                    .map(|this| match self.size {
+                        Size::XSmall => this.size_3(),
+                        Size::Small => this.size_3p5(),
+                        Size::Medium => this.size_4(),
+                        Size::Large => this.size(rems(1.125)),
+                        _ => this.size_4(),
+                    })
                     .flex_shrink_0()
                     .border_1()
                     .border_color(color)
                     .rounded(radius)
                     .when(cx.theme().shadow && !self.disabled, |this| this.shadow_xs())
                     .map(|this| match checked {
-                        false => this.bg(cx.theme().input_fill),
+                        false => this.bg(cx.theme().input_background()),
                         true if self.disabled => this.bg(color),
                         true => this.bg(cx.theme().tokens.primary),
                     })
@@ -365,52 +325,5 @@ impl RenderOnce for Checkbox {
                 })
             })
             .map(|this| self.tooltip.apply(this))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{glyph_size, indicator_size};
-    use crate::Size;
-    use gpui::{px, rems};
-
-    #[test]
-    fn indicator_ladder_is_pinned() {
-        // Compressed indicator ladder (named exception above):
-        // 12/14/15/16/17px across XXSmall-Large.
-        assert_eq!(indicator_size(Size::XXSmall), rems(0.75));
-        assert_eq!(indicator_size(Size::XSmall), rems(0.875));
-        assert_eq!(indicator_size(Size::Small), rems(0.9375));
-        assert_eq!(indicator_size(Size::Medium), rems(1.0));
-        assert_eq!(indicator_size(Size::Large), rems(1.0625));
-    }
-
-    #[test]
-    fn custom_indicator_interpolates_between_tiers() {
-        // 22px control height sits halfway between XXSmall(20) and
-        // XSmall(24) -> indicator halfway between 12 and 14 = 13px.
-        assert_eq!(indicator_size(Size::Size(px(22.))), rems(13. / 16.));
-        // 30px sits halfway between Small(28) and Medium(32) -> 15.5px.
-        assert_eq!(indicator_size(Size::Size(px(30.))), rems(15.5 / 16.));
-        // Exact tier heights land on the tier's own value.
-        assert_eq!(indicator_size(Size::Size(px(32.))), rems(1.0));
-        // Clamped at both ends.
-        assert_eq!(indicator_size(Size::Size(px(10.))), rems(0.75));
-        assert_eq!(indicator_size(Size::Size(px(64.))), rems(1.0625));
-    }
-
-    #[test]
-    fn glyph_is_box_minus_4px() {
-        for size in [
-            Size::XXSmall,
-            Size::XSmall,
-            Size::Small,
-            Size::Medium,
-            Size::Large,
-        ] {
-            assert_eq!(glyph_size(size), rems(indicator_size(size).0 - 0.25));
-        }
-        // XXSmall floor: 12px box -> 8px glyph.
-        assert_eq!(glyph_size(Size::XXSmall), rems(0.5));
     }
 }
