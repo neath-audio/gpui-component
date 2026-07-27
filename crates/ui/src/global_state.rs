@@ -12,6 +12,11 @@ pub(crate) fn init(cx: &mut App) {
 
 impl Global for GlobalState {}
 
+/// Signature of an app-registered TextView link-click interceptor. `Rc`, not
+/// `Arc` — gpui globals are main-thread and the handler will typically
+/// capture a gpui `WeakEntity`, which is not `Send`.
+pub(crate) type TextLinkHandler = std::rc::Rc<dyn Fn(&str, &mut Window, &mut App) -> bool>;
+
 pub struct GlobalState {
     pub(crate) text_view_state_stack: Vec<Entity<TextViewState>>,
     /// Set of open popover IDs that use deferred rendering.
@@ -43,6 +48,11 @@ pub struct GlobalState {
     /// the menu — which may be the popover's own deferred descendant painted
     /// OUTSIDE the popover's bounds (a row's dropdown) — never a dismissal.
     open_menu_bounds: HashMap<EntityId, Bounds<Pixels>>,
+    /// Optional app-registered interceptor for TextView link clicks — consulted
+    /// by `text::open_text_link` before falling back to `cx.open_url`. Lets an
+    /// app claim custom schemes (e.g. an in-app action scheme) while real URLs
+    /// keep opening the browser.
+    pub(crate) text_link_handler: Option<TextLinkHandler>,
 }
 
 impl GlobalState {
@@ -55,6 +65,7 @@ impl GlobalState {
             selection_scope_stack: Vec::new(),
             menu_focus_handles: Vec::new(),
             open_menu_bounds: HashMap::new(),
+            text_link_handler: None,
         }
     }
 

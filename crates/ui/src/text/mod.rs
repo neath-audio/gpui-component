@@ -20,8 +20,38 @@ pub(crate) use window_selection::TextSelectionController;
 pub(crate) use window_selection::WindowTextSelection;
 pub(crate) use window_selection::{SelectionScope, SelectionScopeElement};
 
+use crate::global_state::GlobalState;
+
 pub(crate) fn init(cx: &mut App) {
     state::init(cx);
+}
+
+/// Register an app-global interceptor for TextView link clicks. The handler
+/// returns `true` when it consumed the link; any other link falls through to
+/// `cx.open_url`. Registering again replaces the previous handler.
+pub fn set_link_handler(
+    cx: &mut App,
+    handler: impl Fn(&str, &mut Window, &mut App) -> bool + 'static,
+) {
+    // Use the crate's existing mutable-global accessor (same one other
+    // GlobalState writers in this crate use).
+    GlobalState::global_mut(cx).text_link_handler = Some(std::rc::Rc::new(handler));
+}
+
+/// True when the registered handler consumed the link. Cloning the Rc first
+/// releases the global borrow before the handler runs (the handler will
+/// re-enter `cx`).
+pub(crate) fn link_handled(url: &str, window: &mut Window, cx: &mut App) -> bool {
+    let handler = GlobalState::global(cx).text_link_handler.clone();
+    handler.is_some_and(|h| h(url, window, cx))
+}
+
+/// The one link-opening path every TextView click site routes through.
+pub(crate) fn open_text_link(url: &str, window: &mut Window, cx: &mut App) {
+    if link_handled(url, window, cx) {
+        return;
+    }
+    cx.open_url(url);
 }
 
 /// Create a new markdown text view with code location as id.
@@ -100,5 +130,40 @@ impl RenderOnce for Text {
             Self::String(s) => s.into_any_element(),
             Self::TextView(e) => e.into_any_element(),
         }
+    }
+}
+
+#[cfg(test)]
+mod link_handler_tests {
+    use super::*;
+    use gpui::TestAppContext;
+
+    #[gpui::test]
+    async fn handler_consumes_matching_links_and_passes_others(cx: &mut TestAppContext) {
+        let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::<String>::new()));
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| gpui::Empty);
+        cx.update(|window, cx| {
+            let seen2 = seen.clone();
+            set_link_handler(cx, move |url, _window, _cx| {
+                seen2.borrow_mut().push(url.to_string());
+                url.starts_with("neath:")
+            });
+            assert!(link_handled("neath:search?q=x", window, cx));
+            assert!(!link_handled("https://example.com", window, cx));
+        });
+        assert_eq!(
+            *seen.borrow(),
+            vec!["neath:search?q=x", "https://example.com"]
+        );
+    }
+
+    #[gpui::test]
+    async fn no_handler_means_nothing_is_handled(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| gpui::Empty);
+        cx.update(|window, cx| {
+            assert!(!link_handled("neath:search?q=x", window, cx));
+        });
     }
 }
