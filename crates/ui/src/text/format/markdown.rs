@@ -566,6 +566,30 @@ mod tests {
     }
 
     #[test]
+    fn test_neath_scheme_link_survives_markdown_parse() {
+        let mut cx = NodeContext::default();
+        let document = parse(
+            "[find it](neath:search?q=glass%20smash)",
+            &mut cx,
+            &HighlightTheme::default_light(),
+        )
+        .unwrap();
+
+        let BlockNode::Paragraph(paragraph) = &document.blocks[0] else {
+            panic!("expected paragraph");
+        };
+
+        let link = paragraph
+            .children
+            .iter()
+            .find(|child| child.text.as_ref() == "find it")
+            .and_then(|child| child.marks.iter().find_map(|(_, mark)| mark.link.clone()))
+            .expect("expected a link mark on the parsed node");
+
+        assert_eq!(link.url.as_ref(), "neath:search?q=glass%20smash");
+    }
+
+    #[test]
     fn test_inline_html_image_stays_in_markdown_paragraph() {
         let mut cx = NodeContext::default();
         let document = parse(
