@@ -1069,7 +1069,12 @@ impl ButtonVariant {
             Self::Default => cx.theme().tokens.button_active.into(),
             Self::Primary => cx.theme().tokens.button_primary_active.into(),
             Self::Secondary => cx.theme().tokens.button_secondary_active.into(),
-            Self::Ghost => cx.theme().tokens.secondary_active.into(),
+            // The same foreground scrim `active` uses (see `hovered`'s doc on
+            // why Ghost rides a scrim, not an opaque token) — 1b851be4 moved
+            // hover/active onto the scrim axis and this arm was missed, so a
+            // selected ghost (e.g. a Popover trigger held open) rendered the
+            // stale `secondary_active` token instead of the pressed tint.
+            Self::Ghost => cx.theme().foreground.opacity(0.2).into(),
             Self::Danger => cx.theme().tokens.button_danger_active.into(),
             Self::Warning => cx.theme().tokens.button_warning_active.into(),
             Self::Success => cx.theme().tokens.button_success_active.into(),
