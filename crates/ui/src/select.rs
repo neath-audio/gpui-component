@@ -509,11 +509,22 @@ where
                     })
                     // Opt-in ghost states for borderless triggers — the
                     // ghost Button's hover/pressed tints, so a bare menu
-                    // pill still answers the pointer.
+                    // pill still answers the pointer. While the menu is
+                    // OPEN the pressed tint holds (skipping hover), exactly
+                    // like a selected ghost Button under an open Popover
+                    // (selected bg == active bg; hover skipped while
+                    // selected).
                     .when(self.state.trigger_ghost && !self.state.disabled, |this| {
-                        this.rounded(cx.theme().radius)
-                            .hover(|this| this.bg(cx.theme().foreground.opacity(0.12)))
-                            .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
+                        this.rounded(cx.theme().radius).map(|this| {
+                            if self.state.open {
+                                this.bg(cx.theme().foreground.opacity(0.2))
+                            } else {
+                                this.hover(|this| {
+                                    this.bg(cx.theme().foreground.opacity(0.12))
+                                })
+                                .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
+                            }
+                        })
                     })
                     .map(|this| {
                         if self.state.disabled {
