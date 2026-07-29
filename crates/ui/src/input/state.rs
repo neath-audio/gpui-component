@@ -25,6 +25,7 @@ use super::{
     DisplayMap, MASK_CHAR,
     blink_cursor::BlinkCursor,
     change::Change,
+    decorations::DecorationCollections,
     element::{EditorScrollbarSnapshot, TextElement},
     mask_pattern::{MaskPattern, normalize_number_input},
     mode::InputMode,
@@ -395,6 +396,7 @@ pub struct InputState {
     pub(super) editor_scrollbar_paddings: Cell<Edges<Pixels>>,
     pub(super) editor_scrollbar_snapshot: Cell<Option<EditorScrollbarSnapshot>>,
     pub(super) text_align: TextAlign,
+    pub(super) decorations: DecorationCollections,
 
     /// The mask pattern for formatting the input text
     pub(crate) mask_pattern: MaskPattern,
@@ -531,6 +533,7 @@ impl InputState {
             mask_pattern: MaskPattern::default(),
             mask_pattern_set: false,
             text_align: TextAlign::Left,
+            decorations: DecorationCollections::default(),
             lsp: Lsp::default(),
             diagnostic_popover: None,
             context_menu_content: None,
@@ -1189,7 +1192,7 @@ impl InputState {
     /// Set the default value of the input field.
     pub fn default_value(mut self, value: impl Into<SharedString>) -> Self {
         let text: SharedString = value.into();
-        self.text = Rope::from(text.as_str());
+        self.text = Rope::from(self.normalize_input(&text).as_ref());
         if let Some(diagnostics) = self.mode.diagnostics_mut() {
             diagnostics.reset(&self.text)
         }
@@ -2055,11 +2058,7 @@ impl InputState {
 
     pub(super) fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(clipboard) = cx.read_from_clipboard() {
-            let mut new_text = clipboard.text().unwrap_or_default();
-            if !self.mode.is_multi_line() {
-                new_text = new_text.replace('\n', "");
-            }
-
+            let new_text = clipboard.text().unwrap_or_default();
             self.replace_text_in_range_silent(None, &new_text, window, cx);
             self.scroll_to(self.cursor(), None, cx);
         }
@@ -2496,10 +2495,16 @@ impl InputState {
     /// full-width number characters into their ASCII equivalents,
     /// e.g. `12。5` -> `12.5`.
     fn normalize_input<'a>(&self, new_text: &'a str) -> Cow<'a, str> {
-        if matches!(self.mask_pattern, MaskPattern::Number { .. }) {
+        let normalized = if matches!(self.mask_pattern, MaskPattern::Number { .. }) {
             normalize_number_input(new_text)
         } else {
             Cow::Borrowed(new_text)
+        };
+
+        if self.mode.is_single_line() && normalized.contains(['\n', '\r']) {
+            Cow::Owned(normalized.replace(['\n', '\r'], ""))
+        } else {
+            normalized
         }
     }
 
@@ -2928,6 +2933,11 @@ impl EntityInputHandler for InputState {
         }
 
         if mask_changed {
+            self.decorations.clear();
+        } else {
+            self.decorations.adjust_for_edit(&range, new_text.len());
+        }
+        if mask_changed {
             // A segment-based history entry no longer matches the masked
             // document, record a whole-document change instead, so that
             // undo/redo can restore the text exactly.
@@ -3010,6 +3020,7 @@ impl EntityInputHandler for InputState {
             }
         }
 
+        self.decorations.adjust_for_edit(&range, new_text.len());
         if let Some(diagnostics) = self.mode.diagnostics_mut() {
             diagnostics.reset(&self.text)
         }
@@ -3164,6 +3175,7 @@ impl Render for InputState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::theme::Theme;
     use gpui::{TestAppContext, VisualTestContext};
 
@@ -3733,6 +3745,35 @@ ORDER BY id
                 );
             });
         });
+    }
+
+    #[gpui::test]
+    fn test_single_line_removes_newlines(cx: &mut TestAppContext) {
+        let input_view = InputView::build(cx, |state| state.default_value("default\nvalue"));
+        let mut cx = VisualTestContext::from_window(input_view.window_handle.into(), cx);
+        let input = input_view.input;
+
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                assert_eq!(state.value(), "defaultvalue");
+
+                state.set_value("first\nsecond\r\nthird\rfourth", window, cx);
+                assert_eq!(state.value(), "firstsecondthirdfourth");
+
+                state.set_value("", window, cx);
+                state.insert("a\nb", window, cx);
+                assert_eq!(state.value(), "ab");
+            });
+
+            cx.write_to_clipboard(ClipboardItem::new_string("a\r\nb\nc\rd".to_string()));
+            input.update(cx, |state, cx| {
+                state.set_value("", window, cx);
+                state.paste(&Paste, window, cx);
+                assert_eq!(state.value(), "abcd");
+            });
+        });
+
+        cx.run_until_parked();
     }
 
     /// `replace_all` on a multi-line (non-code-editor) input clears the

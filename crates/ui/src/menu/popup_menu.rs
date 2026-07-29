@@ -8,8 +8,8 @@ use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
     ParentElement, Pixels, Rems, Render, Role, ScrollHandle, SharedString,
-    StatefulInteractiveElement, Styled, WeakEntity, Window, anchored, div, prelude::FluentBuilder,
-    px, rems,
+    StatefulInteractiveElement, Styled, WeakEntity, Window, anchored, deferred, div,
+    prelude::FluentBuilder, px, rems,
 };
 use gpui::{ClickEvent, Half, MouseDownEvent, OwnedMenuItem, Point, Subscription};
 
@@ -302,6 +302,19 @@ pub struct PopupMenu {
     // This will update on render
     submenu_anchor: (Anchor, Pixels),
 
+    /// Paint priority for this menu layer. The top-level menu starts at 1 and
+    /// each nested submenu increments it, so deeper levels are always drawn on
+    /// top of shallower ones. This fixes background content (e.g. the
+    /// underlying list) bleeding through multi-level submenus, which happens
+    /// when nested `anchored` popovers share the same paint order.
+    ///
+    /// The top-level menu relies on its container (e.g. `Popover`,
+    /// `ContextMenu`) to `deferred`-draw it, and each submenu is deferred once
+    /// in `render_item` with `priority + 1`. Keeping a single deferred layer
+    /// per level matters because GPUI caps nested deferred depth (see
+    /// `prepaint_deferred_draws`).
+    priority: usize,
+
     _subscriptions: Vec<Subscription>,
 }
 
@@ -332,6 +345,7 @@ impl PopupMenu {
             size: Size::default(),
             menu_bg: None,
             submenu_anchor: (Anchor::TopLeft, Pixels::ZERO),
+            priority: 1,
             _subscriptions: vec![],
         }
     }
@@ -704,8 +718,10 @@ impl PopupMenu {
     ) -> Self {
         let submenu = PopupMenu::build(window, cx, f);
         let parent_menu = cx.entity().downgrade();
+        let parent_priority = self.priority;
         submenu.update(cx, |view, _| {
             view.parent_menu = Some(parent_menu);
+            view.priority = parent_priority + 1;
         });
 
         self.menu_items.push(
@@ -719,6 +735,38 @@ impl PopupMenu {
         let item: PopupMenuItem = item.into();
         self.menu_items.push(item);
         self
+    }
+
+    /// Replace all menu items by re-running a builder on this menu, keeping its
+    /// identity (focus, parent menu, layer priority).
+    ///
+    /// For menus whose content arrives asynchronously after the menu is shown,
+    /// e.g. swapping a "loading…" placeholder for the loaded items:
+    ///
+    /// ```ignore
+    /// cx.spawn_in(window, async move |menu, cx| {
+    ///     let items = fetch_items().await;
+    ///     _ = menu.update_in(cx, |menu, window, cx| {
+    ///         menu.rebuild(window, cx, |menu, _, _| {
+    ///             items.into_iter().fold(menu, |menu, item| {
+    ///                 menu.menu(item.label, Box::new(item.action))
+    ///             })
+    ///         });
+    ///     });
+    /// })
+    /// .detach();
+    /// ```
+    pub fn rebuild(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        f: impl FnOnce(Self, &mut Window, &mut Context<Self>) -> Self,
+    ) {
+        let mut menu = std::mem::replace(self, Self::new(cx));
+        menu.menu_items.clear();
+        menu.selected_index = None;
+        *self = f(menu, window, cx);
+        cx.notify();
     }
 
     fn add_menu_item(
@@ -1366,18 +1414,21 @@ impl PopupMenu {
                         let (anchor, left) = self.submenu_anchor;
                         let is_bottom_pos =
                             matches!(anchor, Anchor::BottomLeft | Anchor::BottomRight);
-                        anchored()
-                            .anchor(anchor)
-                            .child(
-                                div()
-                                    .id("submenu")
-                                    .occlude()
-                                    .when(is_bottom_pos, |this| this.bottom_0())
-                                    .when(!is_bottom_pos, |this| this.top_neg_1())
-                                    .left(left)
-                                    .child(menu.clone()),
-                            )
-                            .snap_to_window_with_margin(Edges::all(EDGE_PADDING))
+                        deferred(
+                            anchored()
+                                .anchor(anchor)
+                                .child(
+                                    div()
+                                        .id("submenu")
+                                        .occlude()
+                                        .when(is_bottom_pos, |this| this.bottom_0())
+                                        .when(!is_bottom_pos, |this| this.top_neg_1())
+                                        .left(left)
+                                        .child(menu.clone()),
+                                )
+                                .snap_to_window_with_margin(Edges::all(EDGE_PADDING)),
+                        )
+                        .with_priority(self.priority + 1)
                     })
                 }),
         }
@@ -1402,6 +1453,24 @@ struct RenderOptions {
 impl Render for PopupMenu {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.update_submenu_menu_anchor(window);
+
+        // Submenus attached via the public `item()` + `PopupMenuItem::submenu()`
+        // path (from contexts that only have the menu value, e.g. a table
+        // delegate's `context_menu`) have no parent wired at construction time.
+        // Wire them here so the dismiss chain, click-outside checks and keyboard
+        // navigation treat them the same as `submenu()`-built children.
+        let parent = cx.entity().downgrade();
+        let parent_priority = self.priority;
+        for item in &self.menu_items {
+            if let PopupMenuItem::Submenu { menu, .. } = item {
+                if menu.read(cx).parent_menu.is_none() {
+                    menu.update(cx, |menu, _| {
+                        menu.parent_menu = Some(parent.clone());
+                        menu.priority = parent_priority + 1;
+                    });
+                }
+            }
+        }
 
         let view = cx.entity().clone();
         let items_count = self.menu_items.len();

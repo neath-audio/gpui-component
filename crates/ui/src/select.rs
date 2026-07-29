@@ -33,6 +33,37 @@ pub use crate::searchable_list::SearchableListItemElement as SelectListItem;
 /// Re-exported for backward compatibility.
 pub use crate::searchable_list::SearchableVec;
 
+#[derive(IntoElement)]
+pub struct Caret {
+    size: Size,
+    color: Option<Hsla>,
+}
+
+impl Caret {
+    /// Create a select caret sized for its trigger.
+    pub fn new(size: Size) -> Self {
+        Self { size, color: None }
+    }
+
+    /// Set the caret color.
+    pub fn text_color(mut self, color: Hsla) -> Self {
+        self.color = Some(color);
+        self
+    }
+}
+
+impl RenderOnce for Caret {
+    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+        Icon::new(IconName::ChevronDown)
+            .with_size(match self.size {
+                Size::XSmall => Size::XSmall,
+                Size::Small => Size::Small,
+                _ => Size::Medium,
+            })
+            .when_some(self.color, |this, color| this.text_color(color))
+    }
+}
+
 const CONTEXT: &str = "Select";
 
 pub(crate) fn init(cx: &mut App) {
@@ -505,7 +536,6 @@ where
                             .when(self.state.disabled, |this| this.opacity(0.5))
                             .border_color(cx.theme().input)
                             .rounded(cx.theme().radius)
-                            .when(cx.theme().shadow, |this| this.shadow_xs())
                     })
                     // Opt-in ghost states for borderless triggers — the
                     // ghost Button's hover/pressed tints, so a bare menu
@@ -525,13 +555,6 @@ where
                                 .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
                             }
                         })
-                    })
-                    .map(|this| {
-                        if self.state.disabled {
-                            this.shadow_none()
-                        } else {
-                            this
-                        }
                     })
                     .overflow_hidden()
                     .input_size(self.state.size)
@@ -568,11 +591,16 @@ where
                             })
                             .when(!show_clean, |this| {
                                 let icon = match self.icon.clone() {
-                                    Some(icon) => icon,
-                                    None => Icon::new(IconName::ChevronDown),
+                                    Some(icon) => icon
+                                        .xsmall()
+                                        .text_color(cx.theme().muted_foreground)
+                                        .into_any_element(),
+                                    None => Caret::new(self.state.size)
+                                        .text_color(cx.theme().muted_foreground)
+                                        .into_any_element(),
                                 };
 
-                                this.child(icon.xsmall().text_color(cx.theme().muted_foreground))
+                                this.child(icon)
                             }),
                     )
                     .on_prepaint({
