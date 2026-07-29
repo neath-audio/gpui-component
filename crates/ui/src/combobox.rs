@@ -66,6 +66,9 @@ struct ComboboxOptions {
     /// Query-row text-size variant, passed through to the popup [`List`] —
     /// see `List::search_text_size`.
     search_text_size: Option<Rems>,
+    /// Query-row wrapper insets, passed through to the popup [`List`] —
+    /// see `List::search_paddings`.
+    search_paddings: Option<Edges<Pixels>>,
     menu_width: Length,
     menu_max_h: Length,
     disabled: bool,
@@ -90,6 +93,7 @@ impl Default for ComboboxOptions {
             placeholder: None,
             search_placeholder: None,
             search_text_size: None,
+            search_paddings: None,
             menu_width: Length::Auto,
             menu_max_h: rems(20.).into(),
             disabled: false,
@@ -732,6 +736,7 @@ where
                         self.state.menu_width,
                         self.state.search_placeholder.clone(),
                         self.state.search_text_size,
+                        self.state.search_paddings,
                         self.state.size,
                         self.state.menu_max_h,
                         bounds,
@@ -851,6 +856,13 @@ where
         self
     }
 
+    /// Query-row wrapper insets, passed through to the popup [`List`] —
+    /// see `List::search_paddings`.
+    pub fn search_paddings(mut self, paddings: impl Into<Edges<Pixels>>) -> Self {
+        self.options.search_paddings = Some(paddings.into());
+        self
+    }
+
     /// Show a clear button when at least one item is selected.
     pub fn cleanable(mut self, cleanable: bool) -> Self {
         self.options.cleanable = cleanable;
@@ -964,6 +976,7 @@ where
             this.state.placeholder = opts.placeholder;
             this.state.search_placeholder = opts.search_placeholder;
             this.state.search_text_size = opts.search_text_size;
+            this.state.search_paddings = opts.search_paddings;
             this.state.menu_width = opts.menu_width;
             this.state.menu_max_h = opts.menu_max_h;
             this.state.disabled = opts.disabled;
@@ -1067,6 +1080,7 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
     menu_width: Length,
     search_placeholder: Option<SharedString>,
     search_text_size: Option<Rems>,
+    search_paddings: Option<Edges<Pixels>>,
     size: Size,
     menu_max_h: Length,
     bounds: Bounds<Pixels>,
@@ -1100,6 +1114,9 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                                 })
                                 .when_some(search_text_size, |this, text| {
                                     this.search_text_size(text)
+                                })
+                                .when_some(search_paddings, |this, paddings| {
+                                    this.search_paddings(paddings)
                                 })
                                 .with_size(size)
                                 .max_h(menu_max_h)

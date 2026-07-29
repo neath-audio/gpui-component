@@ -31,6 +31,9 @@ where
     /// Query-row text-size variant, passed through to the popup `List` —
     /// see `List::search_text_size`.
     pub(crate) search_text_size: Option<gpui::Rems>,
+    /// Query-row wrapper insets, passed through to the popup `List` —
+    /// see `List::search_paddings`.
+    pub(crate) search_paddings: Option<gpui::Edges<Pixels>>,
     pub(crate) menu_width: Length,
     pub(crate) menu_max_h: Length,
     pub(crate) menu_bg: Option<Hsla>,
@@ -122,6 +125,7 @@ where
             placeholder: None,
             search_placeholder: None,
             search_text_size: None,
+            search_paddings: None,
             menu_width: Length::Auto,
             menu_border: None,
             menu_accent: None,
