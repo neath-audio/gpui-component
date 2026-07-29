@@ -1,7 +1,7 @@
 use gpui::{
     AnyElement, App, Bounds, ClickEvent, Context, DismissEvent, Edges, ElementId, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
-    Length, MouseDownEvent, ParentElement, Pixels, Render, RenderOnce, Role, SharedString,
+    Length, MouseDownEvent, ParentElement, Pixels, Rems, Render, RenderOnce, Role, SharedString,
     StatefulInteractiveElement, StyleRefinement, Styled, Window, anchored, deferred, div,
     prelude::FluentBuilder, px, rems,
 };
@@ -63,6 +63,9 @@ struct ComboboxOptions {
     cleanable: bool,
     placeholder: Option<SharedString>,
     search_placeholder: Option<SharedString>,
+    /// Query-row text-size variant, passed through to the popup [`List`] —
+    /// see `List::search_text_size`.
+    search_text_size: Option<Rems>,
     menu_width: Length,
     menu_max_h: Length,
     disabled: bool,
@@ -86,6 +89,7 @@ impl Default for ComboboxOptions {
             cleanable: false,
             placeholder: None,
             search_placeholder: None,
+            search_text_size: None,
             menu_width: Length::Auto,
             menu_max_h: rems(20.).into(),
             disabled: false,
@@ -727,6 +731,7 @@ where
                         &self.state.list,
                         self.state.menu_width,
                         self.state.search_placeholder.clone(),
+                        self.state.search_text_size,
                         self.state.size,
                         self.state.menu_max_h,
                         bounds,
@@ -836,6 +841,13 @@ where
     /// Set the placeholder text for the search input.
     pub fn search_placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.options.search_placeholder = Some(placeholder.into());
+        self
+    }
+
+    /// Query-row text-size variant, passed through to the popup [`List`] —
+    /// see `List::search_text_size`.
+    pub fn search_text_size(mut self, size: impl Into<Rems>) -> Self {
+        self.options.search_text_size = Some(size.into());
         self
     }
 
@@ -951,6 +963,7 @@ where
             this.state.cleanable = opts.cleanable;
             this.state.placeholder = opts.placeholder;
             this.state.search_placeholder = opts.search_placeholder;
+            this.state.search_text_size = opts.search_text_size;
             this.state.menu_width = opts.menu_width;
             this.state.menu_max_h = opts.menu_max_h;
             this.state.disabled = opts.disabled;
@@ -1053,6 +1066,7 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
     list: &Entity<ListState<SearchableListAdapter<D>>>,
     menu_width: Length,
     search_placeholder: Option<SharedString>,
+    search_text_size: Option<Rems>,
     size: Size,
     menu_max_h: Length,
     bounds: Bounds<Pixels>,
@@ -1083,6 +1097,9 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                             List::new(list)
                                 .when_some(search_placeholder, |this, placeholder| {
                                     this.search_placeholder(placeholder)
+                                })
+                                .when_some(search_text_size, |this, text| {
+                                    this.search_text_size(text)
                                 })
                                 .with_size(size)
                                 .max_h(menu_max_h)

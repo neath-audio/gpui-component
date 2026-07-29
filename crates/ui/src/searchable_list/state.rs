@@ -28,6 +28,9 @@ where
     pub(crate) cleanable: bool,
     pub(crate) placeholder: Option<gpui::SharedString>,
     pub(crate) search_placeholder: Option<gpui::SharedString>,
+    /// Query-row text-size variant, passed through to the popup `List` —
+    /// see `List::search_text_size`.
+    pub(crate) search_text_size: Option<gpui::Rems>,
     pub(crate) menu_width: Length,
     pub(crate) menu_max_h: Length,
     pub(crate) menu_bg: Option<Hsla>,
@@ -118,6 +121,7 @@ where
             cleanable: false,
             placeholder: None,
             search_placeholder: None,
+            search_text_size: None,
             menu_width: Length::Auto,
             menu_border: None,
             menu_accent: None,

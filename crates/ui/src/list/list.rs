@@ -13,9 +13,9 @@ use crate::{
 use crate::{Icon, IndexPath, Selectable, Sizable, StyledExt};
 use crate::{VirtualListScrollHandle, list::ListDelegate, v_virtual_list};
 use gpui::{
-    App, AvailableSpace, ClickEvent, Context, DefiniteLength, EdgesRefinement, EventEmitter,
-    ListSizingBehavior, RenderOnce, Role, ScrollStrategy, SharedString, StatefulInteractiveElement,
-    StyleRefinement, Subscription, px, size,
+    App, AvailableSpace, ClickEvent, Context, DefiniteLength, Edges, EdgesRefinement, EventEmitter,
+    ListSizingBehavior, Pixels, Rems, RenderOnce, Role, ScrollStrategy, SharedString,
+    StatefulInteractiveElement, StyleRefinement, Subscription, px, size,
 };
 use gpui::{
     AppContext, Entity, FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding,
@@ -48,6 +48,15 @@ struct ListOptions {
     size: Size,
     scrollbar_visible: bool,
     search_placeholder: Option<SharedString>,
+    /// Query-row text-size variant, decoupled from `size`: `size` would also
+    /// drop the input into its smaller height arms (20/24px) with no
+    /// compensating padding. When set, the query input renders this text size
+    /// inside a band of `2 × text + 4px` — the linear scale through the
+    /// default chrome's anchor (14px text in a 32px band).
+    search_text_size: Option<Rems>,
+    /// Query-row wrapper insets override. Default (`None`) keeps the built-in
+    /// chrome: the size-matched horizontal padding and no vertical padding.
+    search_paddings: Option<Edges<Pixels>>,
     max_height: Option<Length>,
     paddings: EdgesRefinement<DefiniteLength>,
 }
@@ -59,6 +68,8 @@ impl Default for ListOptions {
             scrollbar_visible: true,
             max_height: None,
             search_placeholder: None,
+            search_text_size: None,
+            search_paddings: None,
             paddings: EdgesRefinement::default(),
         }
     }
@@ -662,9 +673,16 @@ where
             .when_some(query_input, |this, input| {
                 this.child(
                     div()
-                        .map(|this| match self.options.size {
-                            Size::Small => this.px_1p5(),
-                            _ => this.px_2(),
+                        .map(|this| match self.options.search_paddings {
+                            Some(edges) => this
+                                .pt(edges.top)
+                                .pb(edges.bottom)
+                                .pl(edges.left)
+                                .pr(edges.right),
+                            None => match self.options.size {
+                                Size::Small => this.px_1p5(),
+                                _ => this.px_2(),
+                            },
                         })
                         .border_b_1()
                         .border_color(cx.theme().border)
@@ -677,7 +695,18 @@ where
                                 )
                                 .cleanable(true)
                                 .p_0()
-                                .appearance(false),
+                                .appearance(false)
+                                // Text-size variant: override the text and pin
+                                // the band to `2 × text + 4px` (see
+                                // `ListOptions::search_text_size`). Style
+                                // refinements land after the size-derived
+                                // styles, so both overrides win. The search
+                                // prefix `Icon` carries no explicit size and
+                                // follows the text size on its own.
+                                .when_some(self.options.search_text_size, |this, text| {
+                                    let text_px = text.to_pixels(window.rem_size());
+                                    this.text_size(text).h(text_px * 2. + px(4.))
+                                }),
                         ),
                 )
             })
@@ -735,6 +764,24 @@ where
     /// Sets the placeholder text for the search input.
     pub fn search_placeholder(mut self, placeholder: impl Into<SharedString>) -> Self {
         self.options.search_placeholder = Some(placeholder.into());
+        self
+    }
+
+    /// Query-row text-size variant: renders the search input's text (and its
+    /// prefix icon) at `size`, inside a band of `2 × text + 4px` — decoupled
+    /// from [`Sizable::with_size`], whose smaller arms also collapse the
+    /// input's height (20/24px) with no compensating padding. Unset, the
+    /// query row keeps the size-derived chrome unchanged.
+    pub fn search_text_size(mut self, size: impl Into<Rems>) -> Self {
+        self.options.search_text_size = Some(size.into());
+        self
+    }
+
+    /// Overrides the query-row wrapper's insets (default: size-matched
+    /// horizontal padding, no vertical padding) — e.g. to sit the search icon
+    /// on the same inset line as the list's rows.
+    pub fn search_paddings(mut self, paddings: impl Into<Edges<Pixels>>) -> Self {
+        self.options.search_paddings = Some(paddings.into());
         self
     }
 }
