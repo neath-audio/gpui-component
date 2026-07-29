@@ -35,6 +35,7 @@ where
     pub(crate) menu_accent: Option<Hsla>,
     pub(crate) disabled: bool,
     pub(crate) appearance: bool,
+    pub(crate) trigger_ghost: bool,
     pub(crate) empty: Option<Box<dyn Fn(&mut Window, &App) -> AnyElement + 'static>>,
 
     pub(crate) _subscriptions: Vec<Subscription>,
@@ -124,6 +125,7 @@ where
             menu_bg: None,
             disabled: false,
             appearance: true,
+            trigger_ghost: false,
             empty: None,
             _subscriptions,
         }

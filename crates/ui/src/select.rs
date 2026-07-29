@@ -74,6 +74,7 @@ struct SelectOptions {
     menu_accent: Option<Hsla>,
     disabled: bool,
     appearance: bool,
+    trigger_ghost: bool,
 }
 
 impl Default for SelectOptions {
@@ -92,6 +93,7 @@ impl Default for SelectOptions {
             menu_accent: None,
             disabled: false,
             appearance: true,
+            trigger_ghost: false,
             search_placeholder: None,
         }
     }
@@ -505,6 +507,14 @@ where
                             .rounded(cx.theme().radius)
                             .when(cx.theme().shadow, |this| this.shadow_xs())
                     })
+                    // Opt-in ghost states for borderless triggers — the
+                    // ghost Button's hover/pressed tints, so a bare menu
+                    // pill still answers the pointer.
+                    .when(self.state.trigger_ghost && !self.state.disabled, |this| {
+                        this.rounded(cx.theme().radius)
+                            .hover(|this| this.bg(cx.theme().foreground.opacity(0.12)))
+                            .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
+                    })
                     .map(|this| {
                         if self.state.disabled {
                             this.shadow_none()
@@ -705,6 +715,17 @@ where
         self.options.appearance = appearance;
         self
     }
+
+    /// Ghost variant, mirroring [`ButtonVariants::ghost`](crate::button::ButtonVariants::ghost):
+    /// a borderless trigger (as `appearance(false)`) that keeps the ghost
+    /// Button's hover and pressed tints — the bare "menu pill" treatment.
+    /// Distinct from `appearance(false)` alone, whose contract stays
+    /// "callers style the trigger themselves".
+    pub fn ghost(mut self) -> Self {
+        self.options.appearance = false;
+        self.options.trigger_ghost = true;
+        self
+    }
 }
 
 impl<D> Sizable for Select<D>
@@ -780,6 +801,7 @@ where
             this.state.menu_accent = opts.menu_accent;
             this.state.disabled = opts.disabled;
             this.state.appearance = opts.appearance;
+            this.state.trigger_ghost = opts.trigger_ghost;
             this.icon = opts.icon;
             this.title_prefix = opts.title_prefix;
 
