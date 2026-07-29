@@ -48,7 +48,26 @@ mod macos {
     }
 
     fn ns_view(window: &Window) -> Option<&AnyObject> {
-        let handle = HasWindowHandle::window_handle(window).ok()?;
+        // gpui's TestWindow answers raw-window-handle requests with
+        // `unimplemented!` instead of `Err(HandleError::NotSupported)`, so a
+        // test that paints a focused Input would panic here on every frame.
+        // Contain the unwind and treat "no platform backing" as None, the
+        // same fallback as a non-AppKit handle (mirrors
+        // `macos_accessibility::ns_view`); remember the outcome so the
+        // caught panic is attempted (and printed) at most once per thread.
+        thread_local! {
+            static NO_PLATFORM_BACKING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+        }
+        if NO_PLATFORM_BACKING.with(std::cell::Cell::get) {
+            return None;
+        }
+        let handle = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            HasWindowHandle::window_handle(window).ok()
+        }))
+        .unwrap_or_else(|_| {
+            NO_PLATFORM_BACKING.with(|flag| flag.set(true));
+            None
+        })?;
         let RawWindowHandle::AppKit(handle) = handle.as_raw() else {
             return None;
         };
