@@ -108,6 +108,12 @@ where
     /// [`Self::track_scroll`]); what this slot guarantees is the placement:
     /// inside the viewport's coordinate space, over the content, and still
     /// under the scrollbars so a full-width pinned row cannot hide the thumb.
+    ///
+    /// Do NOT forward wheel events from the layer to the handle: covering the
+    /// viewport does not stop the scroll area from receiving them, so the
+    /// container is already applying the tick and a second write double-scrolls.
+    /// The layer usually wants `block_mouse_except_scroll()` — hover and click
+    /// stop at the layer, the wheel still falls through to the container.
     pub fn sticky(mut self, element: impl IntoElement) -> Self {
         self.sticky.push(element.into_any_element());
         self
@@ -353,6 +359,34 @@ mod tests {
                         }))),
                 )
         }
+    }
+
+    /// A sticky layer must not swallow the wheel, and must not make the
+    /// container apply it twice. Callers reach for `sticky` precisely because
+    /// the layer covers the top of the viewport, so the temptation is to
+    /// forward wheel events to the handle by hand — which double-scrolls,
+    /// because `Window::hit_test` collects EVERY hitbox under the pointer and
+    /// `should_handle_scroll` searches that whole list. The container is
+    /// already handling the tick; this pins that down.
+    #[gpui::test]
+    fn a_sticky_layer_neither_swallows_nor_duplicates_the_wheel(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let handle = ScrollHandle::new();
+        let view_handle = handle.clone();
+        let (_, cx) = cx.add_window_view(|_, _| StickyLayerTest {
+            handle: view_handle,
+        });
+        let cx: &mut VisualTestContext = cx;
+        draw(cx);
+
+        // (10, 10) is inside the 10px-tall sticky layer, not merely near it.
+        scroll(cx, 10., 5., 0., -10.);
+
+        assert_eq!(
+            handle.offset().y,
+            px(-10.),
+            "one tick over a sticky layer must move the content exactly once"
+        );
     }
 
     struct AutoHeightParentTest;
