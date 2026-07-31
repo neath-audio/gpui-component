@@ -6,6 +6,7 @@ use crate::{
         Cancel, SelectDown, SelectFirst, SelectLast, SelectNextColumn, SelectPageDown,
         SelectPageUp, SelectPrevColumn, SelectUp,
     },
+    global_state::GlobalState,
     h_flex,
     menu::{ContextMenuExt, PopupMenu},
     scroll::{ScrollableMask, Scrollbar},
@@ -439,6 +440,16 @@ where
         cx.notify();
     }
 
+    fn update_right_clicked_row_from_mouse(
+        &mut self,
+        row_ix: Option<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        self.right_clicked_row = row_ix;
+        self.right_clicked_cell = None;
+        cx.emit(TableEvent::RightClickedRow(row_ix));
+    }
+
     /// Returns the selected column index.
     pub fn selected_col(&self) -> Option<usize> {
         self.selected_col
@@ -643,9 +654,7 @@ where
         // handler (below), which would otherwise immediately reset
         // `right_clicked_row` back to `None` right after a real row set it.
         cx.stop_propagation();
-        self.right_clicked_row = row_ix;
-        self.right_clicked_cell = None;
-        cx.emit(TableEvent::RightClickedRow(row_ix));
+        self.update_right_clicked_row_from_mouse(row_ix, cx);
     }
 
     fn on_cell_right_click(
@@ -2423,10 +2432,15 @@ where
                         ))
                     })
                     .when(right_clicked_row.is_some(), |this| {
-                        this.on_mouse_down_out(cx.listener(|this, e, window, cx| {
-                            this.on_row_right_click(e, None, window, cx);
-                            cx.notify();
-                        }))
+                        this.on_mouse_down_out(cx.listener(
+                            |this, e: &MouseDownEvent, _window, cx| {
+                                if GlobalState::global(cx).position_in_open_menu(&e.position) {
+                                    return;
+                                }
+                                this.update_right_clicked_row_from_mouse(None, cx);
+                                cx.notify();
+                            },
+                        ))
                     })
             })
             .on_prepaint({
@@ -2454,7 +2468,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::{App, Entity, Modifiers, TestAppContext, VisualTestContext, point};
+    use std::{cell::Cell, rc::Rc};
+
+    use crate::menu::PopupMenuItem;
+    use gpui::{App, Entity, Modifiers, TestAppContext, VisualTestContext, point, size};
 
     /// Minimal delegate: 1 column, `rows` rows, no context menus configured
     /// (not needed — these tests only exercise `right_clicked_row` /
@@ -2506,6 +2523,68 @@ mod tests {
         }
     }
 
+    struct TestRootWithSibling {
+        table: Entity<TableState<TestDelegate>>,
+    }
+
+    impl TestRootWithSibling {
+        fn new(rows: usize, window: &mut Window, cx: &mut Context<Self>) -> Self {
+            let table = cx.new(|cx| TableState::new(TestDelegate { rows }, window, cx));
+            Self { table }
+        }
+    }
+
+    impl Render for TestRootWithSibling {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            h_flex()
+                .w(px(600.))
+                .h(px(400.))
+                .child(div().w(px(300.)).h_full().child(self.table.clone()))
+                .child(div().id("sibling-panel").w(px(300.)).h_full())
+        }
+    }
+
+    struct TestRootWithSiblingContextMenu {
+        table: Entity<TableState<TestDelegate>>,
+        sibling_context_builds: Rc<Cell<usize>>,
+    }
+
+    impl TestRootWithSiblingContextMenu {
+        fn new(
+            rows: usize,
+            sibling_context_builds: Rc<Cell<usize>>,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> Self {
+            let table = cx.new(|cx| TableState::new(TestDelegate { rows }, window, cx));
+            Self {
+                table,
+                sibling_context_builds,
+            }
+        }
+    }
+
+    impl Render for TestRootWithSiblingContextMenu {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            let sibling_context_builds = self.sibling_context_builds.clone();
+
+            h_flex()
+                .w(px(600.))
+                .h(px(400.))
+                .child(div().w(px(300.)).h_full().child(self.table.clone()))
+                .child(
+                    div()
+                        .id("sibling-context-target")
+                        .w(px(300.))
+                        .h_full()
+                        .context_menu(move |menu, _, _| {
+                            sibling_context_builds.set(sibling_context_builds.get() + 1);
+                            menu.item(PopupMenuItem::new("Sibling"))
+                        }),
+                )
+        }
+    }
+
     /// Below the last of 3 default-height rows, but still well within the
     /// 400px-tall table body — i.e. the "empty area" that reproduces the bug.
     fn empty_area_point() -> Point<Pixels> {
@@ -2515,6 +2594,12 @@ mod tests {
     /// Inside the first row.
     fn row_0_point() -> Point<Pixels> {
         point(px(10.), px(48.))
+    }
+
+    /// In the sibling panel, outside the table's bounds but inside the fake
+    /// popup menu bounds registered by the test.
+    fn sibling_menu_point() -> Point<Pixels> {
+        point(px(350.), px(48.))
     }
 
     #[gpui::test]
@@ -2536,6 +2621,82 @@ mod tests {
         // it — otherwise the routing closure in `render` keeps showing the
         // row's `context_menu` instead of `context_menu_empty`.
         cx.simulate_mouse_down(empty_area_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), None);
+    }
+
+    #[gpui::test]
+    fn click_inside_open_menu_bounds_preserves_right_clicked_row(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| TestRootWithSibling::new(3, window, cx));
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+
+        cx.simulate_mouse_down(row_0_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), Some(0));
+
+        cx.update(|_, cx| {
+            crate::global_state::GlobalState::global_mut(cx).update_menu_bounds(
+                table.entity_id(),
+                Bounds {
+                    origin: point(px(320.), px(0.)),
+                    size: size(px(180.), px(120.)),
+                },
+            );
+        });
+
+        cx.simulate_mouse_down(
+            sibling_menu_point(),
+            MouseButton::Left,
+            Modifiers::default(),
+        );
+        assert_eq!(
+            table.read_with(cx, |s, _| s.right_clicked_row()),
+            Some(0),
+            "pressing a protruding popup menu item must not clear the table's row-menu state"
+        );
+    }
+
+    #[gpui::test]
+    fn outside_right_click_does_not_swallow_sibling_context_menu(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+
+        let sibling_context_builds = Rc::new(Cell::new(0));
+        let (root, cx) = cx.add_window_view({
+            let sibling_context_builds = sibling_context_builds.clone();
+            move |window, cx| {
+                TestRootWithSiblingContextMenu::new(3, sibling_context_builds, window, cx)
+            }
+        });
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+
+        cx.simulate_mouse_down(row_0_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), Some(0));
+
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+
+        cx.simulate_mouse_down(
+            sibling_menu_point(),
+            MouseButton::Right,
+            Modifiers::default(),
+        );
+
+        assert_eq!(
+            sibling_context_builds.get(),
+            1,
+            "a table row-menu dismissal must not consume a sibling row's right-click"
+        );
         assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), None);
     }
 
