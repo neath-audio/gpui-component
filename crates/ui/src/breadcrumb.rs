@@ -6,7 +6,11 @@ use gpui::{
     StyleRefinement, Styled, Window,
 };
 
-use crate::{h_flex, ActiveTheme, Icon, IconName, StyledExt};
+use crate::{
+    h_flex,
+    tooltip::{ManagedTooltipExt as _, Tooltip},
+    ActiveTheme, Icon, IconName, StyledExt,
+};
 
 /// A breadcrumb navigation element.
 #[derive(IntoElement)]
@@ -24,6 +28,7 @@ pub struct BreadcrumbItem {
     on_click: Option<Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>>,
     disabled: bool,
     is_last: bool,
+    tooltip: Option<SharedString>,
 }
 
 impl BreadcrumbItem {
@@ -36,7 +41,16 @@ impl BreadcrumbItem {
             on_click: None,
             disabled: false,
             is_last: false,
+            tooltip: None,
         }
+    }
+
+    /// Show a tooltip on hover — for a crumb whose label is truncated and
+    /// whose full text the user still needs. Overlay-anchored, matching
+    /// [`crate::button::Button::tooltip`].
+    pub fn tooltip(mut self, tooltip: impl Into<SharedString>) -> Self {
+        self.tooltip = Some(tooltip.into());
+        self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
@@ -106,9 +120,23 @@ impl RenderOnce for BreadcrumbItem {
             .refine_style(&self.style)
             .when(!self.disabled, |this| {
                 this.when_some(self.on_click, |this, on_click| {
-                    this.cursor_pointer().on_click(move |event, window, cx| {
-                        on_click(event, window, cx);
-                    })
+                    // Hover feedback lives here rather than at the call site:
+                    // `BreadcrumbItem` implements `Styled` but not
+                    // `InteractiveElement`, so a caller cannot supply one. Runs
+                    // after `refine_style`, so a call site can still override
+                    // the REST color without losing the hover.
+                    this.cursor_pointer()
+                        .hover(|s| s.text_color(cx.theme().foreground).underline())
+                        .on_click(move |event, window, cx| {
+                            on_click(event, window, cx);
+                        })
+                })
+            })
+            .when_some(self.tooltip, |this, tooltip| {
+                this.managed_tooltip(move |window, cx| {
+                    Tooltip::new(tooltip.clone())
+                        .overlay_anchored()
+                        .build(window, cx)
                 })
             })
     }
