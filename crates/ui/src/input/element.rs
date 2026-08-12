@@ -260,6 +260,22 @@ fn masked_display_offset(text: &Rope, original_offset: usize) -> usize {
     text.offset_to_char_index(original_offset) * MASK_CHAR.len_utf8()
 }
 
+/// Move the IME marked range (tracked against the original text) into the display text
+/// coordinate space, so that a run boundary can't land inside a multi-byte `MASK_CHAR`
+/// and panic text shaping on a non-char-boundary slice.
+fn ime_marked_display_range(
+    text: &Rope,
+    marked_range: Option<Range<usize>>,
+    masked: bool,
+) -> Option<Range<usize>> {
+    let marked = marked_range?;
+    if masked {
+        Some(masked_display_offset(text, marked.start)..masked_display_offset(text, marked.end))
+    } else {
+        Some(marked)
+    }
+}
+
 /// Minimum pixel padding the cursor is kept clear of the viewport's
 /// top/bottom edges before auto-scroll engages. Backs
 /// [`InputState::cursor_surrounding_lines`].
@@ -638,7 +654,8 @@ impl TextElement {
 
                 // wrapped lines
                 for i in 1..=wrapped_lines {
-                    let start = point(px(0.), start.y + i as f32 * line_height);
+                    let indent = line.wrap_indent;
+                    let start = point(indent, start.y + i as f32 * line_height);
                     let mut end = point(end.x, end.y + i as f32 * line_height);
                     if i < wrapped_lines {
                         end.x = line_size.width;
@@ -683,7 +700,7 @@ impl TextElement {
         while let Some(corners) = rev_line_corners.next() {
             points.push(corners.top_left);
             if let Some(next) = rev_line_corners.peek() {
-                if next.top_left.x > corners.top_left.x {
+                if next.top_left.x != corners.top_left.x {
                     points.push(point(next.top_left.x, corners.top_left.y));
                 }
             }
@@ -886,12 +903,9 @@ impl TextElement {
         window: &mut Window,
     ) -> (Pixels, usize) {
         let total_lines = text.lines_len();
-        let line_number_len = match total_lines {
-            0..=9999 => 5,
-            10000..=99999 => 6,
-            100000..=999999 => 7,
-            _ => 8,
-        };
+        // One extra column beyond the widest line number, so right-aligned
+        // numbers keep a gap from the left edge.
+        let line_number_len = total_lines.max(1).ilog10() as usize + 2;
 
         let mut line_number_width = if state.mode.line_number() {
             let empty_line_number = window.text_system().shape_line(
@@ -1280,7 +1294,7 @@ impl TextElement {
 
             debug_assert_eq!(line_item.len(), line_text.len());
 
-            let mut wrapped_lines = SmallVec::with_capacity(1);
+            let mut wrapped_lines: SmallVec<[ShapedLine; 1]> = SmallVec::with_capacity(1);
 
             for range in &line_item.wrapped_lines {
                 let line_runs = runs_for_range(runs, run_offset, &range);
@@ -1302,8 +1316,21 @@ impl TextElement {
                 wrapped_lines.push(shaped_line);
             }
 
+            // Use the first visual line's indentation width for continuation lines.
+            let wrap_indent = if line_item.indent > 0 && wrapped_lines.len() > 1 {
+                let indent_byte_len = line_text
+                    .char_indices()
+                    .nth(line_item.indent as usize)
+                    .map(|(ix, _)| ix)
+                    .unwrap_or(line_text.len());
+                wrapped_lines[0].x_for_index(indent_byte_len)
+            } else {
+                px(0.)
+            };
+
             let line_layout = LineLayout::new()
                 .lines(wrapped_lines)
+                .wrap_indent(wrap_indent)
                 .with_whitespaces(whitespace_indicators.clone());
             lines.push(line_layout);
 
@@ -1617,15 +1644,23 @@ impl Element for TextElement {
             None
         };
 
+        let wrapping_indent = state.wrapping_indent;
         let wrap_width_changed = state
             .last_layout
             .as_ref()
             .map(|l| l.wrap_width != wrap_width)
             .unwrap_or(true);
 
-        if wrap_width_changed {
+        let wrapping_indent_changed = state
+            .last_layout
+            .as_ref()
+            .map(|l| l.wrapping_indent != wrapping_indent)
+            .unwrap_or(true);
+
+        if wrap_width_changed || wrapping_indent_changed {
             self.state.update(cx, |state, cx| {
                 state.display_map.on_layout_changed(wrap_width, cx);
+                state.display_map.set_wrapping_indent(wrapping_indent, cx);
             });
         }
 
@@ -1678,6 +1713,7 @@ impl Element for TextElement {
             visible_range_offset,
             line_height,
             wrap_width,
+            wrapping_indent,
             line_number_width,
             lines: Rc::new(vec![]),
             cursor_bounds: None,
@@ -1706,6 +1742,12 @@ impl Element for TextElement {
             strikethrough: None,
         };
 
+        let ime_marked_range = ime_marked_display_range(
+            &text,
+            state.ime_marked_range.as_ref().map(|m| m.start..m.end),
+            state.masked,
+        );
+
         let runs = if let (false, Some(highlight_styles)) = (is_empty, highlight_styles) {
             let mut runs = Vec::with_capacity(highlight_styles.len() + 2);
 
@@ -1718,10 +1760,7 @@ impl Element for TextElement {
                 runs.extend(split_run_for_ime_underline(
                     run,
                     range.clone(),
-                    state
-                        .ime_marked_range
-                        .as_ref()
-                        .map(|marked| marked.start..marked.end),
+                    ime_marked_range.clone(),
                     marked_run.underline,
                 ));
             }
@@ -1730,10 +1769,7 @@ impl Element for TextElement {
             split_run_for_ime_underline(
                 run,
                 0..display_text.len(),
-                state
-                    .ime_marked_range
-                    .as_ref()
-                    .map(|marked| marked.start..marked.end),
+                ime_marked_range,
                 marked_run.underline,
             )
             .into_vec()
@@ -2648,6 +2684,42 @@ mod tests {
             split_run_for_ime_underline(TextStyle::default().to_run(0), 0..0, None, None)
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn test_masked_ime_underline_splits_on_mask_char_boundaries() {
+        let underline = UnderlineStyle {
+            thickness: px(1.),
+            color: Some(gpui::black()),
+            wavy: false,
+        };
+        let text = Rope::from("abcdef");
+        let mask_len = MASK_CHAR.len_utf8();
+
+        assert_eq!(
+            ime_marked_display_range(&text, Some(4..6), false),
+            Some(4..6)
+        );
+        assert_eq!(ime_marked_display_range(&text, None, true), None);
+        assert_eq!(
+            ime_marked_display_range(&text, Some(4..6), true),
+            Some(4 * mask_len..6 * mask_len)
+        );
+
+        let display_text = MASK_CHAR.to_string().repeat(text.chars().count());
+        let runs = split_run_for_ime_underline(
+            TextStyle::default().to_run(display_text.len()),
+            0..display_text.len(),
+            ime_marked_display_range(&text, Some(4..6), true),
+            Some(underline),
+        );
+
+        let mut offset = 0;
+        for run in &runs {
+            assert!(display_text.is_char_boundary(offset));
+            offset += run.len;
+        }
+        assert_eq!(offset, display_text.len());
     }
 
     #[test]

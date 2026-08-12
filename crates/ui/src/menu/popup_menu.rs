@@ -285,6 +285,10 @@ pub struct PopupMenu {
     pub(crate) menu_items: Vec<PopupMenuItem>,
     /// The focus handle of Entity to handle actions.
     pub(crate) action_context: Option<FocusHandle>,
+    /// The focus to restore on dismiss. Unlike `action_context`, this does not
+    /// change where actions are dispatched: they still bubble from the menu's
+    /// own focus path (through the trigger element's ancestors).
+    pub(crate) previous_focus_handle: Option<FocusHandle>,
     selected_index: Option<usize>,
     min_width: Option<Pixels>,
     max_width: Option<Pixels>,
@@ -331,6 +335,7 @@ impl PopupMenu {
         Self {
             focus_handle,
             action_context: None,
+            previous_focus_handle: None,
             parent_menu: None,
             menu_items: Vec::new(),
             selected_index: None,
@@ -406,6 +411,24 @@ impl PopupMenu {
             if let PopupMenuItem::Submenu { menu, .. } = item {
                 menu.update(cx, |menu, cx| {
                     menu.set_action_context(action_context.clone(), cx);
+                });
+            }
+        }
+    }
+
+    /// Set the focus to restore when the menu is dismissed, without changing
+    /// where actions are dispatched.
+    pub(crate) fn set_previous_focus(
+        &mut self,
+        handle: Option<FocusHandle>,
+        cx: &mut Context<Self>,
+    ) {
+        self.previous_focus_handle = handle.clone();
+
+        for item in &self.menu_items {
+            if let PopupMenuItem::Submenu { menu, .. } = item {
+                menu.update(cx, |menu, cx| {
+                    menu.set_previous_focus(handle.clone(), cx);
                 });
             }
         }
@@ -1070,9 +1093,19 @@ impl PopupMenu {
         GlobalState::global_mut(cx).remove_menu_bounds(entity_id);
         cx.emit(DismissEvent);
 
-        // Focus back to the previous focused handle.
-        if let Some(action_context) = self.action_context.as_ref() {
-            window.focus(action_context, cx);
+        // Focus back to the previous focused handle, unless the item's click
+        // handler has already moved focus elsewhere (e.g. opened a dialog and
+        // focused its input) -- stealing focus back would break that.
+        let focus_moved_away =
+            window.focused(cx).is_some() && !self.focus_handle.contains_focused(window, cx);
+        if !focus_moved_away {
+            if let Some(handle) = self
+                .previous_focus_handle
+                .as_ref()
+                .or(self.action_context.as_ref())
+            {
+                window.focus(handle, cx);
+            }
         }
 
         let Some(parent_menu) = self.parent_menu.clone() else {
@@ -1101,10 +1134,10 @@ impl PopupMenu {
             }
         }
 
-        // Do not dismiss if a submenu is active — the submenu handles its
-        // own mouse-down-out. Without this guard, clicking a submenu item
-        // would trigger the parent's on_mouse_down_out and tear down the
-        // submenu before the item's on_click fires.
+        // Do not dismiss, if there have an active submenu, the click may be
+        // inside the submenu, let the submenu to handle it.
+        //
+        // Otherwise the submenu will be dismissed before its item's `on_click`.
         if self.active_submenu().is_some() {
             return;
         }
@@ -1132,6 +1165,7 @@ impl PopupMenu {
         match self
             .action_context
             .as_ref()
+            .or(self.previous_focus_handle.as_ref())
             .and_then(|handle| Kbd::binding_for_action_in(action.as_ref(), handle, window))
         {
             Some(kbd) => Some(kbd),

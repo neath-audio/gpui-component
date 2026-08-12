@@ -1,15 +1,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, prelude::FluentBuilder as _, App, ClickEvent, ElementId, InteractiveElement as _,
-    IntoElement, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement,
-    StyleRefinement, Styled, Window,
+    App, ClickEvent, ElementId, InteractiveElement as _, IntoElement, ParentElement, RenderOnce,
+    Role, SharedString, StatefulInteractiveElement, StyleRefinement, Styled, Window, div,
+    prelude::FluentBuilder as _,
 };
 
 use crate::{
-    h_flex,
+    ActiveTheme, Icon, IconName, StyledExt, h_flex,
     tooltip::{ManagedTooltipExt as _, Tooltip},
-    ActiveTheme, Icon, IconName, StyledExt,
 };
 
 /// A breadcrumb navigation element.

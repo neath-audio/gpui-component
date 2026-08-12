@@ -12,6 +12,12 @@ pub(crate) fn init(cx: &mut App) {
 
 impl Global for GlobalState {}
 
+impl Default for GlobalState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Signature of an app-registered TextView link-click interceptor. `Rc`, not
 /// `Arc` — gpui globals are main-thread and the handler will typically
 /// capture a gpui `WeakEntity`, which is not `Send`.
@@ -82,8 +88,12 @@ impl GlobalState {
         cx.global::<Self>()
     }
 
+    /// Self-installing: components register themselves here from paths that
+    /// can run before `crate::init` (menu bounds/focus registries in bare
+    /// component tests), so a missing global installs an empty state instead
+    /// of panicking.
     pub fn global_mut(cx: &mut App) -> &mut Self {
-        cx.global_mut::<Self>()
+        cx.default_global::<Self>()
     }
 
     pub(crate) fn text_view_state(&self) -> Option<&Entity<TextViewState>> {

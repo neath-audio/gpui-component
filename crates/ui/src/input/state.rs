@@ -22,7 +22,7 @@ use sum_tree::Bias;
 use unicode_segmentation::*;
 
 use super::{
-    DisplayMap, MASK_CHAR,
+    DisplayMap, MASK_CHAR, WrappingIndent,
     blink_cursor::BlinkCursor,
     change::Change,
     decorations::DecorationCollections,
@@ -115,6 +115,7 @@ actions!(
         Escape,
         ToggleCodeActions,
         Search,
+        Replace,
         GoToDefinition,
     ]
 );
@@ -272,6 +273,10 @@ pub(crate) fn init(cx: &mut App) {
         KeyBinding::new("cmd-f", Search, Some(CONTEXT)),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("ctrl-f", Search, Some(CONTEXT)),
+        #[cfg(target_os = "macos")]
+        KeyBinding::new("cmd-shift-f", Replace, Some(CONTEXT)),
+        #[cfg(not(target_os = "macos"))]
+        KeyBinding::new("ctrl-h", Replace, Some(CONTEXT)),
     ]);
 
     number_input::init(cx);
@@ -302,10 +307,12 @@ pub(super) struct LastLayout {
     pub(super) visible_range_offset: Range<usize>,
     /// The last layout lines (Only have visible lines, no empty entries for hidden lines).
     pub(super) lines: Rc<Vec<LineLayout>>,
-    /// The line_height of text layout, this will change will InputElement painted.
+    /// The line_height of text layout, this may change when InputElement is painted.
     pub(super) line_height: Pixels,
-    /// The wrap width of text layout, this will change will InputElement painted.
+    /// The wrap width of text layout, this may change when InputElement is painted.
     pub(super) wrap_width: Option<Pixels>,
+    /// The wrapping indent mode of text layout, this may change when InputElement is painted.
+    pub(super) wrapping_indent: WrappingIndent,
     /// The line number area width of text layout, if not line number, this will be 0px.
     pub(super) line_number_width: Pixels,
     /// The cursor position (top, left) in pixels.
@@ -372,6 +379,7 @@ pub struct InputState {
     pub(super) clean_on_escape: bool,
     pub(super) submit_on_enter: bool,
     pub(super) soft_wrap: bool,
+    pub(super) wrapping_indent: WrappingIndent,
     /// See [`Self::scroll_beyond_last_line`].
     pub(super) scroll_beyond_last_line: Option<usize>,
     /// See [`Self::cursor_surrounding_lines`].
@@ -504,6 +512,7 @@ impl InputState {
             clean_on_escape: false,
             submit_on_enter: false,
             soft_wrap: true,
+            wrapping_indent: WrappingIndent::default(),
             scroll_beyond_last_line: None,
             cursor_surrounding_lines: None,
             show_whitespaces: false,
@@ -962,6 +971,13 @@ impl InputState {
         self
     }
 
+    /// Set how soft-wrapped continuation lines are indented, default is [`WrappingIndent::Same`]
+    pub fn wrapping_indent(mut self, wrapping_indent: WrappingIndent) -> Self {
+        debug_assert!(self.mode.is_multi_line());
+        self.wrapping_indent = wrapping_indent;
+        self
+    }
+
     /// Update the soft wrap mode for multi-line input, default is true.
     pub fn set_soft_wrap(&mut self, wrap: bool, _: &mut Window, cx: &mut Context<Self>) {
         debug_assert!(self.mode.is_multi_line());
@@ -988,6 +1004,18 @@ impl InputState {
     /// Update whether to show whitespace characters.
     pub fn set_show_whitespaces(&mut self, show: bool, _: &mut Window, cx: &mut Context<Self>) {
         self.show_whitespaces = show;
+        cx.notify();
+    }
+
+    /// Update how soft-wrapped continuation lines are indented.
+    pub fn set_wrapping_indent(
+        &mut self,
+        wrapping_indent: WrappingIndent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.wrapping_indent = wrapping_indent;
+        self.display_map.set_wrapping_indent(wrapping_indent, cx);
         cx.notify();
     }
 
@@ -3047,8 +3075,11 @@ impl EntityInputHandler for InputState {
             self.ime_marked_range = Some((range.start..range.start + new_text.len()).into());
             self.selected_range = new_selected_range_utf16
                 .as_ref()
-                .map(|range_utf16| self.range_from_utf16(range_utf16))
-                .map(|new_range| new_range.start + range.start..new_range.end + range.end)
+                .map(|range_utf16| {
+                    let new_text = Rope::from(new_text);
+                    range.start + new_text.offset_utf16_to_offset(range_utf16.start)
+                        ..range.start + new_text.offset_utf16_to_offset(range_utf16.end)
+                })
                 .unwrap_or_else(|| range.start + new_text.len()..range.start + new_text.len())
                 .into();
         }
@@ -3886,6 +3917,25 @@ ORDER BY id
                 // clamped + collapsed
                 s.set_selected_range(100..100, cx);
                 assert_eq!(s.selected_range(), 11..11);
+            });
+        });
+    }
+
+    #[gpui::test]
+    fn test_ime_selection_is_relative_to_replacement_start(cx: &mut TestAppContext) {
+        let input_view = InputView::build(cx, |state| state.default_value("你好 "));
+        let mut cx = VisualTestContext::from_window(input_view.window_handle.into(), cx);
+        let input = input_view.input;
+
+        cx.update(|window, cx| {
+            input.update(cx, |state, cx| {
+                state.set_selected_range(7..7, cx);
+                state.replace_and_mark_text_in_range(None, "s", Some(1..1), window, cx);
+                state.replace_and_mark_text_in_range(None, "sh", Some(2..2), window, cx);
+
+                assert_eq!(state.value(), "你好 sh");
+                assert_eq!(state.selected_range(), 9..9);
+                assert_eq!(state.ime_marked_range, Some((7..9).into()));
             });
         });
     }
