@@ -1,3 +1,5 @@
+//! Reusable table-cell truncation and middle-ellipsis utilities.
+
 use gpui::{Div, ParentElement as _, SharedString, Styled, div};
 
 fn end_truncating_text(text: SharedString) -> Div {
@@ -8,6 +10,11 @@ fn middle_truncating_text(text: SharedString) -> Div {
     div().flex_1().min_w_0().truncate_middle().child(text)
 }
 
+/// Vertically centered, end-truncating text cell for table bodies.
+///
+/// Its inner wrapper carries `flex_1 + min_w_0 + truncate` so a direct text
+/// child truncates against the cell's allocated width rather than the flex
+/// container's intrinsic measurement.
 pub fn truncating_cell(text: impl Into<SharedString>) -> Div {
     div()
         .size_full()
@@ -18,6 +25,10 @@ pub fn truncating_cell(text: impl Into<SharedString>) -> Div {
         .child(end_truncating_text(text.into()))
 }
 
+/// [`truncating_cell`] at an explicit pixel size.
+///
+/// Accepting `Pixels` is the sanctioned path for a caller-owned table text
+/// size; it keeps the cell's shared truncation and layout behavior intact.
 pub fn truncating_cell_sized(text: impl Into<SharedString>, size: gpui::Pixels) -> Div {
     div()
         .size_full()
@@ -28,6 +39,8 @@ pub fn truncating_cell_sized(text: impl Into<SharedString>, size: gpui::Pixels) 
         .child(end_truncating_text(text.into()))
 }
 
+/// [`truncating_cell_sized`] with a middle ellipsis for path-like cells where
+/// both the root and trailing segments carry useful context.
 pub fn middle_truncating_cell_sized(text: impl Into<SharedString>, size: gpui::Pixels) -> Div {
     div()
         .size_full()
@@ -38,6 +51,11 @@ pub fn middle_truncating_cell_sized(text: impl Into<SharedString>, size: gpui::P
         .child(middle_truncating_text(text.into()))
 }
 
+/// Middle-ellipsis counterpart to gpui's `.truncate()`.
+///
+/// It composes overflow hiding, no-wrap whitespace, and a middle ellipsis so
+/// path-like labels use one consistent clipping rule instead of hand-rolling
+/// that style chain.
 pub trait TruncateMiddleExt: Styled {
     fn truncate_middle(self) -> Self {
         self.overflow_hidden()
