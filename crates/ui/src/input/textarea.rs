@@ -1,10 +1,10 @@
 use gpui::{
     App, DefiniteLength, Entity, IntoElement, RenderOnce, SharedString, StyleRefinement, Styled,
-    Window, prelude::FluentBuilder as _,
+    Window, prelude::FluentBuilder as _, relative,
 };
 
 use super::{Input, TextareaState};
-use crate::{RoleOverride, StyledExt as _};
+use crate::{RoleOverride, Sizable, Size, StyledExt as _};
 
 /// A styled ordinary multi-line text field.
 #[derive(IntoElement)]
@@ -12,8 +12,10 @@ pub struct Textarea {
     state: Entity<TextareaState>,
     style: StyleRefinement,
     height: Option<DefiniteLength>,
+    size: Size,
     appearance: bool,
     bordered: bool,
+    focus_bordered: bool,
     disabled: bool,
     tab_index: isize,
     role: RoleOverride,
@@ -26,8 +28,10 @@ impl Textarea {
             state: state.clone(),
             style: StyleRefinement::default(),
             height: None,
+            size: Size::default(),
             appearance: true,
             bordered: true,
+            focus_bordered: true,
             disabled: false,
             tab_index: 0,
             role: RoleOverride::default(),
@@ -40,6 +44,11 @@ impl Textarea {
         self
     }
 
+    pub fn h_full(mut self) -> Self {
+        self.height = Some(relative(1.));
+        self
+    }
+
     pub fn appearance(mut self, appearance: bool) -> Self {
         self.appearance = appearance;
         self
@@ -47,6 +56,11 @@ impl Textarea {
 
     pub fn bordered(mut self, bordered: bool) -> Self {
         self.bordered = bordered;
+        self
+    }
+
+    pub fn focus_bordered(mut self, bordered: bool) -> Self {
+        self.focus_bordered = bordered;
         self
     }
 
@@ -71,6 +85,13 @@ impl Textarea {
     }
 }
 
+impl Sizable for Textarea {
+    fn with_size(mut self, size: impl Into<Size>) -> Self {
+        self.size = size.into();
+        self
+    }
+}
+
 impl Styled for Textarea {
     fn style(&mut self) -> &mut StyleRefinement {
         &mut self.style
@@ -82,8 +103,10 @@ impl RenderOnce for Textarea {
         self.state.update(cx, |state, cx| state.prepare(window, cx));
         let base = self.state.read(cx).base_state().clone();
         Input::from_base(&base)
+            .with_size(self.size)
             .appearance(self.appearance)
             .bordered(self.bordered)
+            .focus_bordered(self.focus_bordered)
             .disabled(self.disabled)
             .tab_index(self.tab_index)
             .role(self.role)

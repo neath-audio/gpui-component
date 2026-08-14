@@ -1,6 +1,6 @@
 use gpui::{
     App, DefiniteLength, Entity, IntoElement, RenderOnce, SharedString, StyleRefinement, Styled,
-    Window, prelude::FluentBuilder as _,
+    Window, prelude::FluentBuilder as _, relative,
 };
 
 use super::{EditorState, Input};
@@ -37,6 +37,11 @@ impl Editor {
 
     pub fn h(mut self, height: impl Into<DefiniteLength>) -> Self {
         self.height = Some(height.into());
+        self
+    }
+
+    pub fn h_full(mut self) -> Self {
+        self.height = Some(relative(1.));
         self
     }
 
