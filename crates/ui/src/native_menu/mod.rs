@@ -12,7 +12,7 @@
 //! [`From<gpui::Menu>`]).
 //!
 //! ```ignore
-//! use gpui_component::native_menu::NativeMenu;
+//! use gpui_neath::native_menu::NativeMenu;
 //!
 //! NativeMenu::new()
 //!     .menu("Copy", Box::new(Copy))

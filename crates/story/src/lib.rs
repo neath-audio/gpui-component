@@ -170,7 +170,7 @@ pub fn init(cx: &mut App) {
             .with(tracing_subscriber::fmt::layer())
             .with(
                 tracing_subscriber::EnvFilter::from_default_env()
-                    .add_directive("gpui_component=trace".parse().unwrap()),
+                    .add_directive("gpui_neath=trace".parse().unwrap()),
             )
             .try_init();
     }
@@ -183,7 +183,7 @@ pub fn init(cx: &mut App) {
             .with(tracing_subscriber::fmt::layer().without_time())
             .with(
                 tracing_subscriber::EnvFilter::from_default_env()
-                    .add_directive("gpui_component=trace".parse().unwrap()),
+                    .add_directive("gpui_neath=trace".parse().unwrap()),
             )
             .try_init();
     }

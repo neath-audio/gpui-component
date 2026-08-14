@@ -71,7 +71,7 @@ impl TitleBar {
     ///
     /// ```no_run
     /// # use gpui::WindowOptions;
-    /// # use gpui_component::TitleBar;
+    /// # use gpui_neath::TitleBar;
     /// let options = WindowOptions {
     ///     window_min_size: None,
     ///     ..TitleBar::window_options()

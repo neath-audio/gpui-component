@@ -1,4 +1,4 @@
-use gpui_component::theme::{ThemeConfig, ThemeConfigColors, ThemeMode};
+use gpui_neath::theme::{ThemeConfig, ThemeConfigColors, ThemeMode};
 
 #[test]
 fn legacy_theme_config_struct_literal_shape_is_unchanged() {

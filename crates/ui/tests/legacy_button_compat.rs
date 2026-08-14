@@ -1,5 +1,5 @@
 use gpui::{Axis, InteractiveElement as _, ParentElement as _, Styled as _, blue, green, px, red};
-use gpui_component::{
+use gpui_neath::{
     Disableable as _, Icon, IconName, Selectable as _, Sizable as _, Size,
     button::{
         Button, ButtonCustomVariant, ButtonGroup, ButtonRounded, ButtonVariant,

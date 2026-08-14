@@ -197,7 +197,7 @@ version = "0.5.1"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
+ "gpui-neath",
  "gpui_platform",
  "rust-embed",
 ]
@@ -1781,8 +1781,8 @@ version = "0.5.1"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
  "gpui-component-assets",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -2300,7 +2300,7 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -3051,7 +3051,80 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpui-component"
+name = "gpui-component-assets"
+version = "0.5.1"
+dependencies = [
+ "anyhow",
+ "gpui",
+ "log",
+ "rust-embed",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "zed-reqwest",
+]
+
+[[package]]
+name = "gpui-component-macros"
+version = "0.5.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "gpui-component-story"
+version = "0.5.1"
+dependencies = [
+ "anyhow",
+ "autocorrect",
+ "chrono",
+ "color-lsp",
+ "csv",
+ "dirs",
+ "fake",
+ "getrandom 0.2.17",
+ "gpui",
+ "gpui-base",
+ "gpui-component-assets",
+ "gpui-neath",
+ "gpui_platform",
+ "gpui_web",
+ "gtk",
+ "itertools 0.14.0",
+ "lsp-types 0.97.0",
+ "rand 0.8.6",
+ "regex",
+ "reqwest_client",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+ "smol",
+ "syntect",
+ "tracing",
+ "tracing-subscriber",
+ "tree-sitter-navi",
+ "unindent",
+]
+
+[[package]]
+name = "gpui-component-story-web"
+version = "0.5.1"
+dependencies = [
+ "console_error_panic_hook",
+ "console_log",
+ "gpui",
+ "gpui-component-assets",
+ "gpui-component-story",
+ "gpui-neath",
+ "gpui_platform",
+ "log",
+ "tracing-wasm",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "gpui-neath"
 version = "0.5.2"
 dependencies = [
  "anyhow",
@@ -3129,79 +3202,6 @@ dependencies = [
  "uuid",
  "windows 0.58.0",
  "zed-sum-tree",
-]
-
-[[package]]
-name = "gpui-component-assets"
-version = "0.5.1"
-dependencies = [
- "anyhow",
- "gpui",
- "log",
- "rust-embed",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "zed-reqwest",
-]
-
-[[package]]
-name = "gpui-component-macros"
-version = "0.5.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "gpui-component-story"
-version = "0.5.1"
-dependencies = [
- "anyhow",
- "autocorrect",
- "chrono",
- "color-lsp",
- "csv",
- "dirs",
- "fake",
- "getrandom 0.2.17",
- "gpui",
- "gpui-base",
- "gpui-component",
- "gpui-component-assets",
- "gpui_platform",
- "gpui_web",
- "gtk",
- "itertools 0.14.0",
- "lsp-types 0.97.0",
- "rand 0.8.6",
- "regex",
- "reqwest_client",
- "rust-i18n",
- "serde",
- "serde_json",
- "smol",
- "syntect",
- "tracing",
- "tracing-subscriber",
- "tree-sitter-navi",
- "unindent",
-]
-
-[[package]]
-name = "gpui-component-story-web"
-version = "0.5.1"
-dependencies = [
- "console_error_panic_hook",
- "console_log",
- "gpui",
- "gpui-component",
- "gpui-component-assets",
- "gpui-component-story",
- "gpui_platform",
- "log",
- "tracing-wasm",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -3619,7 +3619,7 @@ version = "0.5.1"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -4082,8 +4082,8 @@ version = "0.5.1"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
  "gpui-component-assets",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -4701,8 +4701,8 @@ name = "markdown_table"
 version = "0.5.1"
 dependencies = [
  "gpui",
- "gpui-component",
  "gpui-component-assets",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -6957,7 +6957,7 @@ name = "root_borderless"
 version = "0.5.1"
 dependencies = [
  "gpui",
- "gpui-component",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -7609,8 +7609,8 @@ version = "0.5.1"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
  "gpui-component-assets",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -8172,8 +8172,8 @@ dependencies = [
  "battery",
  "core-foundation 0.10.0",
  "gpui",
- "gpui-component",
  "gpui-component-assets",
+ "gpui-neath",
  "gpui_platform",
  "metal",
  "smol",
@@ -8186,7 +8186,7 @@ name = "table_in_scrollable"
 version = "0.5.1"
 dependencies = [
  "gpui",
- "gpui-component",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -8287,8 +8287,8 @@ version = "0.5.1"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
  "gpui-component-assets",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -8636,7 +8636,7 @@ version = "0.5.1"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
+ "gpui-neath",
  "gpui_platform",
 ]
 
@@ -9877,7 +9877,7 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
+ "gpui-neath",
  "gpui-wry",
  "gpui_platform",
  "gtk",
@@ -10154,8 +10154,8 @@ version = "0.5.1"
 dependencies = [
  "anyhow",
  "gpui",
- "gpui-component",
  "gpui-component-assets",
+ "gpui-neath",
  "gpui_platform",
 ]
 

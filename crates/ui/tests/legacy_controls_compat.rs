@@ -2,7 +2,7 @@ use gpui::{
     InteractiveElement as _, ParentElement as _, StatefulInteractiveElement as _, Styled as _,
     blue, green, px, red,
 };
-use gpui_component::{
+use gpui_neath::{
     Disableable as _, Selectable as _, Sizable as _, Size,
     checkbox::Checkbox,
     radio::{Radio, RadioGroup},
