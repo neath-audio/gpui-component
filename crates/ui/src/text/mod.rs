@@ -20,7 +20,7 @@ pub(crate) use window_selection::TextSelectionController;
 pub(crate) use window_selection::WindowTextSelection;
 pub(crate) use window_selection::{SelectionScope, SelectionScopeElement};
 
-use crate::global_state::GlobalState;
+use crate::global_state::UiGlobalState;
 
 pub(crate) fn init(cx: &mut App) {
     state::init(cx);
@@ -35,14 +35,14 @@ pub fn set_link_handler(
 ) {
     // Use the crate's existing mutable-global accessor (same one other
     // GlobalState writers in this crate use).
-    GlobalState::global_mut(cx).text_link_handler = Some(std::rc::Rc::new(handler));
+    UiGlobalState::global_mut(cx).text_link_handler = Some(std::rc::Rc::new(handler));
 }
 
 /// True when the registered handler consumed the link. Cloning the Rc first
 /// releases the global borrow before the handler runs (the handler will
 /// re-enter `cx`).
 pub(crate) fn link_handled(url: &str, window: &mut Window, cx: &mut App) -> bool {
-    let handler = GlobalState::global(cx).text_link_handler.clone();
+    let handler = UiGlobalState::global(cx).text_link_handler.clone();
     handler.is_some_and(|h| h(url, window, cx))
 }
 

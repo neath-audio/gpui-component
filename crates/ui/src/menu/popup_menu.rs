@@ -3,7 +3,7 @@ use crate::actions::{SelectLeft, SelectRight};
 use crate::menu::menu_item::MenuItemElement;
 use crate::scroll::ScrollableElement;
 use crate::{ActiveTheme, ElementExt, Icon, IconName, Sizable as _, h_flex, v_flex};
-use crate::{Side, Size, StyledExt, global_state::GlobalState, kbd::Kbd};
+use crate::{Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd};
 use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
@@ -329,8 +329,8 @@ impl PopupMenu {
         // overlay reads this registry to suppress tooltips over open menus.
         // Guarded: before `crate::init` there is no registry (and no tooltip
         // overlay either), so an untracked menu is harmless.
-        if cx.has_global::<GlobalState>() {
-            GlobalState::global_mut(cx).register_menu_focus_handle(&focus_handle);
+        if cx.has_global::<UiGlobalState>() {
+            UiGlobalState::global_mut(cx).register_menu_focus_handle(&focus_handle);
         }
         Self {
             focus_handle,
@@ -350,7 +350,7 @@ impl PopupMenu {
             size: Size::default(),
             menu_bg: None,
             submenu_anchor: (Anchor::TopLeft, Pixels::ZERO),
-            priority: 1,
+            priority: gpui_base::POPUP_PRIORITY,
             _subscriptions: vec![],
         }
     }
@@ -366,8 +366,8 @@ impl PopupMenu {
             // registry — release is the one hook that always runs.
             let entity_id = cx.entity().entity_id();
             cx.on_release(move |_, cx| {
-                if cx.has_global::<GlobalState>() {
-                    GlobalState::global_mut(cx).remove_menu_bounds(entity_id);
+                if cx.has_global::<UiGlobalState>() {
+                    UiGlobalState::global_mut(cx).remove_menu_bounds(entity_id);
                 }
             })
             .detach();
@@ -1090,7 +1090,7 @@ impl PopupMenu {
     /// Used by `confirm` (item click) and `handle_dismiss` (click-outside).
     fn dismiss_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let entity_id = cx.entity().entity_id();
-        GlobalState::global_mut(cx).remove_menu_bounds(entity_id);
+        UiGlobalState::global_mut(cx).remove_menu_bounds(entity_id);
         cx.emit(DismissEvent);
 
         // Focus back to the previous focused handle, unless the item's click
@@ -1573,7 +1573,7 @@ impl Render for PopupMenu {
                         // Keep the open-menu registry current so a Popover's
                         // mouse-down-out can tell a press inside this menu
                         // from a genuine outside click.
-                        GlobalState::global_mut(cx).update_menu_bounds(view.entity_id(), bounds);
+                        UiGlobalState::global_mut(cx).update_menu_bounds(view.entity_id(), bounds);
                     }),
             )
             .when(self.scrollable, |this| {

@@ -6,7 +6,7 @@ use crate::{
         Cancel, SelectDown, SelectFirst, SelectLast, SelectNextColumn, SelectPageDown,
         SelectPageUp, SelectPrevColumn, SelectUp,
     },
-    global_state::GlobalState,
+    global_state::UiGlobalState,
     h_flex,
     menu::{ContextMenuExt, PopupMenu},
     scroll::{ScrollableMask, Scrollbar},
@@ -2189,19 +2189,21 @@ where
 
     fn render_vertical_scrollbar(
         &mut self,
-
         _: &mut Window,
         _: &mut Context<Self>,
     ) -> Option<impl IntoElement> {
-        let header_rows = self.header_layout.len().max(1);
         Some(
             div()
                 .absolute()
-                .top(self.options.size.table_row_height() * header_rows as f32)
+                .top(self.options.size.table_row_height() * self.header_layout.len().max(1) as f32)
                 .right_0()
                 .bottom_0()
                 .w(Scrollbar::width())
-                .child(Scrollbar::vertical(&self.vertical_scroll_handle).max_fps(60)),
+                .child(
+                    Scrollbar::vertical(&self.vertical_scroll_handle)
+                        .viewport_from_layout()
+                        .max_fps(60),
+                ),
         )
     }
 
@@ -2216,7 +2218,7 @@ where
             .right_0()
             .bottom_0()
             .h(Scrollbar::width())
-            .child(Scrollbar::horizontal(&self.horizontal_scroll_handle))
+            .child(Scrollbar::horizontal(&self.horizontal_scroll_handle).viewport_from_layout())
     }
 }
 
@@ -2434,7 +2436,7 @@ where
                     .when(right_clicked_row.is_some(), |this| {
                         this.on_mouse_down_out(cx.listener(
                             |this, e: &MouseDownEvent, _window, cx| {
-                                if GlobalState::global(cx).position_in_open_menu(&e.position) {
+                                if UiGlobalState::global(cx).position_in_open_menu(&e.position) {
                                     return;
                                 }
                                 this.update_right_clicked_row_from_mouse(None, cx);
@@ -2639,7 +2641,7 @@ mod tests {
         assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), Some(0));
 
         cx.update(|_, cx| {
-            crate::global_state::GlobalState::global_mut(cx).update_menu_bounds(
+            crate::global_state::UiGlobalState::global_mut(cx).update_menu_bounds(
                 table.entity_id(),
                 Bounds {
                     origin: point(px(320.), px(0.)),

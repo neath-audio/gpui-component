@@ -1,16 +1,15 @@
 use gpui::{
     AnyElement, App, ClickEvent, Context, DismissEvent, Edges, ElementId, Entity, EventEmitter,
-    FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding, Length,
-    ParentElement, Render, RenderOnce, SharedString, StatefulInteractiveElement, StyleRefinement,
-    Styled, Window, anchored, deferred, div, prelude::FluentBuilder, px, rems,
+    FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, Length, ParentElement, Render,
+    RenderOnce, SharedString, StatefulInteractiveElement, StyleRefinement, Styled, Window,
+    anchored, deferred, div, prelude::FluentBuilder, px, rems,
 };
 use rust_i18n::t;
 
 use crate::{
     ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
     StyleSized, StyledExt,
-    actions::{Cancel, Confirm, SelectDown, SelectUp},
-    global_state::GlobalState,
+    actions::Cancel,
     h_flex,
     input::{clear_button, input_style},
     list::List,
@@ -19,6 +18,7 @@ use crate::{
     },
     v_flex,
 };
+use gpui_base::{GlobalState, Select as BaseSelect};
 
 // MARK: Public re-exports for back-compat
 
@@ -62,22 +62,6 @@ impl RenderOnce for Caret {
             })
             .when_some(self.color, |this, color| this.text_color(color))
     }
-}
-
-const CONTEXT: &str = "Select";
-
-pub(crate) fn init(cx: &mut App) {
-    cx.bind_keys([
-        KeyBinding::new("up", SelectUp, Some(CONTEXT)),
-        KeyBinding::new("down", SelectDown, Some(CONTEXT)),
-        KeyBinding::new("enter", Confirm { secondary: false }, Some(CONTEXT)),
-        KeyBinding::new(
-            "secondary-enter",
-            Confirm { secondary: true },
-            Some(CONTEXT),
-        ),
-        KeyBinding::new("escape", Cancel, Some(CONTEXT)),
-    ])
 }
 
 /// Events emitted by [`SelectState`].
@@ -386,35 +370,6 @@ where
         cx.notify();
     }
 
-    fn up(&mut self, _: &SelectUp, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.state.open {
-            self.set_open(true, cx);
-        }
-
-        self.state.list.focus_handle(cx).focus(window, cx);
-        cx.propagate();
-    }
-
-    fn down(&mut self, _: &SelectDown, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.state.open {
-            self.set_open(true, cx);
-        }
-
-        self.state.list.focus_handle(cx).focus(window, cx);
-        cx.propagate();
-    }
-
-    fn enter(&mut self, _: &Confirm, window: &mut Window, cx: &mut Context<Self>) {
-        cx.propagate();
-
-        if !self.state.open {
-            self.set_open(true, cx);
-            cx.notify();
-        }
-
-        self.state.list.focus_handle(cx).focus(window, cx);
-    }
-
     fn toggle_menu(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
         cx.stop_propagation();
 
@@ -443,9 +398,9 @@ where
         self.state.open = open;
 
         if self.state.open {
-            GlobalState::global_mut(cx).register_deferred_popover(&self.state.focus_handle)
+            GlobalState::register_deferred_popover(&self.state.focus_handle, cx)
         } else {
-            GlobalState::global_mut(cx).unregister_deferred_popover(&self.state.focus_handle)
+            GlobalState::unregister_deferred_popover(&self.state.focus_handle, cx)
         }
 
         cx.notify();
@@ -508,9 +463,6 @@ where
         let show_clean = self.state.cleanable && self.selected_index(cx).is_some();
         let bounds = self.state.bounds;
         let allow_open = !(self.state.open || self.state.disabled);
-        // The focused ring is appearance chrome, like the border and
-        // background — `appearance(false)` callers style the trigger
-        // themselves (same contract as the combobox's `trigger_unstyled()`).
         let outline_visible =
             self.state.appearance && (self.state.open || (is_focused && !self.state.disabled));
         let popup_radius = cx.theme().radius.min(px(8.));
@@ -524,10 +476,6 @@ where
         });
 
         div()
-            // w_full only: the trigger below carries its own height.
-            // h_full here stretched the slot in auto-height flex parents
-            // (dialog bodies) after the Taffy 0.12 gpui bump, opening a
-            // phantom gap below the trigger.
             .w_full()
             .relative()
             .child(
@@ -546,22 +494,13 @@ where
                             .border_color(cx.theme().input)
                             .rounded(cx.theme().radius)
                     })
-                    // Opt-in ghost states for borderless triggers — the
-                    // ghost Button's hover/pressed tints, so a bare menu
-                    // pill still answers the pointer. While the menu is
-                    // OPEN the pressed tint holds (skipping hover), exactly
-                    // like a selected ghost Button under an open Popover
-                    // (selected bg == active bg; hover skipped while
-                    // selected).
                     .when(self.state.trigger_ghost && !self.state.disabled, |this| {
                         this.rounded(cx.theme().radius).map(|this| {
                             if self.state.open {
                                 this.bg(cx.theme().foreground.opacity(0.2))
                             } else {
-                                this.hover(|this| {
-                                    this.bg(cx.theme().foreground.opacity(0.12))
-                                })
-                                .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
+                                this.hover(|this| this.bg(cx.theme().foreground.opacity(0.12)))
+                                    .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
                             }
                         })
                     })
@@ -632,11 +571,10 @@ where
                                         .occlude()
                                         .mt_1p5()
                                         .popover_style(cx)
-                                        // Re-clamp after popover_style — menus cap their radius at 8px.
                                         .rounded(popup_radius)
                                         .when_some(self.state.menu_bg, |this, bg| this.bg(bg))
-                                        .when_some(self.state.menu_border, |this, c| {
-                                            this.border_color(c)
+                                        .when_some(self.state.menu_border, |this, border| {
+                                            this.border_color(border)
                                         })
                                         .child(
                                             List::new(&self.state.list)
@@ -656,7 +594,7 @@ where
                                 })),
                         ),
                     )
-                    .with_priority(1),
+                    .with_priority(gpui_base::POPUP_PRIORITY),
                 )
             })
     }
@@ -688,21 +626,19 @@ where
         self
     }
 
-    /// Override the dropdown menu's background color, e.g. for a translucent menu.
+    /// Override the dropdown menu background.
     pub fn menu_bg(mut self, bg: impl Into<Hsla>) -> Self {
         self.options.menu_bg = Some(bg.into());
         self
     }
 
-    /// Override the dropdown menu's border color, replacing the theme border —
-    /// e.g. to tint the open menu's edge to match a colored trigger.
+    /// Override the dropdown menu border.
     pub fn menu_border(mut self, border: impl Into<Hsla>) -> Self {
         self.options.menu_border = Some(border.into());
         self
     }
 
-    /// Tint the dropdown's selected/hover row highlight, replacing the neutral
-    /// theme `accent` (selected at full strength, hover dimmed).
+    /// Override selected and hovered row accents in the dropdown.
     pub fn menu_accent(mut self, accent: impl Into<Hsla>) -> Self {
         self.options.menu_accent = Some(accent.into());
         self
@@ -757,18 +693,13 @@ where
         self
     }
 
-    /// Control whether the trigger shows a border, background, and the
-    /// focused ring while open or focused (`true` by default).
+    /// Control whether the trigger shows a border and background (`true` by default).
     pub fn appearance(mut self, appearance: bool) -> Self {
         self.options.appearance = appearance;
         self
     }
 
-    /// Ghost variant, mirroring [`ButtonVariants::ghost`](crate::button::ButtonVariants::ghost):
-    /// a borderless trigger (as `appearance(false)`) that keeps the ghost
-    /// Button's hover and pressed tints — the bare "menu pill" treatment.
-    /// Distinct from `appearance(false)` alone, whose contract stays
-    /// "callers style the trigger themselves".
+    /// Use a borderless trigger with ghost-button hover and pressed tints.
     pub fn ghost(mut self) -> Self {
         self.options.appearance = false;
         self.options.trigger_ghost = true;
@@ -830,9 +761,9 @@ where
     D: SearchableListDelegate + 'static,
     <D::Item as SearchableListItem>::Value: PartialEq + Clone,
 {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let disabled = self.options.disabled;
-        let focus_handle = self.state.focus_handle(cx);
+        let focus_handle = self.state.read(cx).state.focus_handle.clone();
         let empty = self.empty;
         let opts = self.options;
 
@@ -858,16 +789,18 @@ where
             }
         });
 
-        div()
-            .id(self.id.clone())
-            .key_context(CONTEXT)
-            .when(!disabled, |this| {
-                this.track_focus(&focus_handle.tab_stop(true))
+        let is_open = self.state.read(cx).state.open;
+        let content_focus_handle = self.state.read(cx).state.list.focus_handle(cx);
+        let open_state = self.state.clone();
+
+        BaseSelect::new(self.id)
+            .open(is_open)
+            .disabled(disabled)
+            .focus_handle(&focus_handle)
+            .content_focus_handle(&content_focus_handle)
+            .on_open_change(move |open, _, cx| {
+                open_state.update(cx, |state, cx| state.set_open(open, cx));
             })
-            .on_action(window.listener_for(&self.state, SelectState::up))
-            .on_action(window.listener_for(&self.state, SelectState::down))
-            .on_action(window.listener_for(&self.state, SelectState::enter))
-            .on_action(window.listener_for(&self.state, SelectState::escape))
             .w_full()
             .child(self.state)
     }

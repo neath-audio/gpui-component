@@ -1,5 +1,5 @@
 use gpui::{Action, App, SharedString};
-use gpui_component::{Theme, ThemeMode, ThemeRegistry, scroll::ScrollbarShow};
+use gpui_component::{Theme, ThemeConfig, ThemeMode, ThemeRegistry, scroll::ScrollbarMode};
 use serde::{Deserialize, Serialize};
 
 #[cfg(not(target_family = "wasm"))]
@@ -13,14 +13,21 @@ const STATE_FILE: &str = "target/state.json";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct State {
     theme: SharedString,
-    scrollbar_show: Option<ScrollbarShow>,
+    #[serde(alias = "scrollbar_show")]
+    scrollbar_mode: Option<ScrollbarMode>,
+}
+
+fn apply_theme_config(theme_config: std::rc::Rc<ThemeConfig>, cx: &mut App) {
+    let mode = theme_config.mode;
+    Theme::global_mut(cx).apply_config(&theme_config);
+    Theme::change(mode, None, cx);
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
             theme: "Default Light".into(),
-            scrollbar_show: None,
+            scrollbar_mode: None,
         }
     }
 }
@@ -56,15 +63,15 @@ pub fn init(cx: &mut App) {
                 .get(&state.theme)
                 .cloned()
             {
-                Theme::global_mut(cx).apply_config(&theme);
+                apply_theme_config(theme, cx);
             }
         })
     {
         tracing::error!("Failed to watch themes directory: {}", err);
     }
 
-    if let Some(scrollbar_show) = state.scrollbar_show {
-        Theme::global_mut(cx).scrollbar_show = scrollbar_show;
+    if let Some(scrollbar_mode) = state.scrollbar_mode {
+        Theme::set_scrollbar_mode(scrollbar_mode, cx);
     }
     cx.refresh_windows();
 
@@ -72,7 +79,7 @@ pub fn init(cx: &mut App) {
     cx.observe_global::<Theme>(|cx| {
         let state = State {
             theme: cx.theme().theme_name().clone(),
-            scrollbar_show: Some(cx.theme().scrollbar_show),
+            scrollbar_mode: Some(cx.theme().scrollbar_mode),
         };
 
         if let Ok(json) = serde_json::to_string_pretty(&state) {
@@ -85,7 +92,7 @@ pub fn init(cx: &mut App) {
     cx.on_action(|switch: &SwitchTheme, cx| {
         let theme_name = switch.0.clone();
         if let Some(theme_config) = ThemeRegistry::global(cx).themes().get(&theme_name).cloned() {
-            Theme::global_mut(cx).apply_config(&theme_config);
+            apply_theme_config(theme_config, cx);
         }
         cx.refresh_windows();
     });
@@ -103,3 +110,45 @@ pub(crate) struct SwitchTheme(pub(crate) SharedString);
 #[derive(Action, Clone, PartialEq)]
 #[action(namespace = themes, no_json)]
 pub(crate) struct SwitchThemeMode(pub(crate) ThemeMode);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::TestAppContext;
+    use gpui_component::ThemeConfig;
+    use std::rc::Rc;
+
+    #[gpui::test]
+    fn applying_custom_theme_updates_base_component_colors(cx: &mut TestAppContext) {
+        cx.update(gpui_component::init);
+        let config = Rc::new(
+            serde_json::from_value::<ThemeConfig>(serde_json::json!({
+                "name": "Custom Dark",
+                "mode": "dark",
+                "colors": {
+                    "popover.background": "#102030",
+                    "popover.foreground": "#f0e0d0",
+                    "border": "#405060",
+                    "drag_border": "#708090",
+                    "ring": "#a0b0c0"
+                }
+            }))
+            .unwrap(),
+        );
+
+        cx.update(|cx| apply_theme_config(config, cx));
+
+        cx.read(|cx| {
+            let theme = cx.theme();
+            let base = gpui_base::Theme::global(cx);
+            assert_eq!(base.tokens.colors.surface, theme.popover);
+            assert_eq!(
+                base.tokens.colors.surface_foreground,
+                theme.popover_foreground
+            );
+            assert_eq!(base.resizable.handle, theme.border);
+            assert_eq!(base.resizable.active_handle, theme.drag_border);
+            assert_eq!(base.tokens.colors.ring, theme.ring);
+        });
+    }
+}

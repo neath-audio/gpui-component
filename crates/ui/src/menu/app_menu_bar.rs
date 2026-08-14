@@ -1,5 +1,5 @@
 use crate::{
-    Selectable, Sizable,
+    InteractiveElementExt as _, Selectable, Sizable,
     actions::{Cancel, SelectLeft, SelectRight},
     button::{Button, ButtonVariants},
     global_state::GlobalState,
@@ -46,11 +46,10 @@ impl AppMenuBar {
     /// Reload the menus from the app.
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         let menu_bar = cx.entity();
-        let menus: Vec<OwnedMenu> = GlobalState::global(cx)
-            .app_menus()
-            .iter()
-            .cloned()
-            .collect();
+        let menus: Vec<OwnedMenu> = cx
+            .try_global::<GlobalState>()
+            .map(|state| state.app_menus().to_vec())
+            .unwrap_or_default();
         self.menus = menus
             .iter()
             .enumerate()
@@ -128,7 +127,7 @@ impl Render for AppMenuBar {
             .size_full()
             .gap_x_1()
             .overflow_x_scroll()
-            .restrict_scroll_to_axis()
+            .lock_scroll_axis()
             .children(self.menus.clone())
     }
 }

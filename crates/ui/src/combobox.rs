@@ -1,7 +1,7 @@
 use gpui::{
     AnyElement, App, Bounds, ClickEvent, Context, DismissEvent, Edges, ElementId, Entity,
-    EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
-    Length, MouseDownEvent, ParentElement, Pixels, Rems, Render, RenderOnce, Role, SharedString,
+    EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, Length,
+    MouseDownEvent, ParentElement, Pixels, Rems, Render, RenderOnce, SharedString,
     StatefulInteractiveElement, StyleRefinement, Styled, Window, anchored, deferred, div,
     prelude::FluentBuilder, px, rems,
 };
@@ -12,10 +12,7 @@ pub use crate::select::Caret;
 
 use crate::{
     ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
-    StyleSized, StyledExt,
-    actions::{Cancel, Confirm, SelectDown, SelectUp},
-    global_state::GlobalState,
-    h_flex,
+    StyleSized, StyledExt, h_flex,
     input::{clear_button, input_style},
     list::{List, ListState},
     searchable_list::{
@@ -24,22 +21,7 @@ use crate::{
     },
     v_flex,
 };
-
-const CONTEXT: &str = "Combobox";
-
-pub(crate) fn init(cx: &mut App) {
-    cx.bind_keys([
-        KeyBinding::new("up", SelectUp, Some(CONTEXT)),
-        KeyBinding::new("down", SelectDown, Some(CONTEXT)),
-        KeyBinding::new("enter", Confirm { secondary: false }, Some(CONTEXT)),
-        KeyBinding::new(
-            "secondary-enter",
-            Confirm { secondary: true },
-            Some(CONTEXT),
-        ),
-        KeyBinding::new("escape", Cancel, Some(CONTEXT)),
-    ])
-}
+use gpui_base::{Combobox as BaseCombobox, GlobalState};
 
 // MARK: ComboboxTriggerCtx
 
@@ -65,22 +47,12 @@ struct ComboboxOptions {
     cleanable: bool,
     placeholder: Option<SharedString>,
     search_placeholder: Option<SharedString>,
-    /// Query-row text-size variant, passed through to the popup [`List`] —
-    /// see `List::search_text_size`.
     search_text_size: Option<Rems>,
-    /// Query-row wrapper insets, passed through to the popup [`List`] —
-    /// see `List::search_paddings`.
     search_paddings: Option<Edges<Pixels>>,
     menu_width: Length,
     menu_max_h: Length,
     disabled: bool,
     appearance: bool,
-    /// When `true` AND `render_trigger` is set, the custom trigger is rendered
-    /// without any container chrome (no border, padding, focused_border ring,
-    /// or trailing icon). The custom trigger element is responsible for its
-    /// own visual + focus state. Click/bounds tracking are still wired.
-    ///
-    /// Default `false`. Has no effect without `render_trigger`.
     trigger_unstyled: bool,
     trigger_icon: Option<Icon>,
     check_icon: Option<Icon>,
@@ -123,9 +95,6 @@ where
     check_icon: Option<Icon>,
     render_trigger:
         Option<Box<dyn Fn(&ComboboxTriggerCtx<D>, &mut Window, &mut App) -> AnyElement + 'static>>,
-    /// When `true` AND `render_trigger` is set, the custom trigger renders
-    /// without any container chrome. Flushed from [`ComboboxOptions::trigger_unstyled`]
-    /// on each render.
     trigger_unstyled: bool,
     footer: Option<Box<dyn Fn(&mut Window, &mut App) -> AnyElement + 'static>>,
 }
@@ -485,35 +454,6 @@ where
         cx.notify();
     }
 
-    fn up(&mut self, _: &SelectUp, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.state.open {
-            self.set_open(true, cx);
-        }
-
-        self.state.list.focus_handle(cx).focus(window, cx);
-        cx.propagate();
-    }
-
-    fn down(&mut self, _: &SelectDown, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.state.open {
-            self.set_open(true, cx);
-        }
-
-        self.state.list.focus_handle(cx).focus(window, cx);
-        cx.propagate();
-    }
-
-    fn enter(&mut self, _: &Confirm, window: &mut Window, cx: &mut Context<Self>) {
-        cx.propagate();
-
-        if !self.state.open {
-            self.set_open(true, cx);
-            cx.notify();
-        }
-
-        self.state.list.focus_handle(cx).focus(window, cx);
-    }
-
     fn toggle_menu(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
         cx.stop_propagation();
 
@@ -547,27 +487,13 @@ where
         cx.notify();
     }
 
-    fn escape(&mut self, _: &Cancel, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.state.open {
-            cx.propagate();
-            return;
-        }
-
-        cx.stop_propagation();
-        cx.emit(ComboboxEvent::Confirm(self.selected_values()));
-
-        self.set_open(false, cx);
-        self.focus(window, cx);
-        cx.notify();
-    }
-
     fn set_open(&mut self, open: bool, cx: &mut Context<Self>) {
         self.state.open = open;
 
         if self.state.open {
-            GlobalState::global_mut(cx).register_deferred_popover(&self.state.focus_handle)
+            GlobalState::register_deferred_popover(&self.state.focus_handle, cx)
         } else {
-            GlobalState::global_mut(cx).unregister_deferred_popover(&self.state.focus_handle)
+            GlobalState::unregister_deferred_popover(&self.state.focus_handle, cx)
         }
 
         cx.notify();
@@ -707,10 +633,7 @@ where
         let dismiss_handler: Box<dyn Fn(&MouseDownEvent, &mut Window, &mut App) + 'static> =
             Box::new(cx.listener(Self::dismiss));
 
-        let trigger_el: AnyElement = if has_custom_trigger && self.trigger_unstyled {
-            // Unstyled mode — the custom trigger is responsible for its own
-            // visual + focus state. Wrap only with the click + prepaint
-            // hooks needed for open-toggle and popup anchoring.
+        let trigger: AnyElement = if has_custom_trigger && self.trigger_unstyled {
             div()
                 .id("input")
                 .when(allow_open, |this| {
@@ -737,19 +660,12 @@ where
             )
             .into_any_element()
         };
-
-        // `.w_full()` is correct for the styled trigger container (it's
-        // meant to fill its parent's width like an input field); the
-        // trigger sizes its own height, and `h_full` stretched the slot in
-        // auto-height flex parents (dialog bodies) after the Taffy 0.12
-        // gpui bump. For the unstyled case the custom trigger is
-        // content-sized, so we let the wrapper size to content as well —
-        // otherwise the trigger stretches to fill a flex parent.
         let unstyled = has_custom_trigger && self.trigger_unstyled;
+
         div()
             .when(!unstyled, |this| this.w_full())
             .relative()
-            .child(trigger_el)
+            .child(trigger)
             .when(self.state.open, |this| {
                 this.child(
                     deferred(render_popup_shell(
@@ -765,7 +681,7 @@ where
                         dismiss_handler,
                         cx,
                     ))
-                    .with_priority(1),
+                    .with_priority(gpui_base::POPUP_PRIORITY),
                 )
             })
     }
@@ -870,15 +786,13 @@ where
         self
     }
 
-    /// Query-row text-size variant, passed through to the popup [`List`] —
-    /// see `List::search_text_size`.
+    /// Set the query-row text size in the popup list.
     pub fn search_text_size(mut self, size: impl Into<Rems>) -> Self {
         self.options.search_text_size = Some(size.into());
         self
     }
 
-    /// Query-row wrapper insets, passed through to the popup [`List`] —
-    /// see `List::search_paddings`.
+    /// Set the query-row wrapper insets in the popup list.
     pub fn search_paddings(mut self, paddings: impl Into<Edges<Pixels>>) -> Self {
         self.options.search_paddings = Some(paddings.into());
         self
@@ -907,10 +821,16 @@ where
         self
     }
 
-    /// Control whether the trigger shows a border, background, and the
-    /// focused ring while open or focused.
+    /// Control whether the trigger shows a border and background.
     pub fn appearance(mut self, appearance: bool) -> Self {
         self.options.appearance = appearance;
+        self
+    }
+
+    /// Render a custom trigger without border, padding, focus ring, or
+    /// trailing icon while retaining click and popup-anchor behavior.
+    pub fn trigger_unstyled(mut self) -> Self {
+        self.options.trigger_unstyled = true;
         self
     }
 
@@ -922,20 +842,6 @@ where
         self.render_trigger = Some(Box::new(move |ctx, window, cx| {
             f(ctx, window, cx).into_any_element()
         }));
-        self
-    }
-
-    /// Render the custom trigger without any container chrome (no border,
-    /// padding, `focused_border` ring, or trailing chevron / clear button).
-    /// Click + bounds tracking are still wired so the popup anchors and
-    /// dismisses normally.
-    ///
-    /// Has no effect unless [`Combobox::render_trigger`] is also set — the
-    /// default trigger needs the container to look like an input. Use this
-    /// for fully-custom triggers (e.g. a chip-shaped affordance) that
-    /// provide their own visual + focus state.
-    pub fn trigger_unstyled(mut self) -> Self {
-        self.options.trigger_unstyled = true;
         self
     }
 
@@ -975,16 +881,10 @@ where
     D: SearchableListDelegate + 'static,
     <D::Item as SearchableListItem>::Value: PartialEq + Clone,
 {
-    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let disabled = self.options.disabled;
-        let focus_handle = self.state.focus_handle(cx);
-        // `unstyled` gates `.w_full()` on the outer wrapper: a styled
-        // trigger fills its container's width like an input (height is the
-        // trigger's own — h_full stretched auto-height flex parents after
-        // the Taffy 0.12 gpui bump); an unstyled custom trigger is
-        // content-sized and must not claim 100% width or it stretches in a
-        // flex parent.
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let unstyled = self.options.trigger_unstyled && self.render_trigger.is_some();
+        let disabled = self.options.disabled;
+        let focus_handle = self.state.read(cx).state.focus_handle.clone();
         let render_trigger = self.render_trigger;
         let footer = self.footer;
         let empty = self.empty;
@@ -1014,19 +914,25 @@ where
         });
 
         let is_open = self.state.read(cx).state.open;
+        let content_focus_handle = self.state.read(cx).state.list.focus_handle(cx);
+        let open_state = self.state.clone();
+        let confirm_state = self.state.clone();
 
-        div()
-            .id(self.id.clone())
-            .role(Role::ComboBox)
-            .aria_expanded(is_open)
-            .key_context(CONTEXT)
-            .when(!disabled, |this| {
-                this.track_focus(&focus_handle.tab_stop(true))
+        BaseCombobox::new(self.id)
+            .open(is_open)
+            .disabled(disabled)
+            .focus_handle(&focus_handle)
+            .content_focus_handle(&content_focus_handle)
+            .on_open_change(move |open, _, cx| {
+                open_state.update(cx, |state, cx| state.set_open(open, cx));
             })
-            .on_action(window.listener_for(&self.state, ComboboxState::up))
-            .on_action(window.listener_for(&self.state, ComboboxState::down))
-            .on_action(window.listener_for(&self.state, ComboboxState::enter))
-            .on_action(window.listener_for(&self.state, ComboboxState::escape))
+            // This combobox commits its pending selection when the popup
+            // closes, so it listens for dismissal rather than Confirm.
+            .on_dismiss(move |_, cx| {
+                confirm_state.update(cx, |state, cx| {
+                    cx.emit(ComboboxEvent::Confirm(state.selected_values()));
+                });
+            })
             .when(!unstyled, |this| this.w_full())
             .child(self.state)
     }
@@ -1070,9 +976,6 @@ fn render_trigger_container(
         .input_size(size)
         .input_text_size(size)
         .refine_style(style)
-        // The focused ring is appearance chrome, like the border and
-        // background — `appearance(false)` callers style the trigger
-        // themselves (same contract as `trigger_unstyled()`).
         .when(appearance && outline_visible, |this| {
             this.focused_border(cx)
         })
@@ -1124,15 +1027,14 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                         .occlude()
                         .mt_1p5()
                         .popover_style(cx)
-                        // Re-clamp after popover_style — menus cap their radius at 8px.
                         .rounded(popup_radius)
                         .child(
                             List::new(list)
                                 .when_some(search_placeholder, |this, placeholder| {
                                     this.search_placeholder(placeholder)
                                 })
-                                .when_some(search_text_size, |this, text| {
-                                    this.search_text_size(text)
+                                .when_some(search_text_size, |this, size| {
+                                    this.search_text_size(size)
                                 })
                                 .when_some(search_paddings, |this, paddings| {
                                     this.search_paddings(paddings)

@@ -140,9 +140,7 @@ impl RenderOnce for SearchableListItemElement {
             .list_size(self.size)
             .refine_style(&self.style)
             .when(!self.disabled, |this| {
-                this.when(!self.selected, |this| {
-                    this.hover(|this| this.bg(hover_bg))
-                })
+                this.when(!self.selected, |this| this.hover(|this| this.bg(hover_bg)))
             })
             .when(self.selected, |this| this.bg(selected_bg))
             .when(self.disabled, |this| {

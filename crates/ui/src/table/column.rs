@@ -1,5 +1,3 @@
-use std::f32;
-
 use gpui::{
     Bounds, Context, Edges, Empty, EntityId, IntoElement, ParentElement as _, Pixels, Render,
     SharedString, Styled as _, TextAlign, Window, div, prelude::FluentBuilder, px,
@@ -305,8 +303,7 @@ impl Render for DragColumn {
 
         match &self.icon {
             // Icon columns: paint the glyph, matching the delegate's header.
-            Some(path) => chip
-                .child(Icon::new(IconName::Dash).path(path.clone()).size(px(12.))),
+            Some(path) => chip.child(Icon::new(IconName::Dash).path(path.clone()).size(px(12.))),
             // Text columns: mirror the header's own `text_xs` size, not the
             // default 16px, and cap the width so long names stay compact.
             None => chip
