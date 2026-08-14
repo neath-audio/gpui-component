@@ -56,6 +56,10 @@ const BASE_DECLARATION_FORBIDDEN: &[&str] = &[
 const APP_IMPORT_FORBIDDEN: &[&str] = &[
     "neath = {",
     "neath.workspace",
+    "package = \"neath\"",
+    "use neath::",
+    "pub use neath::",
+    "extern crate neath",
     "gpui_canvas_controls",
     "gpui-canvas-controls",
     "gpui_waveform",
@@ -169,6 +173,26 @@ fn checker_rejects_a_neath_workspace_import_in_styled_fixture() {
     let found = violations(
         Path::new("crates/ui/src/fake.rs"),
         "use neath_core::SourceId;",
+        APP_IMPORT_FORBIDDEN,
+    );
+    assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn checker_rejects_a_direct_neath_workspace_import_in_styled_fixture() {
+    let found = violations(
+        Path::new("crates/ui/src/fake.rs"),
+        "use neath::SourceId;",
+        APP_IMPORT_FORBIDDEN,
+    );
+    assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn checker_rejects_a_neath_package_alias_in_styled_manifest_fixture() {
+    let found = violations(
+        Path::new("crates/ui/Cargo.toml"),
+        "app_library = { package = \"neath\", workspace = true }",
         APP_IMPORT_FORBIDDEN,
     );
     assert_eq!(found.len(), 1);
