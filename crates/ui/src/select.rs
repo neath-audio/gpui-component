@@ -7,8 +7,8 @@ use gpui::{
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
-    StyleSized, StyledExt,
+    ActiveTheme, Disableable, ElementExt as _, ElevatedSurfaceExt, Icon, IconName, IndexPath,
+    Sizable, Size, StyleSized, StyledExt,
     actions::Cancel,
     h_flex,
     input::{clear_button, input_style},
@@ -570,7 +570,7 @@ where
                                     v_flex()
                                         .occlude()
                                         .mt_1p5()
-                                        .popover_style(cx)
+                                        .elevated_surface(cx)
                                         .rounded(popup_radius)
                                         .when_some(self.state.menu_bg, |this, bg| this.bg(bg))
                                         .when_some(self.state.menu_border, |this, border| {

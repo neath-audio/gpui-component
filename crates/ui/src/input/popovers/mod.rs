@@ -14,7 +14,7 @@ use gpui::{
 };
 
 use crate::{
-    ActiveTheme, StyledExt as _,
+    ActiveTheme, ElevatedSurfaceExt as _,
     text::{TextView, TextViewStyle},
 };
 
@@ -48,7 +48,7 @@ pub(super) fn editor_popover(id: impl Into<ElementId>, cx: &App) -> Stateful<Div
         .id(id)
         .flex_none()
         .occlude()
-        .popover_style(cx)
+        .elevated_surface(cx)
         .text_xs()
         .p_1()
 }

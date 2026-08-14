@@ -3,7 +3,7 @@ use crate::actions::{SelectLeft, SelectRight};
 use crate::menu::menu_item::MenuItemElement;
 use crate::scroll::ScrollableElement;
 use crate::{ActiveTheme, ElementExt, Icon, IconName, Sizable as _, h_flex, v_flex};
-use crate::{Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd};
+use crate::{ElevatedSurfaceExt, Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd};
 use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
@@ -1540,7 +1540,7 @@ impl Render for PopupMenu {
             .on_action(cx.listener(Self::confirm))
             .on_action(cx.listener(Self::dismiss))
             .on_mouse_down_out(cx.listener(Self::on_mouse_down_out))
-            .popover_style(cx)
+            .elevated_surface(cx)
             .when_some(self.menu_bg, |this, bg| this.bg(bg))
             .text_color(cx.theme().popover_foreground)
             .relative()

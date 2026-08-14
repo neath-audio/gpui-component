@@ -5,7 +5,9 @@ use gpui::{
 };
 use std::rc::Rc;
 
-use crate::{Selectable, StyledExt as _, global_state::UiGlobalState, v_flex};
+use crate::{
+    ElevatedSurfaceExt as _, Selectable, StyledExt as _, global_state::UiGlobalState, v_flex,
+};
 use gpui_base::Popover as BasePopover;
 pub use gpui_base::PopoverState;
 
@@ -191,7 +193,7 @@ impl Popover {
             .id("content")
             .occlude()
             .tab_group()
-            .when(appearance, |this| this.popover_style(cx).p_3())
+            .when(appearance, |this| this.elevated_surface(cx).p_3())
             .map(|this| match anchor {
                 Anchor::TopLeft | Anchor::TopCenter | Anchor::TopRight => this.top_1(),
                 Anchor::BottomLeft | Anchor::BottomCenter | Anchor::BottomRight => this.bottom_1(),

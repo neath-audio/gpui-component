@@ -3,7 +3,7 @@ use gpui::{
     SharedString, Size, StyleRefinement, Styled, Window, deferred, div, prelude::FluentBuilder, px,
 };
 
-use crate::{ActiveTheme, Colorize, StyledExt, h_flex, v_flex};
+use crate::{ActiveTheme, Colorize, ElevatedSurfaceExt, StyledExt, h_flex, v_flex};
 
 #[derive(Default)]
 pub enum CrossLineAxis {
@@ -415,7 +415,7 @@ impl RenderOnce for Tooltip {
                 // never overflows the near side.
                 this.absolute()
                     .when(min_w_unset, |c| c.min_w(px(150.)))
-                    .popover_style(cx)
+                    .elevated_surface(cx)
                     .p_2()
                     .map(|c| {
                         if cursor.x < within.width * 0.5 {

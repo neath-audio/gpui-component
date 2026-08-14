@@ -1,5 +1,5 @@
 use gpui::{
-    AnyElement, App, Bounds, ClickEvent, Context, DismissEvent, Edges, ElementId, Entity,
+    AnyElement, App, Bounds, ClickEvent, Context, DismissEvent, Div, Edges, ElementId, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, Length,
     MouseDownEvent, ParentElement, Pixels, Rems, Render, RenderOnce, SharedString,
     StatefulInteractiveElement, StyleRefinement, Styled, Window, anchored, deferred, div,
@@ -11,8 +11,8 @@ use rust_i18n::t;
 pub use crate::select::Caret;
 
 use crate::{
-    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
-    StyleSized, StyledExt, h_flex,
+    ActiveTheme, Disableable, ElementExt as _, ElevatedSurfaceExt, Icon, IconName, IndexPath,
+    Sizable, Size, StyleSized, StyledExt, h_flex,
     input::{clear_button, input_style},
     list::{List, ListState},
     searchable_list::{
@@ -1023,10 +1023,7 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                     Length::Definite(w) => this.w(w),
                 })
                 .child(
-                    v_flex()
-                        .occlude()
-                        .mt_1p5()
-                        .popover_style(cx)
+                    combobox_popup_surface(cx)
                         .rounded(popup_radius)
                         .child(
                             List::new(list)
@@ -1058,6 +1055,10 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
         .into_any_element()
 }
 
+fn combobox_popup_surface(cx: &App) -> Div {
+    v_flex().occlude().mt_1p5().elevated_surface(cx)
+}
+
 // MARK: Tests
 
 #[cfg(test)]
@@ -1065,13 +1066,14 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     use gpui::{
-        AppContext as _, Bounds, Context, Entity, Modifiers, MouseButton, MouseDownEvent, Pixels,
-        Point, Subscription, TestAppContext, point, px, size,
+        AppContext as _, Bounds, Context, Entity, Focusable, InteractiveElement as _, IntoElement,
+        Modifiers, MouseButton, MouseDownEvent, Pixels, Point, Render, Styled as _, Subscription,
+        TestAppContext, Window, point, px, size,
     };
 
     use crate::{
-        IndexPath,
-        combobox::{Combobox, ComboboxEvent, ComboboxState},
+        ElevatedSurfaceExt as _, IndexPath,
+        combobox::{Combobox, ComboboxEvent, ComboboxState, combobox_popup_surface},
         searchable_list::{
             SearchableListChange, SearchableListDelegate, SearchableListItem, SearchableListState,
             SearchableVec,
@@ -1081,6 +1083,16 @@ mod tests {
     struct TestComboboxEventCollector {
         event_count: Rc<Cell<usize>>,
         _subscription: Subscription,
+    }
+
+    struct ComboboxRenderHarness {
+        state: Entity<ComboboxState<SearchableVec<&'static str>>>,
+    }
+
+    impl Render for ComboboxRenderHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            Combobox::new(&self.state)
+        }
     }
 
     impl TestComboboxEventCollector {
@@ -1102,6 +1114,42 @@ mod tests {
                 _subscription,
             }
         }
+    }
+
+    #[gpui::test]
+    fn combobox_popup_surface_uses_styled_elevation(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            let mut actual = combobox_popup_surface(cx);
+            let mut expected = crate::v_flex().occlude().mt_1p5().elevated_surface(cx);
+
+            assert_eq!(actual.style().clone(), expected.style().clone());
+        });
+    }
+
+    #[gpui::test]
+    fn open_combobox_renders_with_list_focus(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| {
+            let items = SearchableVec::new(vec!["React", "Vue", "Angular"]);
+            let state = cx.new(|cx| ComboboxState::new(items, vec![], window, cx).searchable(true));
+            ComboboxRenderHarness { state }
+        });
+        let state = root.read_with(cx, |root, _| root.state.clone());
+
+        cx.update(|window, cx| {
+            state.update(cx, |state, cx| {
+                state.set_open(true, cx);
+                state.state.list.focus_handle(cx).focus(window, cx);
+            });
+            window.draw(cx).clear(cx);
+        });
+
+        cx.update(|window, cx| {
+            let state = state.read(cx);
+            assert!(state.state.open);
+            assert!(state.state.list.read(cx).is_focused(window, cx));
+        });
     }
 
     #[gpui::test]

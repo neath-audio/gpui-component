@@ -8,7 +8,7 @@ use gpui::{
 };
 
 use crate::{
-    StyledExt,
+    ElevatedSurfaceExt, StyledExt,
     input::{InputBaseState, popovers::render_markdown},
 };
 
@@ -166,7 +166,7 @@ impl Element for Popover {
                 .occlude()
                 .p_1()
                 .text_xs()
-                .popover_style(cx)
+                .elevated_surface(cx)
                 .max_w(max_width)
                 .max_h(max_height)
                 .overflow_y_scroll()
