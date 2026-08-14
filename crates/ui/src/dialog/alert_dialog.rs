@@ -214,9 +214,11 @@ impl AlertDialog {
         self
     }
 
-    /// Alert dialogs never close from a backdrop press.
-    #[deprecated(note = "AlertDialog backdrop dismissal is disabled by design")]
-    pub fn overlay_closable(self, _: bool) -> Self {
+    /// Set the overlay closable of the alert dialog, defaults to `false`.
+    ///
+    /// When the overlay is clicked, the dialog will be closed.
+    pub fn overlay_closable(mut self, overlay_closable: bool) -> Self {
+        self.base = self.base.overlay_closable(overlay_closable);
         self
     }
 
@@ -362,5 +364,88 @@ impl RenderOnce for AlertDialog {
             // Otherwise, render the dialog content directly
             self.build_surface(window, cx).into_any_element()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Root;
+    use gpui::{
+        AppContext as _, Context, Modifiers, Render, TestAppContext, VisualTestContext, div, point,
+        px,
+    };
+    use std::{cell::Cell, rc::Rc};
+
+    struct AlertDialogLayerHarness;
+
+    impl Render for AlertDialogLayerHarness {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .size_full()
+                .children(Root::render_dialog_layer(window, cx))
+        }
+    }
+
+    fn harness(cx: &mut TestAppContext) -> &mut VisualTestContext {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|window, cx| {
+            let view = cx.new(|_| AlertDialogLayerHarness);
+            Root::new(view, window, cx).bordered(false)
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx
+    }
+
+    fn open_alert(cx: &mut VisualTestContext, overlay_closable: Option<bool>) -> Rc<Cell<bool>> {
+        let canceled = Rc::new(Cell::new(false));
+        let canceled_for_builder = canceled.clone();
+        cx.update(|window, cx| {
+            window.open_alert_dialog(cx, move |alert, _, _| {
+                let canceled = canceled_for_builder.clone();
+                let alert = alert.on_cancel(move |_, _, _| {
+                    canceled.set(true);
+                    true
+                });
+                match overlay_closable {
+                    Some(value) => alert.overlay_closable(value),
+                    None => alert,
+                }
+            });
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        canceled
+    }
+
+    fn press_safe_backdrop(cx: &mut VisualTestContext) {
+        cx.simulate_click(point(px(20.), px(100.)), Modifiers::default());
+    }
+
+    #[gpui::test]
+    fn explicit_overlay_closable_alert_closes_on_backdrop_press(cx: &mut TestAppContext) {
+        let cx = harness(cx);
+        let canceled = open_alert(cx, Some(true));
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+
+        press_safe_backdrop(cx);
+
+        assert!(canceled.get());
+        assert!(!cx.update(|window, cx| window.has_active_dialog(cx)));
+    }
+
+    #[gpui::test]
+    fn default_and_explicit_false_alerts_stay_open_on_backdrop_press(cx: &mut TestAppContext) {
+        let cx = harness(cx);
+        let canceled = open_alert(cx, None);
+        press_safe_backdrop(cx);
+        assert!(!canceled.get());
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+
+        cx.update(|window, cx| window.close_dialog(cx));
+        let canceled = open_alert(cx, Some(false));
+        press_safe_backdrop(cx);
+        assert!(!canceled.get());
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
     }
 }
