@@ -537,6 +537,7 @@ mod base_theme_projection_tests {
         let base = gpui_base::Theme::global(cx);
 
         assert_eq!(base.tokens, theme.semantic_tokens());
+        assert_eq!(base.tokens.colors.border, theme.border);
         assert_eq!(base.scrollbar.mode, theme.scrollbar_mode);
         assert_eq!(base.resizable.handle, theme.border);
         assert_eq!(base.resizable.active_handle, theme.drag_border);
