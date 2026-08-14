@@ -1,9 +1,6 @@
 use std::path::{Path, PathBuf};
 
-const BASE_LAYER_FORBIDDEN: &[&str] = &[
-    "gpui_neath",
-    "gpui-neath",
-];
+const BASE_LAYER_FORBIDDEN: &[&str] = &["gpui_neath", "gpui-neath"];
 
 // These are top-level declarations. Requiring column zero avoids rejecting
 // unrelated base methods such as `Slider::value`.
@@ -123,9 +120,7 @@ fn base_violations(path: &Path, source: &str) -> Vec<String> {
                         .iter()
                         .find(|needle| line.starts_with(**needle))
                 });
-            found.map(|needle| {
-                format!("{}:{} contains {needle}", path.display(), index + 1)
-            })
+            found.map(|needle| format!("{}:{} contains {needle}", path.display(), index + 1))
         })
         .collect()
 }
@@ -192,8 +187,8 @@ fn style_kernel_stays_above_base_and_below_the_application() {
     }
 
     let base_manifest = manifest_dir.join("../base/Cargo.toml");
-    let base_manifest_source = std::fs::read_to_string(&base_manifest)
-        .expect("readable base manifest");
+    let base_manifest_source =
+        std::fs::read_to_string(&base_manifest).expect("readable base manifest");
     failures.extend(violations(
         &base_manifest,
         &base_manifest_source,
@@ -208,8 +203,8 @@ fn style_kernel_stays_above_base_and_below_the_application() {
     }
 
     let styled_manifest = manifest_dir.join("Cargo.toml");
-    let manifest_source = std::fs::read_to_string(&styled_manifest)
-        .expect("readable styled manifest");
+    let manifest_source =
+        std::fs::read_to_string(&styled_manifest).expect("readable styled manifest");
     failures.extend(violations(
         &styled_manifest,
         &manifest_source,
@@ -217,8 +212,8 @@ fn style_kernel_stays_above_base_and_below_the_application() {
     ));
 
     let build_script = manifest_dir.join("build.rs");
-    let build_source = std::fs::read_to_string(&build_script)
-        .expect("readable styled build script");
+    let build_source =
+        std::fs::read_to_string(&build_script).expect("readable styled build script");
     failures.extend(violations(
         &build_script,
         &build_source,
