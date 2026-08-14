@@ -1588,6 +1588,20 @@ mod tests {
     use super::*;
 
     #[gpui::test]
+    fn overlay_menu_applies_xsmall_density_and_translucent_background(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            let popover = gpui::hsla(210. / 360., 0.2, 0.3, 1.);
+            crate::Theme::global_mut(cx).popover = popover;
+            let menu = crate::style::recipes::overlay_menu(PopupMenu::new(cx), cx);
+            assert_eq!(menu.size, crate::Size::XSmall);
+            assert_eq!(menu.menu_bg, Some(popover.opacity(0.92)));
+        });
+    }
+
+    #[gpui::test]
     fn popup_menu_item_a11y_label_uses_visible_label(cx: &mut gpui::TestAppContext) {
         let submenu = cx.update(|cx| cx.new(|cx| PopupMenu::new(cx)));
 
