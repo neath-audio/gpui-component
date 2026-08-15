@@ -6,7 +6,7 @@ use gpui::{
     linear_gradient, point, px, relative, rems,
 };
 use gpui_neath::{
-    ActiveTheme as _, Sizable as _, Theme, ThemeToken,
+    ActiveTheme as _, ElementExt as _, Sizable as _, Theme, ThemeToken,
     button::Button,
     h_flex,
     style::{
@@ -20,7 +20,7 @@ use gpui_neath::{
 };
 use std::{
     borrow::Cow,
-    cell::RefCell,
+    cell::{Cell, RefCell},
     rc::Rc,
     sync::{Arc, Mutex},
 };
@@ -316,6 +316,9 @@ impl Render for NarrowTruncationProbe {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
         div().w(px(64.)).h(px(20.)).child(match self.kind {
             CompositionProbeKind::TruncatingCell => truncating_cell(CELL_TEXT),
+            CompositionProbeKind::TruncatingCellSized => {
+                truncating_cell_sized(SIZED_CELL_TEXT, px(11.))
+            }
             CompositionProbeKind::MiddleTruncatingCell => {
                 middle_truncating_cell_sized(MIDDLE_CELL_TEXT, px(11.))
             }
@@ -374,22 +377,65 @@ fn draw_narrow_truncation(kind: CompositionProbeKind) -> String {
     final_ellipsis_layout(&calls.lock().expect("layout recorder lock")).to_owned()
 }
 
-fn function_calls(source: &str, function_name: &str) -> Vec<String> {
-    struct CallCollector {
-        calls: Vec<String>,
+struct PrivateCompositionAttachment {
+    directly_attached: bool,
+    bound_outputs: Vec<String>,
+    attached_bindings: Vec<String>,
+}
+
+fn unwrapped_expression(mut expression: &syn::Expr) -> &syn::Expr {
+    loop {
+        expression = match expression {
+            syn::Expr::Group(group) => &group.expr,
+            syn::Expr::Paren(paren) => &paren.expr,
+            _ => return expression,
+        };
+    }
+}
+
+fn direct_helper_call(expression: &syn::Expr, helper_name: &str) -> bool {
+    let syn::Expr::Call(call) = unwrapped_expression(expression) else {
+        return false;
+    };
+    let syn::Expr::Path(path) = unwrapped_expression(&call.func) else {
+        return false;
+    };
+    path.qself.is_none()
+        && path
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == helper_name)
+}
+
+fn direct_binding(expression: &syn::Expr) -> Option<String> {
+    let syn::Expr::Path(path) = unwrapped_expression(expression) else {
+        return None;
+    };
+    (path.qself.is_none() && path.path.leading_colon.is_none() && path.path.segments.len() == 1)
+        .then(|| path.path.segments[0].ident.to_string())
+}
+
+fn pattern_bindings(pattern: &syn::Pat, bindings: &mut Vec<String>) {
+    struct BindingCollector<'a> {
+        bindings: &'a mut Vec<String>,
     }
 
-    impl<'ast> syn::visit::Visit<'ast> for CallCollector {
-        fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
-            if let syn::Expr::Path(path) = expression.func.as_ref()
-                && let Some(segment) = path.path.segments.last()
-            {
-                self.calls.push(segment.ident.to_string());
-            }
-            syn::visit::visit_expr_call(self, expression);
+    impl<'ast> syn::visit::Visit<'ast> for BindingCollector<'_> {
+        fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+            self.bindings.push(pattern.ident.to_string());
+            syn::visit::visit_pat_ident(self, pattern);
         }
     }
 
+    syn::visit::Visit::visit_pat(&mut BindingCollector { bindings }, pattern);
+}
+
+fn private_composition_attachment(
+    source: &str,
+    function_name: &str,
+    helper_name: &str,
+) -> PrivateCompositionAttachment {
     let file = syn::parse_file(source).expect("typography and recipe source parses");
     let function = file
         .items
@@ -399,24 +445,95 @@ fn function_calls(source: &str, function_name: &str) -> Vec<String> {
             _ => None,
         })
         .unwrap_or_else(|| panic!("missing public function {function_name}"));
-    let mut collector = CallCollector { calls: Vec::new() };
-    syn::visit::Visit::visit_block(&mut collector, &function.block);
-    collector.calls
+
+    let mut bound_outputs = Vec::new();
+    for statement in &function.block.stmts {
+        let syn::Stmt::Local(local) = statement else {
+            continue;
+        };
+        let Some(initializer) = &local.init else {
+            continue;
+        };
+        if direct_helper_call(&initializer.expr, helper_name) {
+            pattern_bindings(&local.pat, &mut bound_outputs);
+        }
+    }
+
+    let returned = match function.block.stmts.last() {
+        Some(syn::Stmt::Expr(expression, None)) => expression,
+        _ => panic!("{function_name} must return its composed element as a tail expression"),
+    };
+
+    struct ReturnedChildCollector<'a> {
+        helper_name: &'a str,
+        directly_attached: bool,
+        attached_bindings: Vec<String>,
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for ReturnedChildCollector<'_> {
+        fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+            if expression.method == "child" {
+                for argument in &expression.args {
+                    if direct_helper_call(argument, self.helper_name) {
+                        self.directly_attached = true;
+                    }
+                    if let Some(binding) = direct_binding(argument) {
+                        self.attached_bindings.push(binding);
+                    }
+                }
+            }
+            syn::visit::visit_expr_method_call(self, expression);
+        }
+    }
+
+    let mut collector = ReturnedChildCollector {
+        helper_name,
+        directly_attached: false,
+        attached_bindings: Vec::new(),
+    };
+    syn::visit::Visit::visit_expr(&mut collector, returned);
+    PrivateCompositionAttachment {
+        directly_attached: collector.directly_attached,
+        bound_outputs,
+        attached_bindings: collector.attached_bindings,
+    }
 }
 
 #[test]
-fn public_labels_keep_their_private_composition_mapping() {
+fn public_labels_attach_the_color_checked_private_fragments() {
     let recipes = include_str!("../src/style/recipes.rs");
-    for (public, private) in [
-        ("required_label", "required_label_fragments"),
-        ("popover_row", "popover_row_label"),
+    for (public, private, output_count) in [
+        ("required_label", "required_label_fragments", 2),
+        ("popover_row", "popover_row_label", 1),
     ] {
+        let attachment = private_composition_attachment(recipes, public, private);
+        let all_bound_outputs_attached = attachment.bound_outputs.len() == output_count
+            && attachment.bound_outputs.iter().all(|binding| {
+                attachment
+                    .attached_bindings
+                    .iter()
+                    .any(|attached| attached == binding)
+            });
         assert!(
-            function_calls(recipes, public)
-                .iter()
-                .any(|called| called == private),
-            "{public} must compose {private}",
+            attachment.directly_attached || all_bound_outputs_attached,
+            "{public} must attach every output of color-checked helper {private}; bound={:?}, attached={:?}",
+            attachment.bound_outputs,
+            attachment.attached_bindings,
         );
+    }
+}
+
+struct PopoverValueAttachmentProbe {
+    value_prepainted: Rc<Cell<bool>>,
+}
+
+impl Render for PopoverValueAttachmentProbe {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        let value_prepainted = self.value_prepainted.clone();
+        let value = div().w(px(17.)).on_prepaint(move |_, _, _| {
+            value_prepainted.set(true);
+        });
+        recipes::popover_row(POPOVER_LABEL, value, cx)
     }
 }
 
@@ -552,6 +669,23 @@ fn public_recipes_render_their_text_and_truncation_children(cx: &mut TestAppCont
     }
 }
 
+#[gpui::test]
+fn popover_row_prepaints_the_caller_supplied_value(cx: &mut TestAppContext) {
+    cx.update(gpui_neath::init);
+    let value_prepainted = Rc::new(Cell::new(false));
+    let window = cx.open_window(gpui::size(px(320.), px(160.)), {
+        let value_prepainted = value_prepainted.clone();
+        move |_, _| PopoverValueAttachmentProbe { value_prepainted }
+    });
+    cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+        .expect("popover value window draws");
+
+    assert!(
+        value_prepainted.get(),
+        "the exact caller-owned value must participate in popover-row prepaint",
+    );
+}
+
 #[test]
 fn public_recipes_layout_exact_text_at_their_role_font_sizes() {
     let calls = Arc::new(Mutex::new(Vec::new()));
@@ -604,6 +738,20 @@ fn public_truncating_cells_rewrite_visible_text_in_their_declared_direction() {
     assert!(
         !end.ends_with("2026"),
         "end layout must not preserve the trailing segment: {end:?}",
+    );
+
+    let sized_end = draw_narrow_truncation(CompositionProbeKind::TruncatingCellSized);
+    assert!(
+        sized_end.starts_with("Field"),
+        "sized end layout keeps the prefix: {sized_end:?}",
+    );
+    assert!(
+        sized_end.ends_with('…'),
+        "sized end layout ends at the ellipsis: {sized_end:?}",
+    );
+    assert!(
+        !sized_end.ends_with("17"),
+        "sized end layout must not preserve the trailing segment: {sized_end:?}",
     );
 
     let middle = draw_narrow_truncation(CompositionProbeKind::MiddleTruncatingCell);

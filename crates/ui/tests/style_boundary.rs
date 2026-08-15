@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use syn::visit::{self, Visit};
+use syn::{
+    ext::IdentExt,
+    visit::{self, Visit},
+};
 
 const BASE_LAYER_RUST_CRATES: &[&str] = &["gpui_neath"];
 
@@ -86,6 +89,10 @@ fn is_forbidden_package(name: &str, forbidden_rust_crates: &[&str]) -> bool {
         .any(|forbidden| normalized == *forbidden)
 }
 
+fn identifier_name(ident: &syn::Ident) -> String {
+    ident.unraw().to_string()
+}
+
 fn record_ident(
     violations: &mut Vec<String>,
     path: &Path,
@@ -93,9 +100,29 @@ fn record_ident(
     ident: &syn::Ident,
     forbidden: &[&str],
 ) {
-    let name = ident.to_string();
+    let name = identifier_name(ident);
     if forbidden.iter().any(|candidate| name == *candidate) {
         violations.push(format!("{}: forbidden {kind} `{name}`", path.display()));
+    }
+}
+
+fn record_use_branch_roots(
+    violations: &mut Vec<String>,
+    path: &Path,
+    kind: &str,
+    tree: &syn::UseTree,
+    forbidden: &[&str],
+) {
+    match tree {
+        syn::UseTree::Group(group) => {
+            for tree in &group.items {
+                record_use_branch_roots(violations, path, kind, tree, forbidden);
+            }
+        }
+        syn::UseTree::Path(tree) => record_ident(violations, path, kind, &tree.ident, forbidden),
+        syn::UseTree::Name(tree) => record_ident(violations, path, kind, &tree.ident, forbidden),
+        syn::UseTree::Rename(tree) => record_ident(violations, path, kind, &tree.ident, forbidden),
+        syn::UseTree::Glob(_) => {}
     }
 }
 
@@ -106,32 +133,15 @@ struct ImportVisitor<'a> {
 }
 
 impl<'ast> Visit<'ast> for ImportVisitor<'_> {
-    fn visit_use_tree(&mut self, tree: &'ast syn::UseTree) {
-        match tree {
-            syn::UseTree::Path(tree) => record_ident(
-                &mut self.violations,
-                self.path,
-                "crate import",
-                &tree.ident,
-                self.forbidden,
-            ),
-            syn::UseTree::Name(tree) => record_ident(
-                &mut self.violations,
-                self.path,
-                "crate import",
-                &tree.ident,
-                self.forbidden,
-            ),
-            syn::UseTree::Rename(tree) => record_ident(
-                &mut self.violations,
-                self.path,
-                "crate import",
-                &tree.ident,
-                self.forbidden,
-            ),
-            syn::UseTree::Group(_) | syn::UseTree::Glob(_) => {}
-        }
-        visit::visit_use_tree(self, tree);
+    fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+        record_use_branch_roots(
+            &mut self.violations,
+            self.path,
+            "crate import",
+            &item.tree,
+            self.forbidden,
+        );
+        visit::visit_item_use(self, item);
     }
 
     fn visit_item_extern_crate(&mut self, item: &'ast syn::ItemExternCrate) {
@@ -180,59 +190,43 @@ struct BaseVisitor<'a> {
 
 impl BaseVisitor<'_> {
     fn record_declaration(&mut self, kind: &str, ident: &syn::Ident) {
+        let name = identifier_name(ident);
         self.violations.push(format!(
-            "{}: forbidden base {kind} `{ident}`",
+            "{}: forbidden base {kind} `{name}`",
             self.path.display()
         ));
     }
 
     fn check_constant(&mut self, ident: &syn::Ident) {
-        if BASE_CONSTANTS.contains(&ident.to_string().as_str()) {
+        if BASE_CONSTANTS.contains(&identifier_name(ident).as_str()) {
             self.record_declaration("constant", ident);
         }
     }
 
     fn check_function(&mut self, ident: &syn::Ident, associated: bool) {
-        let name = ident.to_string();
+        let name = identifier_name(ident);
         if BASE_FUNCTIONS.contains(&name.as_str()) && !(associated && name == "value") {
             self.record_declaration("function", ident);
         }
     }
 
     fn check_trait(&mut self, ident: &syn::Ident) {
-        if BASE_TRAITS.contains(&ident.to_string().as_str()) {
+        if BASE_TRAITS.contains(&identifier_name(ident).as_str()) {
             self.record_declaration("trait", ident);
         }
     }
 }
 
 impl<'ast> Visit<'ast> for BaseVisitor<'_> {
-    fn visit_use_tree(&mut self, tree: &'ast syn::UseTree) {
-        match tree {
-            syn::UseTree::Path(tree) => record_ident(
-                &mut self.violations,
-                self.path,
-                "base crate import",
-                &tree.ident,
-                BASE_LAYER_RUST_CRATES,
-            ),
-            syn::UseTree::Name(tree) => record_ident(
-                &mut self.violations,
-                self.path,
-                "base crate import",
-                &tree.ident,
-                BASE_LAYER_RUST_CRATES,
-            ),
-            syn::UseTree::Rename(tree) => record_ident(
-                &mut self.violations,
-                self.path,
-                "base crate import",
-                &tree.ident,
-                BASE_LAYER_RUST_CRATES,
-            ),
-            syn::UseTree::Group(_) | syn::UseTree::Glob(_) => {}
-        }
-        visit::visit_use_tree(self, tree);
+    fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+        record_use_branch_roots(
+            &mut self.violations,
+            self.path,
+            "base crate import",
+            &item.tree,
+            BASE_LAYER_RUST_CRATES,
+        );
+        visit::visit_item_use(self, item);
     }
 
     fn visit_item_extern_crate(&mut self, item: &'ast syn::ItemExternCrate) {
@@ -316,21 +310,44 @@ fn base_violations(path: &Path, source: &str) -> Vec<String> {
 fn dependency_violations(
     path: &Path,
     table: &toml::Table,
+    workspace_dependencies: Option<&toml::Table>,
     forbidden: &[&str],
     violations: &mut Vec<String>,
 ) {
     for (name, specification) in table {
-        if is_forbidden_package(name, forbidden) {
+        let forbidden_name = is_forbidden_package(name, forbidden);
+        if forbidden_name {
             violations.push(format!("{}: forbidden dependency `{name}`", path.display()));
         }
-        if specification
+        let package = specification
             .as_table()
             .and_then(|table| table.get("package"))
-            .and_then(toml::Value::as_str)
-            .is_some_and(|package| is_forbidden_package(package, forbidden))
-        {
+            .and_then(toml::Value::as_str);
+        let forbidden_package =
+            package.is_some_and(|package| is_forbidden_package(package, forbidden));
+        if forbidden_package {
             violations.push(format!(
                 "{}: forbidden dependency package alias `{name}`",
+                path.display()
+            ));
+        }
+        let inherits_workspace = specification
+            .as_table()
+            .and_then(|table| table.get("workspace"))
+            .and_then(toml::Value::as_bool)
+            .unwrap_or(false);
+        let workspace_package = workspace_dependencies
+            .and_then(|dependencies| dependencies.get(name))
+            .and_then(toml::Value::as_table)
+            .and_then(|table| table.get("package"))
+            .and_then(toml::Value::as_str);
+        if inherits_workspace
+            && !forbidden_name
+            && !forbidden_package
+            && workspace_package.is_some_and(|package| is_forbidden_package(package, forbidden))
+        {
+            violations.push(format!(
+                "{}: forbidden workspace dependency alias `{name}`",
                 path.display()
             ));
         }
@@ -340,6 +357,7 @@ fn dependency_violations(
 fn walk_manifest(
     path: &Path,
     table: &toml::Table,
+    workspace_dependencies: Option<&toml::Table>,
     forbidden: &[&str],
     violations: &mut Vec<String>,
 ) {
@@ -348,23 +366,74 @@ fn walk_manifest(
             continue;
         };
         if DEPENDENCY_TABLES.contains(&name.as_str()) {
-            dependency_violations(path, child, forbidden, violations);
+            dependency_violations(path, child, workspace_dependencies, forbidden, violations);
         }
-        walk_manifest(path, child, forbidden, violations);
+        walk_manifest(path, child, workspace_dependencies, forbidden, violations);
     }
 }
 
-fn manifest_violations(path: &Path, source: &str, forbidden: &[&str]) -> Vec<String> {
-    let manifest = match source.parse::<toml::Value>() {
+fn parse_manifest(path: &Path, source: &str) -> Result<toml::Value, String> {
+    source
+        .parse::<toml::Value>()
+        .map_err(|error| format!("{}: invalid TOML: {error}", path.display()))
+}
+
+fn workspace_dependencies(manifest: &toml::Value) -> Option<&toml::Table> {
+    manifest
+        .as_table()
+        .and_then(|table| table.get("workspace"))
+        .and_then(toml::Value::as_table)
+        .and_then(|table| table.get("dependencies"))
+        .and_then(toml::Value::as_table)
+}
+
+fn manifest_violations_with_workspace_dependencies(
+    path: &Path,
+    source: &str,
+    workspace_dependencies: Option<&toml::Table>,
+    forbidden: &[&str],
+) -> Vec<String> {
+    let manifest = match parse_manifest(path, source) {
         Ok(manifest) => manifest,
-        Err(error) => return vec![format!("{}: invalid TOML: {error}", path.display())],
+        Err(error) => return vec![error],
     };
     let Some(table) = manifest.as_table() else {
         return vec![format!("{}: TOML manifest is not a table", path.display())];
     };
     let mut violations = Vec::new();
-    walk_manifest(path, table, forbidden, &mut violations);
+    walk_manifest(
+        path,
+        table,
+        workspace_dependencies,
+        forbidden,
+        &mut violations,
+    );
     violations
+}
+
+fn manifest_violations_with_workspace(
+    path: &Path,
+    source: &str,
+    workspace_manifest: Option<(&Path, &str)>,
+    forbidden: &[&str],
+) -> Vec<String> {
+    let workspace_manifest = match workspace_manifest {
+        Some((workspace_path, source)) => match parse_manifest(workspace_path, source) {
+            Ok(manifest) => Some(manifest),
+            Err(error) => return vec![format!("invalid workspace manifest: {error}")],
+        },
+        None => None,
+    };
+    manifest_violations_with_workspace_dependencies(
+        path,
+        source,
+        workspace_manifest.as_ref().and_then(workspace_dependencies),
+        forbidden,
+    )
+}
+
+fn manifest_violations(path: &Path, source: &str, forbidden: &[&str]) -> Vec<String> {
+    manifest_violations_with_workspace_dependencies(path, source, None, forbidden)
 }
 
 fn app_source_violations(path: &Path, source: &str) -> Vec<String> {
@@ -541,6 +610,85 @@ fn checker_rejects_syntax_aware_neath_import_and_manifest_escapes() {
 }
 
 #[test]
+fn checker_normalizes_raw_identifiers_and_checks_only_use_branch_roots() {
+    for source in ["use r#neath as app;", "type Leak = r#neath :: SourceId;"] {
+        let found = app_source_violations(Path::new("crates/ui/src/fake.rs"), source);
+        assert_eq!(found.len(), 1, "fixture should be rejected: {source}");
+    }
+    for source in [
+        "pub fn r#tool_popover() {}",
+        "pub const r#RADIUS_SM: f32 = 1.0;",
+    ] {
+        let found = base_violations(Path::new("crates/base/src/fake.rs"), source);
+        assert_eq!(found.len(), 1, "fixture should be rejected: {source}");
+    }
+    for source in ["use self::neath::Thing;", "use crate::neath;"] {
+        assert!(
+            app_source_violations(Path::new("crates/ui/src/fake.rs"), source).is_empty(),
+            "fixture should be accepted: {source}",
+        );
+    }
+    let found = app_source_violations(
+        Path::new("crates/ui/src/fake.rs"),
+        "use { neath::X, self::neath::Y };",
+    );
+    assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn checker_rejects_a_workspace_inherited_neath_alias() {
+    let ui_manifest = "[dependencies]\napp_library = { workspace = true }";
+    let workspace_manifest = "[workspace.dependencies]\napp_library = { package = \"neath-core\", path = \"../../../neath\" }";
+    let found = manifest_violations_with_workspace(
+        Path::new("crates/ui/Cargo.toml"),
+        ui_manifest,
+        Some((Path::new("Cargo.toml"), workspace_manifest)),
+        NEATH_RUST_CRATES,
+    );
+    assert_eq!(
+        found.len(),
+        1,
+        "workspace alias should be rejected: {workspace_manifest}",
+    );
+}
+
+#[test]
+fn checker_rejects_a_base_workspace_inherited_styled_alias() {
+    let base_manifest = "[dependencies]\ngpui-component = { workspace = true }";
+    let workspace_manifest = "[workspace.dependencies]\ngpui-component = { package = \"gpui-neath\", path = \"crates/ui\" }";
+    let found = manifest_violations_with_workspace(
+        Path::new("crates/base/Cargo.toml"),
+        base_manifest,
+        Some((Path::new("Cargo.toml"), workspace_manifest)),
+        BASE_LAYER_RUST_CRATES,
+    );
+    assert_eq!(
+        found.len(),
+        1,
+        "base workspace alias should be rejected: {workspace_manifest}",
+    );
+}
+
+#[test]
+fn checker_allows_an_unused_forbidden_workspace_dependency() {
+    let ui_manifest = "[dependencies]\napp_library = { workspace = true }";
+    let workspace_manifest = concat!(
+        "[workspace.dependencies]\n",
+        "app_library = { package = \"safe-package\", version = \"1\" }\n",
+        "unused_neath = { package = \"neath-core\", path = \"../../../neath\" }"
+    );
+    assert!(
+        manifest_violations_with_workspace(
+            Path::new("crates/ui/Cargo.toml"),
+            ui_manifest,
+            Some((Path::new("Cargo.toml"), workspace_manifest)),
+            NEATH_RUST_CRATES,
+        )
+        .is_empty()
+    );
+}
+
+#[test]
 fn checker_rejects_style_declarations_with_modifiers_or_restricted_visibility() {
     for source in [
         "pub(crate) async fn tool_popover() {}",
@@ -596,6 +744,17 @@ fn checker_fails_closed_on_unparseable_boundary_input() {
 fn style_kernel_stays_above_base_and_below_the_application() {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut failures = Vec::new();
+    let workspace_manifest = manifest_dir.join("../../Cargo.toml");
+    let workspace_source =
+        std::fs::read_to_string(&workspace_manifest).expect("readable workspace manifest");
+    let workspace_manifest = match parse_manifest(&workspace_manifest, &workspace_source) {
+        Ok(manifest) => Some(manifest),
+        Err(error) => {
+            failures.push(format!("invalid workspace manifest: {error}"));
+            None
+        }
+    };
+    let root_workspace_dependencies = workspace_manifest.as_ref().and_then(workspace_dependencies);
     let mut base_files = Vec::new();
     rust_files(&manifest_dir.join("../base/src"), &mut base_files);
     for file in base_files {
@@ -605,9 +764,10 @@ fn style_kernel_stays_above_base_and_below_the_application() {
     let base_manifest = manifest_dir.join("../base/Cargo.toml");
     let base_manifest_source =
         std::fs::read_to_string(&base_manifest).expect("readable base manifest");
-    failures.extend(manifest_violations(
+    failures.extend(manifest_violations_with_workspace_dependencies(
         &base_manifest,
         &base_manifest_source,
+        root_workspace_dependencies,
         BASE_LAYER_RUST_CRATES,
     ));
     let mut styled_files = Vec::new();
@@ -619,9 +779,10 @@ fn style_kernel_stays_above_base_and_below_the_application() {
     let styled_manifest = manifest_dir.join("Cargo.toml");
     let manifest_source =
         std::fs::read_to_string(&styled_manifest).expect("readable styled manifest");
-    failures.extend(manifest_violations(
+    failures.extend(manifest_violations_with_workspace_dependencies(
         &styled_manifest,
         &manifest_source,
+        root_workspace_dependencies,
         NEATH_RUST_CRATES,
     ));
     let build_script = manifest_dir.join("build.rs");
