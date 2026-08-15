@@ -218,6 +218,8 @@ windows = { workspace = true, features = [
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }
 indoc = "2"
+syn = { version = "2.0", features = ["full", "visit"] }
+toml = "0.8"
 
 [lints]
 workspace = true

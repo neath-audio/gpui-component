@@ -3163,6 +3163,8 @@ dependencies = [
  "serde_repr",
  "smallvec",
  "smol",
+ "syn 2.0.117",
+ "toml 0.8.23",
  "tracing",
  "tree-sitter",
  "tree-sitter-astro-next",

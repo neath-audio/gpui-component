@@ -1,216 +1,374 @@
 use std::path::{Path, PathBuf};
 
-const BASE_LAYER_FORBIDDEN: &[&str] = &["gpui_neath", "gpui-neath"];
+use syn::visit::{self, Visit};
 
-// `value` is a common base method name, so it remains a top-level-only match.
-// The other names are style-kernel-only and must not escape through indentation
-// or crate-private visibility.
-const BASE_DECLARATION_FORBIDDEN: &[&str] = &[
-    "pub const TEXT_10",
-    "pub const TEXT_12",
-    "pub const TEXT_13",
-    "pub const TEXT_14",
-    "pub const TEXT_15",
-    "pub const TEXT_16",
-    "pub const SPACE_HALF",
-    "pub const SPACE_1",
-    "pub const SPACE_1P5",
-    "pub const SPACE_2",
-    "pub const SPACE_3",
-    "pub const SPACE_4",
-    "pub const SPACE_6",
-    "pub const ACCENT_RIM_PX",
-    "pub const RADIUS_SM",
-    "pub const RADIUS_MD",
-    "pub const RADIUS_LG",
-    "pub const RADIUS_PILL",
-    "pub const ICON_INLINE",
-    "pub const ICON_CHROME",
-    "pub const ICON_PRIMARY",
-    "pub const MENU_BG_ALPHA",
-    "pub fn bg_sunken",
-    "pub fn bg_active",
-    "pub fn accent_soft",
-    "pub fn truncating_cell",
-    "pub fn truncating_cell_sized",
-    "pub fn middle_truncating_cell_sized",
-    "pub fn section_label",
-    "pub fn required_label",
-    "pub fn body(",
-    "pub fn body_muted",
-    "pub fn dialog_prose",
-    "pub fn value(",
-    "pub fn value_dense",
-    "pub fn caption",
-    "pub fn control_label",
-    "pub fn control_body",
-    "pub fn on_surface_fill",
-    "pub fn on_surface_border",
-    "pub fn compact_menu",
-    "pub fn overlay_menu",
-    "pub fn tool_popover",
-    "pub fn popover_rule",
-    "pub fn popover_row",
-    "pub trait TruncateMiddleExt",
+const BASE_LAYER_RUST_CRATES: &[&str] = &["gpui_neath"];
+
+const BASE_CONSTANTS: &[&str] = &[
+    "TEXT_10",
+    "TEXT_12",
+    "TEXT_13",
+    "TEXT_14",
+    "TEXT_15",
+    "TEXT_16",
+    "SPACE_HALF",
+    "SPACE_1",
+    "SPACE_1P5",
+    "SPACE_2",
+    "SPACE_3",
+    "SPACE_4",
+    "SPACE_6",
+    "ACCENT_RIM_PX",
+    "RADIUS_SM",
+    "RADIUS_MD",
+    "RADIUS_LG",
+    "RADIUS_PILL",
+    "ICON_INLINE",
+    "ICON_CHROME",
+    "ICON_PRIMARY",
+    "MENU_BG_ALPHA",
 ];
 
-const APP_IMPORT_FORBIDDEN: &[&str] = &[
-    "neath = {",
-    "neath.workspace",
-    "package = \"neath\"",
-    "[dependencies.neath]",
-    "neath::",
-    "use neath::",
-    "pub use neath::",
-    "extern crate neath",
+const BASE_FUNCTIONS: &[&str] = &[
+    "bg_sunken",
+    "bg_active",
+    "accent_soft",
+    "truncating_cell",
+    "truncating_cell_sized",
+    "middle_truncating_cell_sized",
+    "section_label",
+    "required_label",
+    "body",
+    "body_muted",
+    "dialog_prose",
+    "value",
+    "value_dense",
+    "caption",
+    "control_label",
+    "control_body",
+    "on_surface_fill",
+    "on_surface_border",
+    "compact_menu",
+    "overlay_menu",
+    "tool_popover",
+    "popover_rule",
+    "popover_row",
+];
+
+const BASE_TRAITS: &[&str] = &["TruncateMiddleExt"];
+
+const NEATH_RUST_CRATES: &[&str] = &[
+    "neath",
     "gpui_canvas_controls",
-    "gpui-canvas-controls",
     "gpui_waveform",
-    "gpui-waveform",
     "waapi",
     "ptsl",
     "neath_core",
-    "neath-core",
     "neath_dsp",
-    "neath-dsp",
     "neath_fx",
-    "neath-fx",
     "neath_embed",
-    "neath-embed",
     "neath_gui",
-    "neath-gui",
     "neath_cli",
-    "neath-cli",
     "neath_agent",
-    "neath-agent",
     "neath_agent_eval",
-    "neath-agent-eval",
     "neath_gen",
-    "neath-gen",
     "signalsmith_stretch_rs",
-    "signalsmith-stretch-rs",
     "ucs",
     "neath_update_helper",
-    "neath-update-helper",
 ];
 
-fn uncommented<'a>(path: &Path, line: &'a str) -> &'a str {
-    if path
-        .extension()
-        .is_some_and(|extension| extension == "toml")
-    {
-        line.split_once('#').map_or(line, |(code, _)| code)
-    } else {
-        // `#` introduces attributes in Rust; it is not a Rust comment marker.
-        line.split_once("//").map_or(line, |(code, _)| code)
+const DEPENDENCY_TABLES: &[&str] = &["dependencies", "dev-dependencies", "build-dependencies"];
+
+fn is_forbidden_package(name: &str, forbidden_rust_crates: &[&str]) -> bool {
+    let normalized = name.replace('-', "_");
+    forbidden_rust_crates
+        .iter()
+        .any(|forbidden| normalized == *forbidden)
+}
+
+fn record_ident(
+    violations: &mut Vec<String>,
+    path: &Path,
+    kind: &str,
+    ident: &syn::Ident,
+    forbidden: &[&str],
+) {
+    let name = ident.to_string();
+    if forbidden.iter().any(|candidate| name == *candidate) {
+        violations.push(format!("{}: forbidden {kind} `{name}`", path.display()));
     }
 }
 
-fn without_whitespace(text: &str) -> String {
-    text.chars()
-        .filter(|character| !character.is_whitespace())
-        .collect()
+struct ImportVisitor<'a> {
+    path: &'a Path,
+    forbidden: &'a [&'a str],
+    violations: Vec<String>,
 }
 
-fn contains_crate_path(line: &str, crate_name: &str) -> bool {
-    let path = format!("{crate_name}::");
-    line.match_indices(&path).any(|(index, _)| {
-        line[..index]
-            .chars()
-            .next_back()
-            .is_none_or(|character| !character.is_ascii_alphanumeric() && character != '_')
-    })
-}
-
-fn violations(path: &Path, source: &str, forbidden: &[&str]) -> Vec<String> {
-    let is_manifest = path
-        .extension()
-        .is_some_and(|extension| extension == "toml");
-
-    source
-        .lines()
-        .enumerate()
-        .filter_map(|(index, line)| {
-            let line = uncommented(path, line);
-            let compact;
-            let line = if is_manifest {
-                compact = without_whitespace(line);
-                &compact
-            } else {
-                line
-            };
-            forbidden
-                .iter()
-                .find(|needle| {
-                    if is_manifest {
-                        line.contains(&without_whitespace(needle))
-                    } else if **needle == "neath::" {
-                        contains_crate_path(line, "neath")
-                    } else {
-                        line.contains(**needle)
-                    }
-                })
-                .map(|needle| format!("{}:{} contains {needle}", path.display(), index + 1))
-        })
-        .collect()
-}
-
-fn is_base_declaration(line: &str, needle: &str) -> bool {
-    if needle == "pub fn value(" {
-        return line.starts_with(needle);
+impl<'ast> Visit<'ast> for ImportVisitor<'_> {
+    fn visit_use_tree(&mut self, tree: &'ast syn::UseTree) {
+        match tree {
+            syn::UseTree::Path(tree) => record_ident(
+                &mut self.violations,
+                self.path,
+                "crate import",
+                &tree.ident,
+                self.forbidden,
+            ),
+            syn::UseTree::Name(tree) => record_ident(
+                &mut self.violations,
+                self.path,
+                "crate import",
+                &tree.ident,
+                self.forbidden,
+            ),
+            syn::UseTree::Rename(tree) => record_ident(
+                &mut self.violations,
+                self.path,
+                "crate import",
+                &tree.ident,
+                self.forbidden,
+            ),
+            syn::UseTree::Group(_) | syn::UseTree::Glob(_) => {}
+        }
+        visit::visit_use_tree(self, tree);
     }
 
-    let line = line.trim_start();
-    if line.starts_with(needle) {
-        return true;
+    fn visit_item_extern_crate(&mut self, item: &'ast syn::ItemExternCrate) {
+        record_ident(
+            &mut self.violations,
+            self.path,
+            "extern crate",
+            &item.ident,
+            self.forbidden,
+        );
+        visit::visit_item_extern_crate(self, item);
     }
 
-    line.strip_prefix("pub(")
-        .and_then(|visibility| {
-            visibility
-                .split_once(')')
-                .map(|(_, rest)| rest.trim_start())
-        })
-        .zip(needle.strip_prefix("pub "))
-        .is_some_and(|(declaration, needle)| declaration.starts_with(needle))
+    fn visit_path(&mut self, path: &'ast syn::Path) {
+        if let Some(segment) = path.segments.first() {
+            record_ident(
+                &mut self.violations,
+                self.path,
+                "crate path",
+                &segment.ident,
+                self.forbidden,
+            );
+        }
+        visit::visit_path(self, path);
+    }
+}
+
+fn import_violations(path: &Path, source: &str, forbidden: &[&str]) -> Vec<String> {
+    let file = match syn::parse_file(source) {
+        Ok(file) => file,
+        Err(error) => return vec![format!("{}: invalid Rust: {error}", path.display())],
+    };
+    let mut visitor = ImportVisitor {
+        path,
+        forbidden,
+        violations: Vec::new(),
+    };
+    visitor.visit_file(&file);
+    visitor.violations
+}
+
+struct BaseVisitor<'a> {
+    path: &'a Path,
+    violations: Vec<String>,
+}
+
+impl BaseVisitor<'_> {
+    fn record_declaration(&mut self, kind: &str, ident: &syn::Ident) {
+        self.violations.push(format!(
+            "{}: forbidden base {kind} `{ident}`",
+            self.path.display()
+        ));
+    }
+
+    fn check_constant(&mut self, ident: &syn::Ident) {
+        if BASE_CONSTANTS.contains(&ident.to_string().as_str()) {
+            self.record_declaration("constant", ident);
+        }
+    }
+
+    fn check_function(&mut self, ident: &syn::Ident, associated: bool) {
+        let name = ident.to_string();
+        if BASE_FUNCTIONS.contains(&name.as_str()) && !(associated && name == "value") {
+            self.record_declaration("function", ident);
+        }
+    }
+
+    fn check_trait(&mut self, ident: &syn::Ident) {
+        if BASE_TRAITS.contains(&ident.to_string().as_str()) {
+            self.record_declaration("trait", ident);
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for BaseVisitor<'_> {
+    fn visit_use_tree(&mut self, tree: &'ast syn::UseTree) {
+        match tree {
+            syn::UseTree::Path(tree) => record_ident(
+                &mut self.violations,
+                self.path,
+                "base crate import",
+                &tree.ident,
+                BASE_LAYER_RUST_CRATES,
+            ),
+            syn::UseTree::Name(tree) => record_ident(
+                &mut self.violations,
+                self.path,
+                "base crate import",
+                &tree.ident,
+                BASE_LAYER_RUST_CRATES,
+            ),
+            syn::UseTree::Rename(tree) => record_ident(
+                &mut self.violations,
+                self.path,
+                "base crate import",
+                &tree.ident,
+                BASE_LAYER_RUST_CRATES,
+            ),
+            syn::UseTree::Group(_) | syn::UseTree::Glob(_) => {}
+        }
+        visit::visit_use_tree(self, tree);
+    }
+
+    fn visit_item_extern_crate(&mut self, item: &'ast syn::ItemExternCrate) {
+        record_ident(
+            &mut self.violations,
+            self.path,
+            "base extern crate",
+            &item.ident,
+            BASE_LAYER_RUST_CRATES,
+        );
+        visit::visit_item_extern_crate(self, item);
+    }
+
+    fn visit_path(&mut self, path: &'ast syn::Path) {
+        if let Some(segment) = path.segments.first() {
+            record_ident(
+                &mut self.violations,
+                self.path,
+                "base crate path",
+                &segment.ident,
+                BASE_LAYER_RUST_CRATES,
+            );
+        }
+        visit::visit_path(self, path);
+    }
+
+    fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
+        self.check_constant(&item.ident);
+        visit::visit_item_const(self, item);
+    }
+
+    fn visit_impl_item_const(&mut self, item: &'ast syn::ImplItemConst) {
+        self.check_constant(&item.ident);
+        visit::visit_impl_item_const(self, item);
+    }
+
+    fn visit_trait_item_const(&mut self, item: &'ast syn::TraitItemConst) {
+        self.check_constant(&item.ident);
+        visit::visit_trait_item_const(self, item);
+    }
+
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        self.check_function(&item.sig.ident, false);
+        visit::visit_item_fn(self, item);
+    }
+
+    fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
+        self.check_function(&item.sig.ident, true);
+        visit::visit_impl_item_fn(self, item);
+    }
+
+    fn visit_trait_item_fn(&mut self, item: &'ast syn::TraitItemFn) {
+        self.check_function(&item.sig.ident, true);
+        visit::visit_trait_item_fn(self, item);
+    }
+
+    fn visit_foreign_item_fn(&mut self, item: &'ast syn::ForeignItemFn) {
+        self.check_function(&item.sig.ident, false);
+        visit::visit_foreign_item_fn(self, item);
+    }
+
+    fn visit_item_trait(&mut self, item: &'ast syn::ItemTrait) {
+        self.check_trait(&item.ident);
+        visit::visit_item_trait(self, item);
+    }
 }
 
 fn base_violations(path: &Path, source: &str) -> Vec<String> {
-    source
-        .lines()
-        .enumerate()
-        .filter_map(|(index, line)| {
-            let line = uncommented(path, line);
-            let found = BASE_LAYER_FORBIDDEN
-                .iter()
-                .find(|needle| line.contains(**needle))
-                .or_else(|| {
-                    BASE_DECLARATION_FORBIDDEN
-                        .iter()
-                        .find(|needle| is_base_declaration(line, needle))
-                });
-            found.map(|needle| format!("{}:{} contains {needle}", path.display(), index + 1))
-        })
-        .collect()
+    let file = match syn::parse_file(source) {
+        Ok(file) => file,
+        Err(error) => return vec![format!("{}: invalid Rust: {error}", path.display())],
+    };
+    let mut visitor = BaseVisitor {
+        path,
+        violations: Vec::new(),
+    };
+    visitor.visit_file(&file);
+    visitor.violations
 }
 
-#[test]
-fn checker_accepts_clean_base_and_styled_fixtures() {
-    assert!(
-        base_violations(
-            Path::new("crates/base/src/fake.rs"),
-            "pub fn neutral_layout() {}",
-        )
-        .is_empty(),
-    );
-    assert!(
-        violations(
-            Path::new("crates/ui/src/fake.rs"),
-            "use gpui::{App, div};",
-            APP_IMPORT_FORBIDDEN,
-        )
-        .is_empty(),
-    );
+fn dependency_violations(
+    path: &Path,
+    table: &toml::Table,
+    forbidden: &[&str],
+    violations: &mut Vec<String>,
+) {
+    for (name, specification) in table {
+        if is_forbidden_package(name, forbidden) {
+            violations.push(format!("{}: forbidden dependency `{name}`", path.display()));
+        }
+        if specification
+            .as_table()
+            .and_then(|table| table.get("package"))
+            .and_then(toml::Value::as_str)
+            .is_some_and(|package| is_forbidden_package(package, forbidden))
+        {
+            violations.push(format!(
+                "{}: forbidden dependency package alias `{name}`",
+                path.display()
+            ));
+        }
+    }
+}
+
+fn walk_manifest(
+    path: &Path,
+    table: &toml::Table,
+    forbidden: &[&str],
+    violations: &mut Vec<String>,
+) {
+    for (name, value) in table {
+        let Some(child) = value.as_table() else {
+            continue;
+        };
+        if DEPENDENCY_TABLES.contains(&name.as_str()) {
+            dependency_violations(path, child, forbidden, violations);
+        }
+        walk_manifest(path, child, forbidden, violations);
+    }
+}
+
+fn manifest_violations(path: &Path, source: &str, forbidden: &[&str]) -> Vec<String> {
+    let manifest = match source.parse::<toml::Value>() {
+        Ok(manifest) => manifest,
+        Err(error) => return vec![format!("{}: invalid TOML: {error}", path.display())],
+    };
+    let Some(table) = manifest.as_table() else {
+        return vec![format!("{}: TOML manifest is not a table", path.display())];
+    };
+    let mut violations = Vec::new();
+    walk_manifest(path, table, forbidden, &mut violations);
+    violations
+}
+
+fn app_source_violations(path: &Path, source: &str) -> Vec<String> {
+    import_violations(path, source, NEATH_RUST_CRATES)
 }
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -225,6 +383,21 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 #[test]
+fn checker_accepts_clean_base_and_styled_fixtures() {
+    assert!(
+        base_violations(
+            Path::new("crates/base/src/fake.rs"),
+            "pub fn neutral_layout() {}"
+        )
+        .is_empty()
+    );
+    assert!(
+        app_source_violations(Path::new("crates/ui/src/fake.rs"), "use gpui::{App, div};")
+            .is_empty()
+    );
+}
+
+#[test]
 fn checker_rejects_a_styled_recipe_in_base_fixture() {
     let found = base_violations(
         Path::new("crates/base/src/fake.rs"),
@@ -235,30 +408,25 @@ fn checker_rejects_a_styled_recipe_in_base_fixture() {
 
 #[test]
 fn checker_rejects_a_neath_workspace_import_in_styled_fixture() {
-    let found = violations(
+    let found = app_source_violations(
         Path::new("crates/ui/src/fake.rs"),
         "use neath_core::SourceId;",
-        APP_IMPORT_FORBIDDEN,
     );
     assert_eq!(found.len(), 1);
 }
 
 #[test]
 fn checker_rejects_a_direct_neath_workspace_import_in_styled_fixture() {
-    let found = violations(
-        Path::new("crates/ui/src/fake.rs"),
-        "use neath::SourceId;",
-        APP_IMPORT_FORBIDDEN,
-    );
+    let found = app_source_violations(Path::new("crates/ui/src/fake.rs"), "use neath::SourceId;");
     assert_eq!(found.len(), 1);
 }
 
 #[test]
 fn checker_rejects_a_neath_package_alias_in_styled_manifest_fixture() {
-    let found = violations(
+    let found = manifest_violations(
         Path::new("crates/ui/Cargo.toml"),
-        "app_library = { package = \"neath\", workspace = true }",
-        APP_IMPORT_FORBIDDEN,
+        "[dependencies]\napp_library = { package = \"neath\", workspace = true }",
+        NEATH_RUST_CRATES,
     );
     assert_eq!(found.len(), 1);
 }
@@ -277,14 +445,21 @@ fn checker_rejects_compact_neath_dependency_syntax_in_styled_fixtures() {
         (Path::new("crates/ui/Cargo.toml"), "[dependencies.neath]"),
         (
             Path::new("crates/ui/Cargo.toml"),
-            "app={package=\"neath\",path=\"../../../neath\"}",
+            "[dependencies]\napp={package=\"neath\",path=\"../../../neath\"}",
         ),
         (
             Path::new("crates/ui/Cargo.toml"),
-            "app = { package = \"neath\", path = \"../../../neath\" }",
+            "[dependencies]\napp = { package = \"neath\", path = \"../../../neath\" }",
         ),
     ] {
-        let found = violations(path, source, APP_IMPORT_FORBIDDEN);
+        let found = if path
+            .extension()
+            .is_some_and(|extension| extension == "toml")
+        {
+            manifest_violations(path, source, NEATH_RUST_CRATES)
+        } else {
+            app_source_violations(path, source)
+        };
         assert_eq!(found.len(), 1, "fixture should be rejected: {source}");
     }
 }
@@ -307,40 +482,113 @@ fn checker_keeps_comments_urls_and_unrelated_base_methods_out_of_scope() {
     assert!(
         base_violations(
             Path::new("crates/base/src/fake.rs"),
-            "    pub fn value(&self) {}",
+            "impl Slider { pub fn value(&self) {} }"
         )
         .is_empty()
     );
     assert!(
         base_violations(
             Path::new("crates/base/src/fake.rs"),
-            "/// See [the design](https://example.test/gpui_neath).",
+            "/// See [the design](https://example.test/gpui_neath).\npub fn neutral_layout() {}"
         )
         .is_empty()
     );
     assert!(
-        violations(
+        app_source_violations(
             Path::new("crates/ui/src/fake.rs"),
-            "// use { neath::SourceId };",
-            APP_IMPORT_FORBIDDEN,
+            "// use { neath::SourceId };\npub fn neutral_layout() {}"
         )
         .is_empty()
     );
     assert!(
-        violations(
+        app_source_violations(
             Path::new("crates/ui/src/fake.rs"),
-            "let root = \"gpui_neath::Root\";",
-            APP_IMPORT_FORBIDDEN,
+            "fn neutral() { let root = \"gpui_neath::Root\"; }"
         )
         .is_empty()
     );
     assert!(
-        violations(
+        manifest_violations(
             Path::new("crates/ui/Cargo.toml"),
             "# [dependencies.neath]",
-            APP_IMPORT_FORBIDDEN,
+            NEATH_RUST_CRATES
         )
         .is_empty()
+    );
+}
+
+#[test]
+fn checker_rejects_syntax_aware_neath_import_and_manifest_escapes() {
+    for source in [
+        "use neath as app;",
+        "use neath :: SourceId;",
+        "extern crate neath as app;",
+        "type Leak = neath :: SourceId;",
+        "fn leak() { let _ = neath :: open(); }",
+    ] {
+        let found = app_source_violations(Path::new("crates/ui/src/fake.rs"), source);
+        assert_eq!(found.len(), 1, "fixture should be rejected: {source}");
+    }
+    for source in [
+        "[target.'cfg(target_os = \"windows\")'.dependencies]\napp = { package = 'neath-core' }",
+        "[target.'cfg(unix)'.build-dependencies.neath-update-helper]\nversion = \"1\"",
+        "[dependencies]\napp = { package = 'neath' }",
+    ] {
+        let found =
+            manifest_violations(Path::new("crates/ui/Cargo.toml"), source, NEATH_RUST_CRATES);
+        assert_eq!(found.len(), 1, "fixture should be rejected: {source}");
+    }
+}
+
+#[test]
+fn checker_rejects_style_declarations_with_modifiers_or_restricted_visibility() {
+    for source in [
+        "pub(crate) async fn tool_popover() {}",
+        "pub(super) unsafe fn tool_popover() {}",
+        "pub(in crate) const RADIUS_SM: f32 = 1.0;",
+        "pub unsafe extern \"C\" fn tool_popover() {}",
+        "impl Surface { pub const RADIUS_SM: f32 = 1.0; }",
+        "impl Surface { pub fn tool_popover() {} }",
+        "trait Styled { fn tool_popover(); }",
+    ] {
+        let found = base_violations(Path::new("crates/base/src/fake.rs"), source);
+        assert_eq!(found.len(), 1, "fixture should be rejected: {source}");
+    }
+}
+
+#[test]
+fn checker_uses_syntax_not_text_for_base_source() {
+    for source in [
+        "const GUIDE: &str = \"gpui_neath::Root; pub fn tool_popover() {}\";",
+        "/* gpui_neath and pub fn tool_popover() {} are only documentation. */",
+        "pub fn tool_popover_metrics() {}",
+        "impl Slider { pub fn value(&self) {} }",
+    ] {
+        assert!(
+            base_violations(Path::new("crates/base/src/fake.rs"), source).is_empty(),
+            "fixture should be accepted: {source}"
+        );
+    }
+}
+
+#[test]
+fn checker_fails_closed_on_unparseable_boundary_input() {
+    assert_eq!(
+        app_source_violations(Path::new("crates/ui/src/fake.rs"), "fn {").len(),
+        1
+    );
+    assert_eq!(
+        base_violations(Path::new("crates/base/src/fake.rs"), "fn {").len(),
+        1
+    );
+    assert_eq!(
+        manifest_violations(
+            Path::new("crates/ui/Cargo.toml"),
+            "[dependencies",
+            NEATH_RUST_CRATES
+        )
+        .len(),
+        1
     );
 }
 
@@ -348,51 +596,41 @@ fn checker_keeps_comments_urls_and_unrelated_base_methods_out_of_scope() {
 fn style_kernel_stays_above_base_and_below_the_application() {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut failures = Vec::new();
-
     let mut base_files = Vec::new();
     rust_files(&manifest_dir.join("../base/src"), &mut base_files);
     for file in base_files {
         let source = std::fs::read_to_string(&file).expect("readable base source");
         failures.extend(base_violations(&file, &source));
     }
-
     let base_manifest = manifest_dir.join("../base/Cargo.toml");
     let base_manifest_source =
         std::fs::read_to_string(&base_manifest).expect("readable base manifest");
-    failures.extend(violations(
+    failures.extend(manifest_violations(
         &base_manifest,
         &base_manifest_source,
-        BASE_LAYER_FORBIDDEN,
+        BASE_LAYER_RUST_CRATES,
     ));
-
     let mut styled_files = Vec::new();
     rust_files(&manifest_dir.join("src"), &mut styled_files);
     for file in styled_files {
         let source = std::fs::read_to_string(&file).expect("readable styled source");
-        failures.extend(violations(&file, &source, APP_IMPORT_FORBIDDEN));
+        failures.extend(app_source_violations(&file, &source));
     }
-
     let styled_manifest = manifest_dir.join("Cargo.toml");
     let manifest_source =
         std::fs::read_to_string(&styled_manifest).expect("readable styled manifest");
-    failures.extend(violations(
+    failures.extend(manifest_violations(
         &styled_manifest,
         &manifest_source,
-        APP_IMPORT_FORBIDDEN,
+        NEATH_RUST_CRATES,
     ));
-
     let build_script = manifest_dir.join("build.rs");
     let build_source =
         std::fs::read_to_string(&build_script).expect("readable styled build script");
-    failures.extend(violations(
-        &build_script,
-        &build_source,
-        APP_IMPORT_FORBIDDEN,
-    ));
-
+    failures.extend(app_source_violations(&build_script, &build_source));
     assert!(
         failures.is_empty(),
         "style ownership boundary violations:\n{}",
-        failures.join("\n"),
+        failures.join("\n")
     );
 }

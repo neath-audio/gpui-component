@@ -1,7 +1,9 @@
 use gpui::{
-    AppContext as _, Bounds, BoxShadow, Context, FontWeight, Hsla, ParentElement as _, Pixels,
-    Render, Styled as _, TestAppContext, Window, div, hsla, linear_color_stop, linear_gradient,
-    point, px, relative, rems,
+    App, AppContext as _, Bounds, BoxShadow, Context, DevicePixels, Font, FontId, FontMetrics,
+    FontRun, FontWeight, GlyphId, HeadlessAppContext, Hsla, LineLayout, NoopTextSystem,
+    ParentElement as _, Pixels, PlatformTextSystem, Render, RenderGlyphParams, Result, Size,
+    Styled as _, TestAppContext, TextRenderingMode, Window, div, hsla, linear_color_stop,
+    linear_gradient, point, px, relative, rems,
 };
 use gpui_neath::{
     ActiveTheme as _, Sizable as _, Theme, ThemeToken,
@@ -16,11 +18,23 @@ use gpui_neath::{
     },
     v_flex,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    borrow::Cow,
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 const CELL_TEXT: &str = "Wind through canyon / archive 2026";
+const SIZED_CELL_TEXT: &str = "Field recording take 17";
+const MIDDLE_CELL_TEXT: &str = "/sessions/2026/canyon/ambience.wav";
 const BODY_TEXT: &str = "Body prose has nine tokens";
+const BODY_MUTED_TEXT: &str = "Muted prose has nine tokens";
+const DIALOG_PROSE_TEXT: &str = "Dialog prose asks one clear question";
+const VALUE_TEXT: &str = "-14.2 dB";
+const DENSE_VALUE_TEXT: &str = "127.4 ms";
 const CAPTION_TEXT: &str = "127 files · 42.0 MiB";
+const CONTROL_LABEL_TEXT: &str = "Enable loudness normalization";
 const SECTION_TEXT: &str = "Advanced metadata";
 const REQUIRED_TEXT: &str = "Destination folder";
 const POPOVER_LABEL: &str = "Wet / Dry Mix";
@@ -28,12 +42,156 @@ const POPOVER_LABEL: &str = "Wet / Dry Mix";
 #[derive(Clone, Copy)]
 enum CompositionProbeKind {
     TruncatingCell,
+    TruncatingCellSized,
     MiddleTruncatingCell,
     Body,
+    BodyMuted,
+    DialogProse,
+    Value,
+    ValueDense,
     Caption,
+    ControlLabel,
     SectionLabel,
     RequiredLabel,
     PopoverRow,
+}
+
+const COMPOSITION_PROBES: &[CompositionProbeKind] = &[
+    CompositionProbeKind::TruncatingCell,
+    CompositionProbeKind::TruncatingCellSized,
+    CompositionProbeKind::MiddleTruncatingCell,
+    CompositionProbeKind::Body,
+    CompositionProbeKind::BodyMuted,
+    CompositionProbeKind::DialogProse,
+    CompositionProbeKind::Value,
+    CompositionProbeKind::ValueDense,
+    CompositionProbeKind::Caption,
+    CompositionProbeKind::ControlLabel,
+    CompositionProbeKind::SectionLabel,
+    CompositionProbeKind::RequiredLabel,
+    CompositionProbeKind::PopoverRow,
+];
+
+fn public_recipe(kind: CompositionProbeKind, cx: &App) -> gpui::Div {
+    match kind {
+        CompositionProbeKind::TruncatingCell => truncating_cell(CELL_TEXT),
+        CompositionProbeKind::TruncatingCellSized => {
+            truncating_cell_sized(SIZED_CELL_TEXT, px(11.))
+        }
+        CompositionProbeKind::MiddleTruncatingCell => {
+            middle_truncating_cell_sized(MIDDLE_CELL_TEXT, px(11.))
+        }
+        CompositionProbeKind::Body => recipes::body(BODY_TEXT, cx),
+        CompositionProbeKind::BodyMuted => recipes::body_muted(BODY_MUTED_TEXT, cx),
+        CompositionProbeKind::DialogProse => recipes::dialog_prose(DIALOG_PROSE_TEXT, cx),
+        CompositionProbeKind::Value => recipes::value(VALUE_TEXT, cx),
+        CompositionProbeKind::ValueDense => recipes::value_dense(DENSE_VALUE_TEXT, cx),
+        CompositionProbeKind::Caption => recipes::caption(CAPTION_TEXT, cx),
+        CompositionProbeKind::ControlLabel => recipes::control_label(CONTROL_LABEL_TEXT, cx),
+        CompositionProbeKind::SectionLabel => recipes::section_label(SECTION_TEXT, cx),
+        CompositionProbeKind::RequiredLabel => recipes::required_label(REQUIRED_TEXT, cx),
+        CompositionProbeKind::PopoverRow => {
+            recipes::popover_row(POPOVER_LABEL, div().w(px(17.)), cx)
+        }
+    }
+}
+
+fn expected_public_recipe(kind: CompositionProbeKind, cx: &App) -> gpui::Div {
+    match kind {
+        CompositionProbeKind::TruncatingCell => div()
+            .size_full()
+            .flex()
+            .items_center()
+            .overflow_hidden()
+            .text_xs()
+            .child(div().flex_1().min_w_0().truncate().child(CELL_TEXT)),
+        CompositionProbeKind::TruncatingCellSized => div()
+            .size_full()
+            .flex()
+            .items_center()
+            .overflow_hidden()
+            .text_size(px(11.))
+            .child(div().flex_1().min_w_0().truncate().child(SIZED_CELL_TEXT)),
+        CompositionProbeKind::MiddleTruncatingCell => div()
+            .size_full()
+            .flex()
+            .items_center()
+            .overflow_hidden()
+            .text_size(px(11.))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis_middle()
+                    .child(MIDDLE_CELL_TEXT),
+            ),
+        CompositionProbeKind::Body => div()
+            .text_size(tokens::TEXT_12)
+            .text_color(cx.theme().foreground)
+            .child(BODY_TEXT),
+        CompositionProbeKind::BodyMuted => div()
+            .text_size(tokens::TEXT_12)
+            .text_color(cx.theme().muted_foreground)
+            .child(BODY_MUTED_TEXT),
+        CompositionProbeKind::DialogProse => div()
+            .text_size(tokens::TEXT_14)
+            .text_color(cx.theme().muted_foreground)
+            .child(DIALOG_PROSE_TEXT),
+        CompositionProbeKind::Value => div()
+            .text_size(tokens::TEXT_12)
+            .text_color(cx.theme().foreground)
+            .child(VALUE_TEXT),
+        CompositionProbeKind::ValueDense => div()
+            .text_size(tokens::TEXT_10)
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(cx.theme().foreground)
+            .child(DENSE_VALUE_TEXT),
+        CompositionProbeKind::Caption => div()
+            .text_size(tokens::TEXT_10)
+            .text_color(cx.theme().muted_foreground)
+            .child(CAPTION_TEXT),
+        CompositionProbeKind::ControlLabel => div()
+            .text_size(tokens::TEXT_14)
+            .line_height(relative(1.))
+            .text_color(cx.theme().foreground)
+            .child(CONTROL_LABEL_TEXT),
+        CompositionProbeKind::SectionLabel => div()
+            .text_size(tokens::TEXT_13)
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(cx.theme().muted_foreground)
+            .child(SECTION_TEXT),
+        CompositionProbeKind::RequiredLabel => h_flex()
+            .gap(px(4.))
+            .child(
+                div()
+                    .text_size(tokens::TEXT_13)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(cx.theme().muted_foreground)
+                    .child(REQUIRED_TEXT),
+            )
+            .child(
+                div()
+                    .text_size(tokens::TEXT_13)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(cx.theme().danger)
+                    .child("*"),
+            ),
+        CompositionProbeKind::PopoverRow => h_flex()
+            .w_full()
+            .h(px(24.))
+            .flex_none()
+            .items_center()
+            .justify_between()
+            .gap(tokens::SPACE_2)
+            .child(
+                div()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(POPOVER_LABEL),
+            )
+            .child(div().w(px(17.))),
+    }
 }
 
 struct CompositionProbe {
@@ -52,91 +210,213 @@ impl CompositionProbe {
 
 impl Render for CompositionProbe {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        let actual = match self.kind {
-            CompositionProbeKind::TruncatingCell => truncating_cell(CELL_TEXT),
-            CompositionProbeKind::MiddleTruncatingCell => {
-                middle_truncating_cell_sized(CELL_TEXT, px(11.))
-            }
-            CompositionProbeKind::Body => recipes::body(BODY_TEXT, cx),
-            CompositionProbeKind::Caption => recipes::caption(CAPTION_TEXT, cx),
-            CompositionProbeKind::SectionLabel => recipes::section_label(SECTION_TEXT, cx),
-            CompositionProbeKind::RequiredLabel => recipes::required_label(REQUIRED_TEXT, cx),
-            CompositionProbeKind::PopoverRow => {
-                recipes::popover_row(POPOVER_LABEL, div().w(px(17.)), cx)
-            }
-        };
-        let expected = match self.kind {
-            CompositionProbeKind::TruncatingCell => div()
-                .size_full()
-                .flex()
-                .items_center()
-                .overflow_hidden()
-                .text_xs()
-                .child(div().flex_1().min_w_0().truncate().child(CELL_TEXT)),
-            CompositionProbeKind::MiddleTruncatingCell => div()
-                .size_full()
-                .flex()
-                .items_center()
-                .overflow_hidden()
-                .text_size(px(11.))
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .overflow_hidden()
-                        .whitespace_nowrap()
-                        .text_ellipsis_middle()
-                        .child(CELL_TEXT),
-                ),
-            CompositionProbeKind::Body => div()
-                .text_size(tokens::TEXT_12)
-                .text_color(cx.theme().foreground)
-                .child(BODY_TEXT),
-            CompositionProbeKind::Caption => div()
-                .text_size(tokens::TEXT_10)
-                .text_color(cx.theme().muted_foreground)
-                .child(CAPTION_TEXT),
-            CompositionProbeKind::SectionLabel => div()
-                .text_size(tokens::TEXT_13)
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(cx.theme().muted_foreground)
-                .child(SECTION_TEXT),
-            CompositionProbeKind::RequiredLabel => h_flex()
-                .gap(px(4.))
-                .child(
-                    div()
-                        .text_size(tokens::TEXT_13)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(cx.theme().muted_foreground)
-                        .child(REQUIRED_TEXT),
-                )
-                .child(
-                    div()
-                        .text_size(tokens::TEXT_13)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(cx.theme().danger)
-                        .child("*"),
-                ),
-            CompositionProbeKind::PopoverRow => h_flex()
-                .w_full()
-                .h(px(24.))
-                .flex_none()
-                .items_center()
-                .justify_between()
-                .gap(tokens::SPACE_2)
-                .child(
-                    div()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(POPOVER_LABEL),
-                )
-                .child(div().w(px(17.))),
-        };
+        let actual = public_recipe(self.kind, cx);
+        let expected = expected_public_recipe(self.kind, cx);
 
         v_flex()
             .size_full()
             .gap(px(8.))
             .child(Self::capture(actual, self.actual.clone()))
             .child(Self::capture(expected, self.expected.clone()))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct LayoutCall {
+    text: String,
+    font_size: Pixels,
+}
+
+struct RecordingTextSystem {
+    inner: NoopTextSystem,
+    calls: Arc<Mutex<Vec<LayoutCall>>>,
+}
+
+impl RecordingTextSystem {
+    fn new(calls: Arc<Mutex<Vec<LayoutCall>>>) -> Self {
+        Self {
+            inner: NoopTextSystem::new(),
+            calls,
+        }
+    }
+}
+
+impl PlatformTextSystem for RecordingTextSystem {
+    fn add_fonts(&self, fonts: Vec<Cow<'static, [u8]>>) -> Result<()> {
+        self.inner.add_fonts(fonts)
+    }
+
+    fn all_font_names(&self) -> Vec<String> {
+        self.inner.all_font_names()
+    }
+
+    fn font_id(&self, descriptor: &Font) -> Result<FontId> {
+        self.inner.font_id(descriptor)
+    }
+
+    fn font_metrics(&self, font_id: FontId) -> FontMetrics {
+        self.inner.font_metrics(font_id)
+    }
+
+    fn typographic_bounds(&self, font_id: FontId, glyph_id: GlyphId) -> Result<Bounds<f32>> {
+        self.inner.typographic_bounds(font_id, glyph_id)
+    }
+
+    fn advance(&self, font_id: FontId, glyph_id: GlyphId) -> Result<Size<f32>> {
+        self.inner.advance(font_id, glyph_id)
+    }
+
+    fn glyph_for_char(&self, font_id: FontId, ch: char) -> Option<GlyphId> {
+        self.inner.glyph_for_char(font_id, ch)
+    }
+
+    fn glyph_raster_bounds(&self, params: &RenderGlyphParams) -> Result<Bounds<DevicePixels>> {
+        self.inner.glyph_raster_bounds(params)
+    }
+
+    fn rasterize_glyph(
+        &self,
+        params: &RenderGlyphParams,
+        raster_bounds: Bounds<DevicePixels>,
+    ) -> Result<(Size<DevicePixels>, Vec<u8>)> {
+        self.inner.rasterize_glyph(params, raster_bounds)
+    }
+
+    fn layout_line(&self, text: &str, font_size: Pixels, runs: &[FontRun]) -> LineLayout {
+        self.calls
+            .lock()
+            .expect("layout recorder lock")
+            .push(LayoutCall {
+                text: text.to_owned(),
+                font_size,
+            });
+        self.inner.layout_line(text, font_size, runs)
+    }
+
+    fn recommended_rendering_mode(&self, font_id: FontId, font_size: Pixels) -> TextRenderingMode {
+        self.inner.recommended_rendering_mode(font_id, font_size)
+    }
+}
+
+struct TextProbe {
+    kind: CompositionProbeKind,
+}
+
+impl Render for TextProbe {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        public_recipe(self.kind, cx)
+    }
+}
+
+struct NarrowTruncationProbe {
+    kind: CompositionProbeKind,
+}
+
+impl Render for NarrowTruncationProbe {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
+        div().w(px(64.)).h(px(20.)).child(match self.kind {
+            CompositionProbeKind::TruncatingCell => truncating_cell(CELL_TEXT),
+            CompositionProbeKind::MiddleTruncatingCell => {
+                middle_truncating_cell_sized(MIDDLE_CELL_TEXT, px(11.))
+            }
+            _ => unreachable!("only public truncation cells are probed narrowly"),
+        })
+    }
+}
+
+fn expected_layouts() -> Vec<LayoutCall> {
+    [
+        (CELL_TEXT, px(12.)),
+        (SIZED_CELL_TEXT, px(11.)),
+        (MIDDLE_CELL_TEXT, px(11.)),
+        (BODY_TEXT, px(12.)),
+        (BODY_MUTED_TEXT, px(12.)),
+        (DIALOG_PROSE_TEXT, px(14.)),
+        (VALUE_TEXT, px(12.)),
+        (DENSE_VALUE_TEXT, px(10.)),
+        (CAPTION_TEXT, px(10.)),
+        (CONTROL_LABEL_TEXT, px(14.)),
+        (SECTION_TEXT, px(13.)),
+        (REQUIRED_TEXT, px(13.)),
+        ("*", px(13.)),
+        (POPOVER_LABEL, px(16.)),
+    ]
+    .into_iter()
+    .map(|(text, font_size)| LayoutCall {
+        text: text.to_owned(),
+        font_size,
+    })
+    .collect()
+}
+
+fn final_ellipsis_layout(calls: &[LayoutCall]) -> &str {
+    &calls
+        .iter()
+        .rev()
+        .find(|call| call.text.contains('…'))
+        .unwrap_or_else(|| panic!("narrow cell did not request an ellipsized layout: {calls:?}"))
+        .text
+}
+
+fn draw_narrow_truncation(kind: CompositionProbeKind) -> String {
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let text_system: Arc<dyn PlatformTextSystem> =
+        Arc::new(RecordingTextSystem::new(calls.clone()));
+    let mut cx = HeadlessAppContext::new(text_system);
+    cx.update(gpui_neath::init);
+    let window = cx
+        .open_window(gpui::size(px(64.), px(20.)), move |_, cx| {
+            cx.new(|_| NarrowTruncationProbe { kind })
+        })
+        .expect("narrow headless window opens");
+    cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+        .expect("narrow headless window draws");
+    final_ellipsis_layout(&calls.lock().expect("layout recorder lock")).to_owned()
+}
+
+fn function_calls(source: &str, function_name: &str) -> Vec<String> {
+    struct CallCollector {
+        calls: Vec<String>,
+    }
+
+    impl<'ast> syn::visit::Visit<'ast> for CallCollector {
+        fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
+            if let syn::Expr::Path(path) = expression.func.as_ref()
+                && let Some(segment) = path.path.segments.last()
+            {
+                self.calls.push(segment.ident.to_string());
+            }
+            syn::visit::visit_expr_call(self, expression);
+        }
+    }
+
+    let file = syn::parse_file(source).expect("typography and recipe source parses");
+    let function = file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            syn::Item::Fn(function) if function.sig.ident == function_name => Some(function),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing public function {function_name}"));
+    let mut collector = CallCollector { calls: Vec::new() };
+    syn::visit::Visit::visit_block(&mut collector, &function.block);
+    collector.calls
+}
+
+#[test]
+fn public_labels_keep_their_private_composition_mapping() {
+    let recipes = include_str!("../src/style/recipes.rs");
+    for (public, private) in [
+        ("required_label", "required_label_fragments"),
+        ("popover_row", "popover_row_label"),
+    ] {
+        assert!(
+            function_calls(recipes, public)
+                .iter()
+                .any(|called| called == private),
+            "{public} must compose {private}",
+        );
     }
 }
 
@@ -161,11 +441,9 @@ fn assert_public_recipe_children(
 
     let actual = actual.borrow();
     let expected = expected.borrow();
-    // The TestPlatform lays out ASCII per codepoint. The deliberately
-    // different-width sentinels above make each public recipe's supplied text
-    // observable through its rendered child bounds: deleting, reordering, or
-    // changing a sentinel's length (including the required `*` marker) fails
-    // this comparison without exposing production-private child storage.
+    // This public GPUI hook proves immediate child presence, order, and
+    // geometry without exposing production-private child storage. Exact text
+    // and font sizes are asserted separately through `RecordingTextSystem`.
     assert_eq!(actual.len(), expected_count, "actual child count");
     assert_eq!(actual.len(), expected.len(), "reference child count");
     for (actual, expected) in actual.iter().zip(expected.iter()) {
@@ -265,22 +543,82 @@ fn truncating_cells_preserve_outer_size_and_overflow() {
 #[gpui::test]
 fn public_recipes_render_their_text_and_truncation_children(cx: &mut TestAppContext) {
     cx.update(gpui_neath::init);
-    for kind in [
-        CompositionProbeKind::TruncatingCell,
-        CompositionProbeKind::MiddleTruncatingCell,
-        CompositionProbeKind::Body,
-        CompositionProbeKind::Caption,
-        CompositionProbeKind::SectionLabel,
-    ] {
-        assert_public_recipe_children(cx, kind, 1);
+    for &kind in COMPOSITION_PROBES {
+        let expected_count = match kind {
+            CompositionProbeKind::RequiredLabel | CompositionProbeKind::PopoverRow => 2,
+            _ => 1,
+        };
+        assert_public_recipe_children(cx, kind, expected_count);
     }
 }
 
-#[gpui::test]
-fn public_required_label_and_popover_row_preserve_ordered_children(cx: &mut TestAppContext) {
+#[test]
+fn public_recipes_layout_exact_text_at_their_role_font_sizes() {
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let text_system: Arc<dyn PlatformTextSystem> =
+        Arc::new(RecordingTextSystem::new(calls.clone()));
+    let mut cx = HeadlessAppContext::new(text_system);
     cx.update(gpui_neath::init);
-    assert_public_recipe_children(cx, CompositionProbeKind::RequiredLabel, 2);
-    assert_public_recipe_children(cx, CompositionProbeKind::PopoverRow, 2);
+
+    for &kind in COMPOSITION_PROBES {
+        let window = cx
+            .open_window(gpui::size(px(320.), px(160.)), move |_, cx| {
+                cx.new(|_| TextProbe { kind })
+            })
+            .expect("headless text window opens");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("headless text window draws");
+    }
+
+    let calls = calls.lock().expect("layout recorder lock").clone();
+    let expected = expected_layouts();
+    assert!(
+        !calls.is_empty(),
+        "each public helper must lay out its caller-supplied text"
+    );
+    for layout in &expected {
+        assert!(
+            calls.contains(layout),
+            "missing expected text layout: {layout:?}; observed: {calls:?}",
+        );
+    }
+    for layout in &calls {
+        assert!(
+            expected.contains(layout),
+            "unexpected text layout: {layout:?}; expected only: {expected:?}",
+        );
+    }
+}
+
+#[test]
+fn public_truncating_cells_rewrite_visible_text_in_their_declared_direction() {
+    let end = draw_narrow_truncation(CompositionProbeKind::TruncatingCell);
+    assert!(
+        end.starts_with("Wind"),
+        "end layout keeps the prefix: {end:?}"
+    );
+    assert!(
+        end.ends_with('…'),
+        "end layout ends at the ellipsis: {end:?}"
+    );
+    assert!(
+        !end.ends_with("2026"),
+        "end layout must not preserve the trailing segment: {end:?}",
+    );
+
+    let middle = draw_narrow_truncation(CompositionProbeKind::MiddleTruncatingCell);
+    assert!(
+        middle.starts_with('/'),
+        "middle layout keeps the leading segment: {middle:?}",
+    );
+    assert!(
+        middle.contains('…'),
+        "middle layout includes its ellipsis: {middle:?}",
+    );
+    assert!(
+        middle.ends_with("av"),
+        "middle layout keeps the trailing segment: {middle:?}",
+    );
 }
 
 #[gpui::test]

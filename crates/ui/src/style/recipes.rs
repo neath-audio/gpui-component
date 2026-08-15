@@ -26,6 +26,12 @@ fn required_label_fragments(text: &str, cx: &App) -> [Div; 2] {
     ]
 }
 
+fn popover_row_label(label: impl Into<SharedString>, cx: &App) -> Div {
+    div()
+        .text_color(cx.theme().muted_foreground)
+        .child(label.into())
+}
+
 /// Section label: TEXT_13 semibold muted (dialog-form tier, user-ruled
 /// 2026-07-11), Capitalized as written — never transformed to uppercase.
 /// The weight carries the hierarchy.
@@ -227,11 +233,7 @@ pub fn popover_row(label: impl Into<SharedString>, value: impl IntoElement, cx: 
         .items_center()
         .justify_between()
         .gap(tokens::SPACE_2)
-        .child(
-            div()
-                .text_color(cx.theme().muted_foreground)
-                .child(label.into()),
-        )
+        .child(popover_row_label(label, cx))
         .child(value)
 }
 
@@ -264,6 +266,19 @@ mod tests {
                 .text_color(danger);
             assert_eq!(label.style().clone(), expected_label.style().clone());
             assert_eq!(marker.style().clone(), expected_marker.style().clone());
+        });
+    }
+
+    #[gpui::test]
+    fn popover_row_label_preserves_muted_text_color(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            let muted = hsla(190. / 360., 0.2, 0.45, 1.);
+            Theme::global_mut(cx).muted_foreground = muted;
+
+            let mut actual = popover_row_label("Label", cx);
+            let mut expected = div().text_color(muted);
+            assert_eq!(actual.style().clone(), expected.style().clone());
         });
     }
 }
