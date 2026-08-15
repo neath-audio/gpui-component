@@ -140,7 +140,7 @@ pub fn control_label(text: impl Into<SharedString>, cx: &App) -> Div {
         .child(text.into())
 }
 
-/// A gpui-component control (Input/Select/…) at `.small()` geometry with
+/// A gpui-neath control (Input/Select/…) at `.small()` geometry with
 /// content-tier TEXT_12 text. The fork has no 12px text below Medium
 /// height except XSmall (which also shrinks geometry); this named idiom
 /// replaces the hand-rolled `.small().text_size(..)` override. Relies on

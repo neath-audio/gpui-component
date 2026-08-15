@@ -2,8 +2,9 @@ use std::path::{Path, PathBuf};
 
 const BASE_LAYER_FORBIDDEN: &[&str] = &["gpui_neath", "gpui-neath"];
 
-// These are top-level declarations. Requiring column zero avoids rejecting
-// unrelated base methods such as `Slider::value`.
+// `value` is a common base method name, so it remains a top-level-only match.
+// The other names are style-kernel-only and must not escape through indentation
+// or crate-private visibility.
 const BASE_DECLARATION_FORBIDDEN: &[&str] = &[
     "pub const TEXT_10",
     "pub const TEXT_12",
@@ -57,6 +58,8 @@ const APP_IMPORT_FORBIDDEN: &[&str] = &[
     "neath = {",
     "neath.workspace",
     "package = \"neath\"",
+    "[dependencies.neath]",
+    "neath::",
     "use neath::",
     "pub use neath::",
     "extern crate neath",
@@ -91,23 +94,85 @@ const APP_IMPORT_FORBIDDEN: &[&str] = &[
     "neath-update-helper",
 ];
 
-fn uncommented(line: &str) -> &str {
-    let line = line.split_once("//").map_or(line, |(code, _)| code);
-    line.split_once('#').map_or(line, |(code, _)| code)
+fn uncommented<'a>(path: &Path, line: &'a str) -> &'a str {
+    if path
+        .extension()
+        .is_some_and(|extension| extension == "toml")
+    {
+        line.split_once('#').map_or(line, |(code, _)| code)
+    } else {
+        // `#` introduces attributes in Rust; it is not a Rust comment marker.
+        line.split_once("//").map_or(line, |(code, _)| code)
+    }
+}
+
+fn without_whitespace(text: &str) -> String {
+    text.chars()
+        .filter(|character| !character.is_whitespace())
+        .collect()
+}
+
+fn contains_crate_path(line: &str, crate_name: &str) -> bool {
+    let path = format!("{crate_name}::");
+    line.match_indices(&path).any(|(index, _)| {
+        line[..index]
+            .chars()
+            .next_back()
+            .is_none_or(|character| !character.is_ascii_alphanumeric() && character != '_')
+    })
 }
 
 fn violations(path: &Path, source: &str, forbidden: &[&str]) -> Vec<String> {
+    let is_manifest = path
+        .extension()
+        .is_some_and(|extension| extension == "toml");
+
     source
         .lines()
         .enumerate()
         .filter_map(|(index, line)| {
-            let line = uncommented(line);
+            let line = uncommented(path, line);
+            let compact;
+            let line = if is_manifest {
+                compact = without_whitespace(line);
+                &compact
+            } else {
+                line
+            };
             forbidden
                 .iter()
-                .find(|needle| line.contains(**needle))
+                .find(|needle| {
+                    if is_manifest {
+                        line.contains(&without_whitespace(needle))
+                    } else if **needle == "neath::" {
+                        contains_crate_path(line, "neath")
+                    } else {
+                        line.contains(**needle)
+                    }
+                })
                 .map(|needle| format!("{}:{} contains {needle}", path.display(), index + 1))
         })
         .collect()
+}
+
+fn is_base_declaration(line: &str, needle: &str) -> bool {
+    if needle == "pub fn value(" {
+        return line.starts_with(needle);
+    }
+
+    let line = line.trim_start();
+    if line.starts_with(needle) {
+        return true;
+    }
+
+    line.strip_prefix("pub(")
+        .and_then(|visibility| {
+            visibility
+                .split_once(')')
+                .map(|(_, rest)| rest.trim_start())
+        })
+        .zip(needle.strip_prefix("pub "))
+        .is_some_and(|(declaration, needle)| declaration.starts_with(needle))
 }
 
 fn base_violations(path: &Path, source: &str) -> Vec<String> {
@@ -115,14 +180,14 @@ fn base_violations(path: &Path, source: &str) -> Vec<String> {
         .lines()
         .enumerate()
         .filter_map(|(index, line)| {
-            let line = uncommented(line);
+            let line = uncommented(path, line);
             let found = BASE_LAYER_FORBIDDEN
                 .iter()
                 .find(|needle| line.contains(**needle))
                 .or_else(|| {
                     BASE_DECLARATION_FORBIDDEN
                         .iter()
-                        .find(|needle| line.starts_with(**needle))
+                        .find(|needle| is_base_declaration(line, needle))
                 });
             found.map(|needle| format!("{}:{} contains {needle}", path.display(), index + 1))
         })
@@ -196,6 +261,87 @@ fn checker_rejects_a_neath_package_alias_in_styled_manifest_fixture() {
         APP_IMPORT_FORBIDDEN,
     );
     assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn checker_rejects_compact_neath_dependency_syntax_in_styled_fixtures() {
+    for (path, source) in [
+        (
+            Path::new("crates/ui/src/fake.rs"),
+            "type Leak = neath::SourceId;",
+        ),
+        (
+            Path::new("crates/ui/src/fake.rs"),
+            "use { neath::SourceId };",
+        ),
+        (Path::new("crates/ui/Cargo.toml"), "[dependencies.neath]"),
+        (
+            Path::new("crates/ui/Cargo.toml"),
+            "app={package=\"neath\",path=\"../../../neath\"}",
+        ),
+        (
+            Path::new("crates/ui/Cargo.toml"),
+            "app = { package = \"neath\", path = \"../../../neath\" }",
+        ),
+    ] {
+        let found = violations(path, source, APP_IMPORT_FORBIDDEN);
+        assert_eq!(found.len(), 1, "fixture should be rejected: {source}");
+    }
+}
+
+#[test]
+fn checker_rejects_indented_and_restricted_styled_recipes_in_base_fixtures() {
+    for source in [
+        "    pub fn tool_popover() {}",
+        "pub(crate) fn tool_popover() {}",
+        "pub(super) fn tool_popover() {}",
+        "pub(in crate) fn tool_popover() {}",
+    ] {
+        let found = base_violations(Path::new("crates/base/src/fake.rs"), source);
+        assert_eq!(found.len(), 1, "fixture should be rejected: {source}");
+    }
+}
+
+#[test]
+fn checker_keeps_comments_urls_and_unrelated_base_methods_out_of_scope() {
+    assert!(
+        base_violations(
+            Path::new("crates/base/src/fake.rs"),
+            "    pub fn value(&self) {}",
+        )
+        .is_empty()
+    );
+    assert!(
+        base_violations(
+            Path::new("crates/base/src/fake.rs"),
+            "/// See [the design](https://example.test/gpui_neath).",
+        )
+        .is_empty()
+    );
+    assert!(
+        violations(
+            Path::new("crates/ui/src/fake.rs"),
+            "// use { neath::SourceId };",
+            APP_IMPORT_FORBIDDEN,
+        )
+        .is_empty()
+    );
+    assert!(
+        violations(
+            Path::new("crates/ui/src/fake.rs"),
+            "let root = \"gpui_neath::Root\";",
+            APP_IMPORT_FORBIDDEN,
+        )
+        .is_empty()
+    );
+    assert!(
+        violations(
+            Path::new("crates/ui/Cargo.toml"),
+            "# [dependencies.neath]",
+            APP_IMPORT_FORBIDDEN,
+        )
+        .is_empty()
+    );
 }
 
 #[test]

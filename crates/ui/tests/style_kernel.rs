@@ -1,9 +1,10 @@
 use gpui::{
-    BoxShadow, FontWeight, Hsla, Styled as _, TestAppContext, div, hsla, linear_color_stop,
-    linear_gradient, point, px, relative, rems,
+    AppContext as _, Bounds, BoxShadow, Context, FontWeight, Hsla, ParentElement as _, Pixels,
+    Render, Styled as _, TestAppContext, Window, div, hsla, linear_color_stop, linear_gradient,
+    point, px, relative, rems,
 };
 use gpui_neath::{
-    Sizable as _, Theme, ThemeToken,
+    ActiveTheme as _, Sizable as _, Theme, ThemeToken,
     button::Button,
     h_flex,
     style::{
@@ -15,6 +16,162 @@ use gpui_neath::{
     },
     v_flex,
 };
+use std::{cell::RefCell, rc::Rc};
+
+const CELL_TEXT: &str = "Wind through canyon / archive 2026";
+const BODY_TEXT: &str = "Body prose has nine tokens";
+const CAPTION_TEXT: &str = "127 files · 42.0 MiB";
+const SECTION_TEXT: &str = "Advanced metadata";
+const REQUIRED_TEXT: &str = "Destination folder";
+const POPOVER_LABEL: &str = "Wet / Dry Mix";
+
+#[derive(Clone, Copy)]
+enum CompositionProbeKind {
+    TruncatingCell,
+    MiddleTruncatingCell,
+    Body,
+    Caption,
+    SectionLabel,
+    RequiredLabel,
+    PopoverRow,
+}
+
+struct CompositionProbe {
+    kind: CompositionProbeKind,
+    actual: Rc<RefCell<Vec<Bounds<Pixels>>>>,
+    expected: Rc<RefCell<Vec<Bounds<Pixels>>>>,
+}
+
+impl CompositionProbe {
+    fn capture(element: gpui::Div, bounds: Rc<RefCell<Vec<Bounds<Pixels>>>>) -> gpui::Div {
+        element.on_children_prepainted(move |children, _, _| {
+            *bounds.borrow_mut() = children;
+        })
+    }
+}
+
+impl Render for CompositionProbe {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        let actual = match self.kind {
+            CompositionProbeKind::TruncatingCell => truncating_cell(CELL_TEXT),
+            CompositionProbeKind::MiddleTruncatingCell => {
+                middle_truncating_cell_sized(CELL_TEXT, px(11.))
+            }
+            CompositionProbeKind::Body => recipes::body(BODY_TEXT, cx),
+            CompositionProbeKind::Caption => recipes::caption(CAPTION_TEXT, cx),
+            CompositionProbeKind::SectionLabel => recipes::section_label(SECTION_TEXT, cx),
+            CompositionProbeKind::RequiredLabel => recipes::required_label(REQUIRED_TEXT, cx),
+            CompositionProbeKind::PopoverRow => {
+                recipes::popover_row(POPOVER_LABEL, div().w(px(17.)), cx)
+            }
+        };
+        let expected = match self.kind {
+            CompositionProbeKind::TruncatingCell => div()
+                .size_full()
+                .flex()
+                .items_center()
+                .overflow_hidden()
+                .text_xs()
+                .child(div().flex_1().min_w_0().truncate().child(CELL_TEXT)),
+            CompositionProbeKind::MiddleTruncatingCell => div()
+                .size_full()
+                .flex()
+                .items_center()
+                .overflow_hidden()
+                .text_size(px(11.))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .overflow_hidden()
+                        .whitespace_nowrap()
+                        .text_ellipsis_middle()
+                        .child(CELL_TEXT),
+                ),
+            CompositionProbeKind::Body => div()
+                .text_size(tokens::TEXT_12)
+                .text_color(cx.theme().foreground)
+                .child(BODY_TEXT),
+            CompositionProbeKind::Caption => div()
+                .text_size(tokens::TEXT_10)
+                .text_color(cx.theme().muted_foreground)
+                .child(CAPTION_TEXT),
+            CompositionProbeKind::SectionLabel => div()
+                .text_size(tokens::TEXT_13)
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(cx.theme().muted_foreground)
+                .child(SECTION_TEXT),
+            CompositionProbeKind::RequiredLabel => h_flex()
+                .gap(px(4.))
+                .child(
+                    div()
+                        .text_size(tokens::TEXT_13)
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(cx.theme().muted_foreground)
+                        .child(REQUIRED_TEXT),
+                )
+                .child(
+                    div()
+                        .text_size(tokens::TEXT_13)
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(cx.theme().danger)
+                        .child("*"),
+                ),
+            CompositionProbeKind::PopoverRow => h_flex()
+                .w_full()
+                .h(px(24.))
+                .flex_none()
+                .items_center()
+                .justify_between()
+                .gap(tokens::SPACE_2)
+                .child(
+                    div()
+                        .text_color(cx.theme().muted_foreground)
+                        .child(POPOVER_LABEL),
+                )
+                .child(div().w(px(17.))),
+        };
+
+        v_flex()
+            .size_full()
+            .gap(px(8.))
+            .child(Self::capture(actual, self.actual.clone()))
+            .child(Self::capture(expected, self.expected.clone()))
+    }
+}
+
+fn assert_public_recipe_children(
+    cx: &mut TestAppContext,
+    kind: CompositionProbeKind,
+    expected_count: usize,
+) {
+    let actual = Rc::new(RefCell::new(Vec::new()));
+    let expected = Rc::new(RefCell::new(Vec::new()));
+    let window = cx.open_window(gpui::size(px(320.), px(160.)), {
+        let actual = actual.clone();
+        let expected = expected.clone();
+        move |_, _| CompositionProbe {
+            kind,
+            actual,
+            expected,
+        }
+    });
+    cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+        .unwrap();
+
+    let actual = actual.borrow();
+    let expected = expected.borrow();
+    // The TestPlatform lays out ASCII per codepoint. The deliberately
+    // different-width sentinels above make each public recipe's supplied text
+    // observable through its rendered child bounds: deleting, reordering, or
+    // changing a sentinel's length (including the required `*` marker) fails
+    // this comparison without exposing production-private child storage.
+    assert_eq!(actual.len(), expected_count, "actual child count");
+    assert_eq!(actual.len(), expected.len(), "reference child count");
+    for (actual, expected) in actual.iter().zip(expected.iter()) {
+        assert_eq!(actual.size, expected.size, "ordered child bounds");
+    }
+}
 
 #[test]
 fn neutral_token_scale_matches_the_accepted_contract() {
@@ -103,6 +260,27 @@ fn truncating_cells_preserve_outer_size_and_overflow() {
 
     let mut middle = middle_truncating_cell_sized("/long/path/name", px(11.));
     assert_eq!(middle.style().clone(), expected_sized.style().clone());
+}
+
+#[gpui::test]
+fn public_recipes_render_their_text_and_truncation_children(cx: &mut TestAppContext) {
+    cx.update(gpui_neath::init);
+    for kind in [
+        CompositionProbeKind::TruncatingCell,
+        CompositionProbeKind::MiddleTruncatingCell,
+        CompositionProbeKind::Body,
+        CompositionProbeKind::Caption,
+        CompositionProbeKind::SectionLabel,
+    ] {
+        assert_public_recipe_children(cx, kind, 1);
+    }
+}
+
+#[gpui::test]
+fn public_required_label_and_popover_row_preserve_ordered_children(cx: &mut TestAppContext) {
+    cx.update(gpui_neath::init);
+    assert_public_recipe_children(cx, CompositionProbeKind::RequiredLabel, 2);
+    assert_public_recipe_children(cx, CompositionProbeKind::PopoverRow, 2);
 }
 
 #[gpui::test]
