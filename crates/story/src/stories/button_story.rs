@@ -5,7 +5,10 @@ use gpui::{
 
 use gpui_component::{
     ActiveTheme, Disableable as _, Icon, IconName, Selectable as _, Sizable as _, Size, Theme,
-    button::{Button, ButtonCustomVariant, ButtonGroup, ButtonVariants as _},
+    button::{
+        Button, ButtonCustomVariant, ButtonGroup, ButtonVariants as _, IconButton, IconToggle,
+        SplitButton,
+    },
     h_flex,
     progress::ProgressCircle,
     v_flex,
@@ -756,6 +759,89 @@ impl Render for ButtonStory {
                             .loading(loading)
                             .when(compact, |this| this.compact())
                             .on_click(Self::on_click),
+                    ),
+            )
+            .child(
+                section("Neath icon family")
+                    .description(
+                        "Background-free icon buttons, toggles, and hairline split chrome.",
+                    )
+                    .child(
+                        IconButton::new("neath-ordinary")
+                            .icon(Icon::new(IconName::Search))
+                            .tooltip("Search")
+                            .on_click(Self::on_click),
+                    )
+                    .child(
+                        IconButton::new("neath-prominent")
+                            .icon(Icon::new(IconName::Heart))
+                            .prominent()
+                            .tooltip("Favorite")
+                            .on_click(Self::on_click),
+                    )
+                    .child(
+                        IconButton::new("neath-dimmed")
+                            .icon(Icon::new(IconName::Inbox))
+                            .dimmed(true)
+                            .tooltip("Not ready")
+                            .on_click(Self::on_click),
+                    )
+                    .child(
+                        IconButton::new("neath-disabled")
+                            .icon(Icon::new(IconName::Close))
+                            .disabled(true)
+                            .tooltip("Disabled"),
+                    )
+                    .child(
+                        IconButton::new("neath-loading")
+                            .icon(Icon::new(IconName::Search))
+                            .loading(true)
+                            .tooltip("Loading"),
+                    )
+                    .child(
+                        IconToggle::new("neath-toggle-off", false)
+                            .icon(Icon::new(IconName::Star))
+                            .tooltip("Inactive")
+                            .on_click(Self::on_click),
+                    )
+                    .child(
+                        IconToggle::new("neath-toggle-on", true)
+                            .icon(Icon::new(IconName::Star))
+                            .tooltip("Active")
+                            .on_click(Self::on_click),
+                    )
+                    .child(
+                        IconToggle::new("neath-toggle-override", true)
+                            .icon(Icon::new(IconName::CircleX))
+                            .active_color(cx.theme().danger)
+                            .tooltip("Override")
+                            .on_click(Self::on_click),
+                    )
+                    .child(
+                        IconToggle::new("neath-toggle-filled", true)
+                            .icon(Icon::new(IconName::Settings))
+                            .filled()
+                            .tooltip("Filled")
+                            .on_click(Self::on_click),
+                    )
+                    .child(
+                        SplitButton::new("neath-split")
+                            .segment(
+                                IconButton::new("neath-split-eq")
+                                    .icon(Icon::new(IconName::Settings2))
+                                    .tight()
+                                    .tooltip("EQ")
+                                    .on_click(Self::on_click),
+                            )
+                            .segment(
+                                IconToggle::new("neath-split-power", true)
+                                    .icon(Icon::new(IconName::StarFill))
+                                    .tight()
+                                    .filled()
+                                    .fill_round_right()
+                                    .tooltip("Power")
+                                    .on_click(Self::on_click),
+                            ),
                     ),
             )
     }
