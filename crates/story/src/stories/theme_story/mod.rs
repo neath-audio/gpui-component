@@ -1,4 +1,3 @@
-mod checkerboard;
 mod color_theme_story;
 mod mapper;
 

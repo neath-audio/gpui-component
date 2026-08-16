@@ -2,6 +2,7 @@ use gpui::{prelude::FluentBuilder, *};
 use gpui_component::{
     ActiveTheme as _, Icon, IconName, IndexPath, StyledExt as _, ThemeColor,
     button::{Button, ButtonVariants as _},
+    checkerboard::Checkerboard,
     h_flex,
     input::{Input, InputEvent, InputState},
     menu::PopupMenuItem,
@@ -11,8 +12,6 @@ use gpui_component::{
     v_flex,
 };
 use serde::Deserialize;
-
-use crate::stories::theme_story::checkerboard::Checkerboard;
 
 use std::collections::BTreeMap;
 use std::rc::Rc;
