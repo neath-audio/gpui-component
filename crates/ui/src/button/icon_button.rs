@@ -545,12 +545,12 @@ impl IconToggle {
         self
     }
 
-    fn pressed(&self) -> bool {
+    fn visually_active(&self) -> bool {
         self.active || self.selected
     }
 
     fn chrome(&self, cx: &App) -> IconChrome {
-        let active = self.pressed();
+        let active = self.visually_active();
         let tint = tint(
             active,
             self.prominent,
@@ -606,13 +606,12 @@ impl RenderOnce for IconToggle {
         let focus_handle = keyed_focus_handle(&self.id, window, cx);
         let is_focused = focus_handle.is_focused(window);
         let accessibility_label = accessibility_label(self.tooltip.as_ref(), self.label.as_ref());
-        let pressed = self.pressed();
         let chrome = self.chrome(cx);
 
         chrome
             .apply(
                 BaseToggle::new(self.id)
-                    .pressed(pressed)
+                    .pressed(self.active)
                     .disabled(disabled)
                     .track_focus(&focus_handle)
                     .when_some(accessibility_label, |this, label| {
@@ -964,6 +963,12 @@ mod tests {
                                 .tooltip("Equalizer")
                                 .render(window, cx),
                         ),
+                        info(
+                            IconToggle::new("selected-open", false)
+                                .selected(true)
+                                .tooltip("Spot")
+                                .render(window, cx),
+                        ),
                     ];
                     *captured.lock().unwrap() = Some(nodes);
                 },
@@ -994,6 +999,30 @@ mod tests {
         assert_eq!(nodes[1].role(), Role::Button);
         assert_eq!(nodes[1].toggled(), Some(accesskit::Toggled::True));
         assert_eq!(nodes[2].toggled(), Some(accesskit::Toggled::False));
+    }
+
+    #[gpui::test]
+    fn selected_toggle_does_not_set_aria_toggled(cx: &mut TestAppContext) {
+        let nodes = a11y_nodes(cx);
+        assert_eq!(nodes[6].role(), Role::Button);
+        assert_eq!(nodes[6].toggled(), Some(accesskit::Toggled::False));
+    }
+
+    #[gpui::test]
+    fn selected_toggle_keeps_visual_active_tint(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            crate::init(cx);
+            let primary = cx.theme().primary;
+            let muted = cx.theme().muted_foreground;
+            let selected = IconToggle::new("open", false).selected(true).filled();
+            let chrome = selected.chrome(cx);
+            assert_eq!(chrome.tint.base, primary);
+            assert!(chrome.filled, "selected presentation stays visually active");
+
+            let idle = IconToggle::new("idle", false).chrome(cx);
+            assert_eq!(idle.tint.base, muted);
+            assert!(!idle.filled);
+        });
     }
 
     #[gpui::test]
