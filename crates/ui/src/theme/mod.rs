@@ -226,6 +226,24 @@ impl Theme {
         }
     }
 
+    /// Recessed chrome surface, 4% darker than [`ThemeColor::background`].
+    #[inline]
+    pub fn bg_sunken(&self) -> Hsla {
+        mix_toward_black(self.background, 0.04)
+    }
+
+    /// Selected-row surface, mixed 10% toward [`ThemeColor::accent`].
+    #[inline]
+    pub fn bg_active(&self) -> Hsla {
+        mix(self.background, self.accent, 0.10)
+    }
+
+    /// Soft accent-tinted surface, mixed 8% from background toward accent.
+    #[inline]
+    pub fn accent_soft(&self) -> Hsla {
+        mix(self.background, self.accent, 0.08)
+    }
+
     /// Get the input background color.
     ///
     /// For dark, use a transparent color mixed with the input border: `cx.theme().input`,
@@ -383,11 +401,52 @@ impl Theme {
     }
 }
 
+fn mix(base: Hsla, target: Hsla, amount: f32) -> Hsla {
+    Hsla {
+        h: base.h * (1.0 - amount) + target.h * amount,
+        s: base.s * (1.0 - amount) + target.s * amount,
+        l: base.l * (1.0 - amount) + target.l * amount,
+        a: base.a * (1.0 - amount) + target.a * amount,
+    }
+}
+
+fn mix_toward_black(base: Hsla, amount: f32) -> Hsla {
+    Hsla {
+        l: (base.l - amount).max(0.0),
+        ..base
+    }
+}
+
 #[cfg(test)]
 mod semantic_token_tests {
     use gpui::{Hsla, px};
 
-    use super::Theme;
+    use super::{Theme, mix, mix_toward_black};
+
+    #[test]
+    fn surface_helpers_use_pin_mix_amounts() {
+        let mut theme = Theme::default();
+        theme.background = Hsla {
+            h: 0.1,
+            s: 0.2,
+            l: 0.8,
+            a: 1.0,
+        };
+        theme.accent = Hsla {
+            h: 0.5,
+            s: 0.6,
+            l: 0.4,
+            a: 1.0,
+        };
+
+        assert_eq!(theme.bg_sunken(), mix_toward_black(theme.background, 0.04));
+        assert_eq!(theme.bg_active(), mix(theme.background, theme.accent, 0.10));
+        assert_eq!(
+            theme.accent_soft(),
+            mix(theme.background, theme.accent, 0.08)
+        );
+        assert!((theme.bg_sunken().l - 0.76).abs() < f32::EPSILON);
+    }
 
     #[test]
     fn semantic_colors_are_a_live_projection_of_legacy_fields() {

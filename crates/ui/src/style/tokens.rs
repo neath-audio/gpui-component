@@ -77,32 +77,16 @@ pub const ICON_PRIMARY: Pixels = px(16.);
 
 /// Recessed chrome surface, 4% darker than `theme.background`.
 pub fn bg_sunken(cx: &App) -> Hsla {
-    mix_toward_black(cx.theme().background, 0.04)
+    cx.theme().bg_sunken()
 }
 
 /// Selected-row surface, mixed 10% toward `theme.accent`.
 pub fn bg_active(cx: &App) -> Hsla {
-    mix(cx.theme().background, cx.theme().accent, 0.10)
+    cx.theme().bg_active()
 }
 
 /// Soft accent-tinted surface, mixed 8% from `theme.background` toward
 /// `theme.accent`.
 pub fn accent_soft(cx: &App) -> Hsla {
-    mix(cx.theme().background, cx.theme().accent, 0.08)
-}
-
-fn mix(base: Hsla, target: Hsla, amount: f32) -> Hsla {
-    Hsla {
-        h: base.h * (1.0 - amount) + target.h * amount,
-        s: base.s * (1.0 - amount) + target.s * amount,
-        l: base.l * (1.0 - amount) + target.l * amount,
-        a: base.a * (1.0 - amount) + target.a * amount,
-    }
-}
-
-fn mix_toward_black(base: Hsla, amount: f32) -> Hsla {
-    Hsla {
-        l: (base.l - amount).max(0.0),
-        ..base
-    }
+    cx.theme().accent_soft()
 }
