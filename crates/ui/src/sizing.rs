@@ -1,4 +1,4 @@
-use gpui::{Edges, Pixels, Styled, px};
+use gpui::{Edges, Pixels, Rems, Styled, px, rems};
 use serde::{Deserialize, Serialize};
 
 /// A size for elements.
@@ -61,6 +61,25 @@ impl Size {
             Size::Small => px(30.),
             Size::Large => px(40.),
             _ => px(32.),
+        }
+    }
+
+    /// Single type scale. 16px rem base; these are the only named text sizes.
+    pub fn text_size(&self) -> Rems {
+        match self {
+            Size::XSmall => rems(0.625),
+            Size::Small => rems(0.75),
+            Size::Medium => rems(0.8125),
+            Size::Large => rems(0.9375),
+            Size::Size(size) => rems(size.as_f32() / 16.0),
+        }
+    }
+
+    /// Menus may be Small (12) or Medium (13) only. Large and custom clamp to Medium.
+    pub fn menu_text_size(&self) -> Rems {
+        match self {
+            Size::XSmall | Size::Small => Size::Small.text_size(),
+            Size::Medium | Size::Large | Size::Size(_) => Size::Medium.text_size(),
         }
     }
 
@@ -328,9 +347,26 @@ impl<T: Styled> StyleSized<T> for T {
 }
 #[cfg(test)]
 mod tests {
-    use gpui::px;
+    use gpui::{px, rems};
 
     use crate::Size;
+
+    #[test]
+    fn text_size_is_the_type_table() {
+        assert_eq!(Size::XSmall.text_size(), rems(0.625));
+        assert_eq!(Size::Small.text_size(), rems(0.75));
+        assert_eq!(Size::Medium.text_size(), rems(0.8125));
+        assert_eq!(Size::Large.text_size(), rems(0.9375));
+    }
+
+    #[test]
+    fn menu_text_size_is_small_or_medium_only() {
+        assert_eq!(Size::XSmall.menu_text_size(), rems(0.75));
+        assert_eq!(Size::Small.menu_text_size(), rems(0.75));
+        assert_eq!(Size::Medium.menu_text_size(), rems(0.8125));
+        assert_eq!(Size::Large.menu_text_size(), rems(0.8125));
+        assert_eq!(Size::Size(px(40.)).menu_text_size(), rems(0.8125));
+    }
 
     #[test]
     fn test_size_max_min() {
