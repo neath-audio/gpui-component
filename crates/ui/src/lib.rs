@@ -14,6 +14,7 @@ mod sizing;
 mod styled;
 mod time;
 mod title_bar;
+mod truncate;
 mod virtual_list;
 mod window_border;
 mod window_ext;
@@ -113,6 +114,9 @@ pub use theme::*;
 pub use time::{calendar, date_picker};
 pub use title_bar::*;
 pub use tooltip::ManagedTooltipExt;
+pub use truncate::{
+    TruncateMiddleExt, middle_truncating_cell_sized, truncating_cell, truncating_cell_sized,
+};
 pub use virtual_list::{VirtualList, VirtualListScrollHandle, h_virtual_list, v_virtual_list};
 pub use window_border::{WindowBorder, window_border, window_paddings};
 pub use window_ext::WindowExt;

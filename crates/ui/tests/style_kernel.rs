@@ -103,7 +103,7 @@ fn expected_public_recipe(kind: CompositionProbeKind, cx: &App) -> gpui::Div {
             .flex()
             .items_center()
             .overflow_hidden()
-            .text_xs()
+            .text_size(gpui_neath::Size::Small.text_size())
             .child(div().flex_1().min_w_0().truncate().child(CELL_TEXT)),
         CompositionProbeKind::TruncatingCellSized => div()
             .size_full()
@@ -641,7 +641,7 @@ fn truncating_cells_preserve_outer_size_and_overflow() {
         .flex()
         .items_center()
         .overflow_hidden()
-        .text_xs();
+        .text_size(gpui_neath::Size::Small.text_size());
     assert_eq!(fixed.style().clone(), expected_fixed.style().clone());
 
     let mut sized = truncating_cell_sized("name", px(11.));
