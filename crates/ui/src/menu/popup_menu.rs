@@ -464,7 +464,8 @@ impl PopupMenu {
         self
     }
 
-    /// Use extra-small size, the menu item will have the smallest height and text.
+    /// Compact alias of [`Self::small`]: shares Small type (12px) and 20px
+    /// row height. Menus have no distinct 10px tier.
     pub fn xsmall(mut self) -> Self {
         self.size = Size::XSmall;
         self
