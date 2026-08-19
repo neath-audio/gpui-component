@@ -741,7 +741,7 @@ fn checker_fails_closed_on_unparseable_boundary_input() {
 }
 
 #[test]
-fn style_kernel_stays_above_base_and_below_the_application() {
+fn styled_layer_stays_above_base_and_below_the_application() {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut failures = Vec::new();
     let workspace_manifest = manifest_dir.join("../../Cargo.toml");
