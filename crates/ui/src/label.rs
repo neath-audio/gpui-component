@@ -213,7 +213,7 @@ impl RenderOnce for Label {
 
         div()
             .line_height(rems(1.25))
-            .text_size(self.size.text_size())
+            .text_size(self.size.control_text_size())
             .text_color(cx.theme().foreground)
             .refine_style(&self.style)
             .child(

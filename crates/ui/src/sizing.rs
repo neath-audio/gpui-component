@@ -75,16 +75,27 @@ impl Size {
         }
     }
 
+    /// Type used by `.xsmall()`/`.small()`/`.medium()`/`.large()` controls.
+    /// XSmall chrome uses Small type (12px). Caption 10px is only
+    /// [`Self::text_size`] on `Size::XSmall`, the same way Large 15px is
+    /// explicit display type.
+    pub fn control_text_size(&self) -> Rems {
+        match self {
+            Size::XSmall => Size::Small.text_size(),
+            other => other.text_size(),
+        }
+    }
+
     pub fn input_text_size(&self) -> Rems {
-        self.text_size()
+        self.control_text_size()
     }
 
     pub fn button_text_size(&self) -> Rems {
-        self.text_size()
+        self.control_text_size()
     }
 
     pub fn table_text_size(&self) -> Rems {
-        self.text_size()
+        self.control_text_size()
     }
 
     /// Menus may be Small (12) or Medium (13) only. Large and custom clamp to Medium.
@@ -92,6 +103,16 @@ impl Size {
         match self {
             Size::XSmall | Size::Small => Size::Small.text_size(),
             Size::Medium | Size::Large | Size::Size(_) => Size::Medium.text_size(),
+        }
+    }
+
+    /// Hard height for a single-line menu row. Compact (xsmall/small) is
+    /// 20px; standard is 25px. Select/Combobox/PopoverRow stay padding-based
+    /// via [`StyleSized::list_py`].
+    pub fn list_row_height(&self) -> Pixels {
+        match self {
+            Size::XSmall | Size::Small => px(20.),
+            _ => px(25.),
         }
     }
 
@@ -254,7 +275,7 @@ pub trait StyleSized<T: Styled> {
 impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn input_text_size(self, size: Size) -> Self {
-        self.text_size(size.text_size())
+        self.text_size(size.control_text_size())
     }
 
     #[inline]
@@ -301,9 +322,10 @@ impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn list_px(self, size: Size) -> Self {
         match size {
+            // Compact (xsmall) item gutter is 6px; every other open row is 8px.
+            // Plus List/menu content inset (4px) that is 10 / 12 to the text.
             Size::XSmall => self.px_1p5(),
-            Size::Small => self.px_2(),
-            _ => self.px_3(),
+            _ => self.px_2(),
         }
     }
 
@@ -331,7 +353,7 @@ impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn table_cell_size(self, size: Size) -> Self {
         let padding = size.table_cell_padding();
-        self.text_size(size.text_size())
+        self.text_size(size.control_text_size())
             .pl(padding.left)
             .pr(padding.right)
             .pt(padding.top)
@@ -339,7 +361,7 @@ impl<T: Styled> StyleSized<T> for T {
     }
 
     fn button_text_size(self, size: Size) -> Self {
-        self.text_size(size.text_size())
+        self.text_size(size.control_text_size())
     }
 }
 #[cfg(test)]
@@ -358,11 +380,24 @@ mod tests {
 
     #[test]
     fn style_sized_text_maps_are_the_size_table() {
+        assert_eq!(Size::XSmall.text_size(), rems(0.625));
+        assert_eq!(Size::XSmall.control_text_size(), rems(0.75));
         for size in [Size::XSmall, Size::Small, Size::Medium, Size::Large] {
-            assert_eq!(size.input_text_size(), size.text_size());
-            assert_eq!(size.button_text_size(), size.text_size());
-            assert_eq!(size.table_text_size(), size.text_size());
+            assert_eq!(size.input_text_size(), size.control_text_size());
+            assert_eq!(size.button_text_size(), size.control_text_size());
+            assert_eq!(size.table_text_size(), size.control_text_size());
         }
+        for size in [Size::Small, Size::Medium, Size::Large] {
+            assert_eq!(size.control_text_size(), size.text_size());
+        }
+    }
+
+    #[test]
+    fn list_row_height_is_20_compact_25_standard() {
+        assert_eq!(Size::XSmall.list_row_height(), px(20.));
+        assert_eq!(Size::Small.list_row_height(), px(20.));
+        assert_eq!(Size::Medium.list_row_height(), px(25.));
+        assert_eq!(Size::Large.list_row_height(), px(25.));
     }
 
     #[test]

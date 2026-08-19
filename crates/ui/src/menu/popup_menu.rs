@@ -1248,19 +1248,19 @@ impl PopupMenu {
 
         let selected = self.selected_index == Some(ix);
         const EDGE_PADDING: Pixels = px(4.);
-        // Nova dropdown parity, user-ruled 2026-07-20: 6px item inset (was
-        // 8px) and 6px icon/content gap (was 4px).
-        const INNER_PADDING: Rems = rems(0.375);
+        // Compact item gutter 6px; standard 8px. Plus the items `p_1` (4px)
+        // content inset that is 10 / 12 to the text. Icon gap stays 6px.
         const ICON_GAP: Rems = rems(0.375);
 
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
         let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
-        // Compact (`XSmall | Small`) rows are 20px; standard is 25px.
-        // Item text is Small 12 or Medium 13 only via `menu_text_size`.
-        let (item_height, compact) = match self.size {
-            Size::XSmall | Size::Small => (px(20.), true),
-            _ => (px(25.), false),
+        let item_height = self.size.list_row_height();
+        let compact = matches!(self.size, Size::XSmall | Size::Small);
+        let inner_padding = if compact {
+            rems(0.375)
+        } else {
+            rems(0.5)
         };
         let menu_text = self.size.menu_text_size();
         // Radius is keyed off the popover's own radius, halved only for the
@@ -1275,7 +1275,7 @@ impl PopupMenu {
             .relative()
             .text_size(menu_text)
             .py_0()
-            .px(INNER_PADDING)
+            .px(inner_padding)
             .rounded(radius)
             .items_center()
             .selected(selected)

@@ -2,9 +2,10 @@ use std::rc::Rc;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AccessibleAction, AnyElement, App, DefiniteLength, Edges, Entity, Focusable, Hsla,
-    InteractiveElement as _, IntoElement, ParentElement as _, Rems, RenderOnce, Role, SharedString,
-    StatefulInteractiveElement as _, StyleRefinement, Styled, TextAlign, Window, div, px, relative,
+    AbsoluteLength, AccessibleAction, AnyElement, App, DefiniteLength, Edges, Entity, Focusable,
+    Hsla, InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Rems, RenderOnce, Role,
+    SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, TextAlign, Window, div,
+    px, relative,
 };
 
 use crate::Root;
@@ -364,6 +365,28 @@ impl Input {
     }
 }
 
+/// Multi-line inset lives on the editor, not the chrome wrapper. Style
+/// padding (`.pl_0()`, `.px_2()`, …) overrides the Size defaults so a
+/// borderless Textarea can flush to the same gutter as a single-line Input.
+fn multi_line_editor_paddings(
+    size: Size,
+    style: &StyleRefinement,
+    rem_size: Pixels,
+) -> Edges<Pixels> {
+    let default_px = size.input_px();
+    let default_py = size.input_py();
+    let resolve = |side: Option<DefiniteLength>, fallback: Pixels| {
+        side.map(|len| len.to_pixels(AbsoluteLength::Pixels(fallback), rem_size))
+            .unwrap_or(fallback)
+    };
+    Edges {
+        top: resolve(style.padding.top, default_py),
+        right: resolve(style.padding.right, default_px),
+        bottom: resolve(style.padding.bottom, default_py),
+        left: resolve(style.padding.left, default_px),
+    }
+}
+
 impl Styled for Input {
     fn style(&mut self) -> &mut StyleRefinement {
         &mut self.style
@@ -424,13 +447,14 @@ impl RenderOnce for Input {
                         .into_any_element()
                 })),
             });
+            // Multi-line inset lives on the editor (scrollbar stays on the
+            // chrome edge). Style padding (`.pl_0()`, `.px_2()`, …) must
+            // override that inset — applying it only on the wrapper leaves
+            // the Size defaults (Small = 8px sides) around the text, which
+            // is why a borderless Textarea read looser than an Input with
+            // the same `.pl_0().pr_0()`.
             state.set_editor_paddings(if state.presentation().multi_line {
-                Edges {
-                    top: self.size.input_py(),
-                    right: self.size.input_px(),
-                    bottom: self.size.input_py(),
-                    left: self.size.input_px(),
-                }
+                multi_line_editor_paddings(self.size, &self.style, window.rem_size())
             } else {
                 Edges::default()
             });
@@ -487,6 +511,12 @@ impl RenderOnce for Input {
         let content_type = self.content_type;
         let disabled = self.disabled;
         let is_multi_line = presentation.multi_line;
+        // Padding refinements already went into editor_paddings. Drop them
+        // from the wrapper so `.px_2()` does not inset the text twice.
+        let mut style = self.style;
+        if is_multi_line {
+            style.padding = Default::default();
+        }
         let accessibility_role = Self::accessibility_role(is_multi_line, content_type, self.role);
         let accessibility_state = state.clone();
         // Materializing the whole rope is only observable through the
@@ -583,7 +613,7 @@ impl RenderOnce for Input {
             })
             .items_center()
             .gap(gap_x)
-            .refine_style(&self.style)
+            .refine_style(&style)
             .children(prefix.map(|p| {
                 div()
                     .when(presentation.disabled, |this| this.opacity(0.5))
@@ -981,5 +1011,27 @@ mod tests {
             let _ = window.draw(cx);
         });
         assert_eq!(cx.update(|window, cx| window.focused_input(cx)), None);
+    }
+
+    #[test]
+    fn multi_line_editor_paddings_default_to_size() {
+        let style = StyleRefinement::default();
+        let edges = multi_line_editor_paddings(Size::Small, &style, px(16.));
+        assert_eq!(edges.left, Size::Small.input_px());
+        assert_eq!(edges.right, Size::Small.input_px());
+        assert_eq!(edges.top, Size::Small.input_py());
+        assert_eq!(edges.bottom, Size::Small.input_py());
+    }
+
+    #[test]
+    fn multi_line_editor_paddings_honor_pl_pr_zero() {
+        let mut style = StyleRefinement::default();
+        style.padding.left = Some(px(0.).into());
+        style.padding.right = Some(px(0.).into());
+        let edges = multi_line_editor_paddings(Size::Small, &style, px(16.));
+        assert_eq!(edges.left, px(0.));
+        assert_eq!(edges.right, px(0.));
+        assert_eq!(edges.top, Size::Small.input_py());
+        assert_eq!(edges.bottom, Size::Small.input_py());
     }
 }

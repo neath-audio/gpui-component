@@ -129,8 +129,6 @@ impl RenderOnce for SearchableListItemElement {
             .id(self.id)
             .relative()
             .gap_x_1()
-            .py_1()
-            .px_2()
             .rounded(cx.theme().radius)
             .text_base()
             .text_color(cx.theme().foreground)
