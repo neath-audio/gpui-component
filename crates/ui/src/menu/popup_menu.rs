@@ -1255,21 +1255,16 @@ impl PopupMenu {
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
         let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
-        // Size-driven text + row height. XSmall is the compact tool-surface
-        // tier — 12px text in 18px rows, for menus opened over dense surfaces
-        // (waveform/EQ/corpus). Small keeps 14px text in a tightened 20px
-        // row. The default (Medium/Large) is the standard menu tier: 13px
-        // text in a roomy 25px row (context, inspector, agent, table rows,
-        // …) — a beat below the old 14px, one above the compact 12px. Only
-        // the compact tier drops its text below the default.
-        let (menu_text, item_height) = match self.size {
-            Size::XSmall => (rems(0.75), px(18.)),
-            Size::Small => (rems(0.875), px(20.)),
-            _ => (rems(0.8125), px(25.)),
+        // Compact (`XSmall | Small`) rows are 20px; standard is 25px.
+        // Item text is Small 12 or Medium 13 only via `menu_text_size`.
+        let (item_height, compact) = match self.size {
+            Size::XSmall | Size::Small => (px(20.), true),
+            _ => (px(25.), false),
         };
+        let menu_text = self.size.menu_text_size();
         // Radius is keyed off the popover's own radius, halved only for the
         // compact `XSmall | Small` tiers.
-        let radius = if matches!(self.size, Size::XSmall | Size::Small) {
+        let radius = if compact {
             options.radius.half()
         } else {
             options.radius
@@ -1316,7 +1311,7 @@ impl PopupMenu {
                     // muted text in a 24px box (16px text-xs line + 2×4px),
                     // user-ruled 2026-07-20.
                     .min_h(rems(1.5))
-                    .text_size(rems(0.75))
+                    .text_size(Size::Small.text_size())
                     .font_medium()
                     .text_color(cx.theme().muted_foreground)
                     .gap_x(ICON_GAP)
