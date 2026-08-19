@@ -82,8 +82,8 @@ impl SettingGroup {
         cx: &mut App,
     ) -> impl IntoElement {
         GroupBox::new()
-            .id(SharedString::from(format!("group-{}", options.group_ix)))
-            .with_variant(options.group_variant)
+            .id(SharedString::from(format!("group-{}", options.group_ix())))
+            .with_variant(options.group_variant())
             .when_some(self.title.clone(), |this, title| {
                 // Promote the group title to a real section heading: the
                 // `GroupBox` wraps its title in `muted_foreground`, so override
@@ -117,14 +117,10 @@ impl SettingGroup {
             .gap_4()
             .children(self.items.iter().enumerate().filter_map(|(item_ix, item)| {
                 if item.is_match(&query, cx) {
-                    Some(item.clone().render_item(
-                        &RenderOptions {
-                            item_ix,
-                            ..*options
-                        },
-                        window,
-                        cx,
-                    ))
+                    Some(
+                        item.clone()
+                            .render_item(&options.with_item_ix(item_ix), window, cx),
+                    )
                 } else {
                     None
                 }

@@ -1,22 +1,20 @@
-use std::{cell::Cell, rc::Rc, time::Duration};
+use std::{rc::Rc, time::Duration};
 
 use gpui::{
     AnyElement, AnyView, App, Bounds, Context, Div, ElementId, InteractiveElement, IntoElement,
-    MouseDownEvent, ParentElement, Pixels, Render, RenderOnce, Role, ScrollWheelEvent, Stateful,
-    StatefulInteractiveElement, Styled, Task, Window, canvas, deferred, div,
-    prelude::FluentBuilder as _, px,
+    ParentElement, Pixels, Render, RenderOnce, Role, Stateful, StatefulInteractiveElement, Styled,
+    Task, Window, deferred, div, prelude::FluentBuilder as _, px,
 };
 
 use crate::{Placement, Positioner};
 
+const TOOLTIP_PRIORITY: usize = 200;
 const WINDOW_MARGIN: Pixels = px(4.);
-const ANCHOR_GAP: Pixels = px(12.);
 const GRACE_PERIOD: Duration = Duration::from_millis(300);
 const SHOW_DELAY: Duration = Duration::from_millis(500);
 
 type TooltipBuilder = Rc<dyn Fn(&mut Window, &mut App) -> AnyView>;
 type TooltipRenderer = Rc<dyn Fn(AnyView, TooltipTransition, &mut Window, &mut App) -> AnyElement>;
-type ShowGuard = Rc<dyn Fn(&Window, &App) -> bool>;
 
 /// An unstyled tooltip popup.
 ///
@@ -57,7 +55,7 @@ impl RenderOnce for Tooltip {
 #[derive(Clone)]
 pub struct TooltipRequest {
     build: TooltipBuilder,
-    trigger_bounds: Rc<Cell<Bounds<Pixels>>>,
+    trigger_bounds: Bounds<Pixels>,
     preferred_placement: Option<Placement>,
 }
 
@@ -68,20 +66,13 @@ impl TooltipRequest {
     ) -> Self {
         Self {
             build: Rc::new(build),
-            trigger_bounds: Rc::new(Cell::new(trigger_bounds)),
+            trigger_bounds,
             preferred_placement: None,
         }
     }
 
     pub fn placement(mut self, placement: Placement) -> Self {
         self.preferred_placement = Some(placement);
-        self
-    }
-
-    /// Supplies live trigger bounds maintained by a styled facade.
-    #[doc(hidden)]
-    pub fn live_bounds(mut self, trigger_bounds: Rc<Cell<Bounds<Pixels>>>) -> Self {
-        self.trigger_bounds = trigger_bounds;
         self
     }
 }
@@ -110,7 +101,6 @@ pub struct TooltipOverlay {
     show_task: Option<Task<()>>,
     hide_task: Option<Task<()>>,
     renderer: TooltipRenderer,
-    show_guard: ShowGuard,
 }
 
 impl TooltipOverlay {
@@ -125,7 +115,6 @@ impl TooltipOverlay {
             show_task: None,
             hide_task: None,
             renderer: Rc::new(|view, _, _, _| div().child(view).into_any_element()),
-            show_guard: Rc::new(|_, _| true),
         }
     }
 
@@ -134,14 +123,6 @@ impl TooltipOverlay {
         renderer: impl Fn(AnyView, TooltipTransition, &mut Window, &mut App) -> AnyElement + 'static,
     ) -> Self {
         self.renderer = Rc::new(renderer);
-        self
-    }
-
-    /// Supplies an application-owned visibility guard, for example to keep
-    /// tooltips below an open menu managed by a styled facade.
-    #[doc(hidden)]
-    pub fn show_guard(mut self, guard: impl Fn(&Window, &App) -> bool + 'static) -> Self {
-        self.show_guard = Rc::new(guard);
         self
     }
 
@@ -156,16 +137,10 @@ impl TooltipOverlay {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !(self.show_guard)(window, cx) {
-            return;
-        }
         self.hide_task = None;
         let was_visible = self.content.is_some();
         if was_visible || self.had_recent_tooltip {
-            self.previous_bounds = self
-                .content
-                .as_ref()
-                .map(|content| content.trigger_bounds.get());
+            self.previous_bounds = self.content.as_ref().map(|content| content.trigger_bounds);
             self.content = Some(content);
             self.show_task = None;
             self.is_switching = was_visible;
@@ -235,57 +210,29 @@ impl Default for TooltipOverlay {
 
 impl Render for TooltipOverlay {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let overlay = cx.entity();
-        let dismisser = canvas(
-            |_, _, _| (),
-            move |_, _, window, _| {
-                window.on_mouse_event({
-                    let overlay = overlay.clone();
-                    move |_: &MouseDownEvent, _, _, cx| {
-                        overlay.update(cx, |overlay, cx| overlay.hide(cx));
-                    }
-                });
-                window.on_mouse_event({
-                    let overlay = overlay.clone();
-                    move |_: &ScrollWheelEvent, _, _, cx| {
-                        overlay.update(cx, |overlay, cx| overlay.hide(cx));
-                    }
-                });
-            },
-        )
-        .absolute()
-        .size_0();
-        let root = div().child(dismisser);
-
         let Some(content) = self.content.as_ref() else {
-            return root.into_any_element();
+            return div().into_any_element();
         };
-        if !(self.show_guard)(window, cx) {
-            return root.into_any_element();
-        }
         let view = (content.build)(window, cx);
-        let trigger_bounds = content.trigger_bounds.get();
         let transition = match (self.is_switching, self.previous_bounds) {
             (true, Some(previous)) => TooltipTransition::Switch {
                 epoch: self.animation_epoch,
                 previous,
-                current: trigger_bounds,
+                current: content.trigger_bounds,
             },
             _ => TooltipTransition::Enter {
                 epoch: self.animation_epoch,
             },
         };
         let rendered = (self.renderer)(view, transition, window, cx);
-        root.child(
-            deferred(
-                TooltipPositioner::new(trigger_bounds)
-                    .when_some(content.preferred_placement, |this, placement| {
-                        this.placement(placement)
-                    })
-                    .child(rendered),
-            )
-            .with_priority(2),
+        deferred(
+            TooltipPositioner::new(content.trigger_bounds)
+                .when_some(content.preferred_placement, |this, placement| {
+                    this.placement(placement)
+                })
+                .child(rendered),
         )
+        .with_priority(TOOLTIP_PRIORITY)
         .into_any_element()
     }
 }
@@ -298,11 +245,7 @@ pub struct TooltipPositioner(Positioner);
 
 impl TooltipPositioner {
     pub fn new(trigger_bounds: Bounds<Pixels>) -> Self {
-        Self(
-            Positioner::side(trigger_bounds)
-                .offset(ANCHOR_GAP)
-                .margin(WINDOW_MARGIN),
-        )
+        Self(Positioner::side(trigger_bounds).margin(WINDOW_MARGIN))
     }
 
     pub fn placement(mut self, placement: Placement) -> Self {
@@ -356,5 +299,10 @@ mod tests {
             state.update(cx, |tooltip, cx| tooltip.hide(cx));
         });
         cx.update(|_, cx| assert!(state.read(cx).content.is_none()));
+    }
+
+    #[test]
+    fn tooltip_priority_exceeds_popup_layer() {
+        assert!(TOOLTIP_PRIORITY > crate::POPUP_PRIORITY);
     }
 }

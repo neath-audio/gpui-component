@@ -1,6 +1,6 @@
 use gpui::{prelude::FluentBuilder, *};
 use gpui_component::{
-    ActiveTheme as _, Icon, IconName, IndexPath, StyledExt as _, ThemeColor,
+    ActiveTheme as _, Icon, IconName, IndexPath, StyledExt as _, ThemeColor, ThemeStyled as _,
     button::{Button, ButtonVariants as _},
     checkerboard::Checkerboard,
     h_flex,
@@ -328,7 +328,7 @@ impl ThemeColorsStory {
                                 this.child(
                                     div()
                                         .size_1p5()
-                                        .rounded_full()
+                                        .rounded_full_style(cx)
                                         .bg(isolated_theme.foreground)
                                         .flex_shrink_0(),
                                 )
@@ -443,7 +443,7 @@ impl ThemeColorsStory {
                                                 this.child(
                                                     div()
                                                         .size_1p5()
-                                                        .rounded_full()
+                                                        .rounded_full_style(cx)
                                                         .bg(cx.theme().foreground),
                                                 )
                                             })

@@ -6,6 +6,7 @@ use gpui::{
     StyleRefinement, Styled, Window, WindowControlArea, anchored, div, hsla, point,
     prelude::FluentBuilder, px,
 };
+use gpui_base::{ElementExt as _, TextSelectionScopeId};
 use rust_i18n::t;
 
 use crate::{
@@ -14,7 +15,6 @@ use crate::{
     button::{Button, ButtonVariant, ButtonVariants as _},
     dialog::{DialogContent, DialogTitle},
     scroll::ScrollableElement as _,
-    text::{SelectionScope, SelectionScopeElement as _},
     v_flex,
 };
 
@@ -190,7 +190,10 @@ impl BaseDialogRoot {
         map_base_root!(self, close_on_escape(value))
     }
     fn close_on_backdrop_press(self, value: bool) -> Self {
-        map_base_root!(self, close_on_backdrop_press(value))
+        match self {
+            Self::Dialog(root) => Self::Dialog(root.close_on_backdrop_press(value)),
+            Self::AlertDialog(root) => Self::AlertDialog(root),
+        }
     }
     fn dismiss_below_y(self, value: Pixels) -> Self {
         map_base_root!(self, dismiss_below_y(value))
@@ -246,6 +249,7 @@ pub struct Dialog {
     /// This will be change when open the dialog, the focus handle is create when open the dialog.
     pub(crate) focus_handle: FocusHandle,
     pub(crate) layer_ix: usize,
+    pub(crate) selection_scope: TextSelectionScopeId,
 }
 
 pub(crate) fn overlay_color(overlay: bool, cx: &App) -> Hsla {
@@ -271,6 +275,7 @@ impl Dialog {
             props: DialogProps::default(),
             children: Vec::new(),
             layer_ix: 0,
+            selection_scope: TextSelectionScopeId::default(),
             button_props: DialogButtonProps::default(),
         }
     }
@@ -479,6 +484,7 @@ impl RenderOnce for Dialog {
         }
 
         let layer_ix = self.layer_ix;
+        let selection_scope = self.selection_scope;
         let on_close = self.button_props.on_close.clone();
         let on_ok = self.button_props.on_ok.clone();
         let on_cancel = self.button_props.on_cancel.clone();
@@ -509,8 +515,16 @@ impl RenderOnce for Dialog {
             paddings.bottom = pb.to_pixels(base_size, rem_size);
         }
 
-        let animation =
-            Animation::new(*ANIMATION_DURATION).with_easing(cubic_bezier(0.32, 0.72, 0., 1.));
+        // x1 = 1/3, x2 = 2/3 make the bezier's time mapping the identity,
+        // preserving the trajectory this dialog was tuned with before
+        // `cubic_bezier` solved for x; vaul's (0.32, 0.72, 0., 1.) is far
+        // more front-loaded under the CSS-correct solver.
+        let animation = Animation::new(*ANIMATION_DURATION).with_easing(cubic_bezier(
+            1. / 3.,
+            0.72,
+            2. / 3.,
+            1.,
+        ));
 
         anchored()
             .position(point(window_paddings.left, window_paddings.top))
@@ -559,9 +573,7 @@ impl RenderOnce for Dialog {
                                     .id(layer_ix)
                                     .bg(cx.theme().tokens.background)
                                     .border_1()
-                                    .border_color(cx.theme().hairline)
-                                    .shadow(cx.theme().shadow_2().into_vec())
-                                    .text_sm()
+                                    .border_color(cx.theme().border)
                                     .rounded(cx.theme().radius_lg)
                                     .min_h_24()
                                     .pt(paddings.top)
@@ -645,20 +657,31 @@ impl RenderOnce for Dialog {
                                                     .icon(IconName::Close),
                                             )
                                     }))
-                                    .with_animation("slide-down", animation.clone(), {
-                                        let target_shadow = cx.theme().shadow_4();
+                                    .with_animation(
+                                        "slide-down",
+                                        animation.clone(),
                                         move |this, delta| {
-                                            let shadow: Vec<BoxShadow> = target_shadow
-                                                .iter()
-                                                .map(|layer| BoxShadow {
-                                                    color: hsla(0., 0., 0., layer.color.a * delta),
-                                                    ..layer.clone()
-                                                })
-                                                .collect();
+                                            // This is equivalent to `shadow_xl` with an extra opacity.
+                                            let shadow = vec![
+                                                BoxShadow {
+                                                    color: hsla(0., 0., 0., 0.1 * delta),
+                                                    offset: point(px(0.), px(20.)),
+                                                    blur_radius: px(25.),
+                                                    spread_radius: px(-5.),
+                                                    inset: false,
+                                                },
+                                                BoxShadow {
+                                                    color: hsla(0., 0., 0., 0.1 * delta),
+                                                    offset: point(px(0.), px(8.)),
+                                                    blur_radius: px(10.),
+                                                    spread_radius: px(-6.),
+                                                    inset: false,
+                                                },
+                                            ];
                                             this.top(y * delta).shadow(shadow)
-                                        }
-                                    })
-                                    .selection_scope(SelectionScope::Dialog(layer_ix)),
+                                        },
+                                    )
+                                    .text_selection_scope(selection_scope),
                             ),
                     )
                     .with_animation("fade-in", animation, move |this, delta| this.opacity(delta)),

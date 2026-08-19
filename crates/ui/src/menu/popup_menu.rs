@@ -1,9 +1,10 @@
+use crate::ThemeStyled as _;
 use crate::actions::{Cancel, Confirm, SelectDown, SelectUp};
 use crate::actions::{SelectLeft, SelectRight};
 use crate::menu::menu_item::MenuItemElement;
 use crate::scroll::ScrollableElement;
 use crate::{ActiveTheme, ElementExt, Icon, IconName, Sizable as _, h_flex, v_flex};
-use crate::{ElevatedSurfaceExt, Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd};
+use crate::{Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd};
 use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
@@ -325,13 +326,6 @@ pub struct PopupMenu {
 impl PopupMenu {
     pub(crate) fn new(cx: &mut App) -> Self {
         let focus_handle = cx.focus_handle();
-        // A menu owns focus exactly while it is open; the managed tooltip
-        // overlay reads this registry to suppress tooltips over open menus.
-        // Guarded: before `crate::init` there is no registry (and no tooltip
-        // overlay either), so an untracked menu is harmless.
-        if cx.has_global::<UiGlobalState>() {
-            UiGlobalState::global_mut(cx).register_menu_focus_handle(&focus_handle);
-        }
         Self {
             focus_handle,
             action_context: None,
@@ -1536,7 +1530,7 @@ impl Render for PopupMenu {
             .on_action(cx.listener(Self::confirm))
             .on_action(cx.listener(Self::dismiss))
             .on_mouse_down_out(cx.listener(Self::on_mouse_down_out))
-            .elevated_surface(cx)
+            .popover_style(cx)
             .when_some(self.menu_bg, |this, bg| this.bg(bg))
             .text_color(cx.theme().popover_foreground)
             .relative()

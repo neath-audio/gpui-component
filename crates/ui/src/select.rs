@@ -2,13 +2,14 @@ use gpui::{
     AnyElement, App, ClickEvent, Context, DismissEvent, Edges, ElementId, Entity, EventEmitter,
     FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, Length, ParentElement, Render,
     RenderOnce, SharedString, StatefulInteractiveElement, StyleRefinement, Styled, Window,
-    anchored, deferred, div, prelude::FluentBuilder, px, rems,
+    deferred, div, prelude::FluentBuilder, px, rems,
 };
 use rust_i18n::t;
 
+use crate::ThemeStyled as _;
 use crate::{
-    ActiveTheme, Disableable, ElementExt as _, ElevatedSurfaceExt, Icon, IconName, IndexPath,
-    Sizable, Size, StyleSized, StyledExt,
+    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
+    StyleSized, StyledExt,
     actions::Cancel,
     h_flex,
     input::{clear_button, input_style},
@@ -90,6 +91,7 @@ struct SelectOptions {
     disabled: bool,
     appearance: bool,
     trigger_ghost: bool,
+    focus_ring_enabled: bool,
 }
 
 impl Default for SelectOptions {
@@ -109,6 +111,7 @@ impl Default for SelectOptions {
             disabled: false,
             appearance: true,
             trigger_ghost: false,
+            focus_ring_enabled: true,
             search_placeholder: None,
         }
     }
@@ -127,6 +130,7 @@ where
     searchable: bool,
     icon: Option<Icon>,
     title_prefix: Option<SharedString>,
+    focus_ring_enabled: bool,
 }
 
 /// A Select element.
@@ -264,6 +268,7 @@ where
             searchable: false,
             icon: None,
             title_prefix: None,
+            focus_ring_enabled: true,
         }
     }
 
@@ -396,12 +401,7 @@ where
 
     fn set_open(&mut self, open: bool, cx: &mut Context<Self>) {
         self.state.open = open;
-
-        if self.state.open {
-            GlobalState::register_deferred_popover(&self.state.focus_handle, cx)
-        } else {
-            GlobalState::unregister_deferred_popover(&self.state.focus_handle, cx)
-        }
+        self.state.deferred_context = open.then(|| GlobalState::register_deferred_popover(cx));
 
         cx.notify();
     }
@@ -463,9 +463,7 @@ where
         let show_clean = self.state.cleanable && self.selected_index(cx).is_some();
         let bounds = self.state.bounds;
         let allow_open = !(self.state.open || self.state.disabled);
-        let outline_visible =
-            self.state.appearance && (self.state.open || (is_focused && !self.state.disabled));
-        let popup_radius = cx.theme().radius.min(px(8.));
+        let outline_visible = self.state.open || (is_focused && !self.state.disabled);
 
         let (bg, fg) = input_style(self.state.disabled, cx);
 
@@ -475,128 +473,130 @@ where
             list.delegate_mut().accent = self.state.menu_accent;
         });
 
-        div()
-            .w_full()
-            .relative()
-            .child(
-                div()
-                    .id("input")
-                    .relative()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .border_1()
-                    .border_color(cx.theme().transparent)
-                    .when(self.state.appearance, |this| {
-                        this.bg(bg)
-                            .text_color(fg)
-                            .when(self.state.disabled, |this| this.opacity(0.5))
-                            .border_color(cx.theme().input)
-                            .rounded(cx.theme().radius)
-                    })
-                    .when(self.state.trigger_ghost && !self.state.disabled, |this| {
-                        this.rounded(cx.theme().radius).map(|this| {
-                            if self.state.open {
-                                this.bg(cx.theme().foreground.opacity(0.2))
-                            } else {
-                                this.hover(|this| this.bg(cx.theme().foreground.opacity(0.12)))
-                                    .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
-                            }
+        div().size_full().relative().child(
+            div()
+                .relative()
+                .on_prepaint({
+                    let state = cx.entity();
+                    move |bounds, _, cx| state.update(cx, |r, _| r.state.bounds = bounds)
+                })
+                .child(
+                    div()
+                        .id("input")
+                        .relative()
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .border_1()
+                        .border_color(cx.theme().transparent)
+                        .when(self.state.appearance, |this| {
+                            this.bg(bg)
+                                .text_color(fg)
+                                .when(self.state.disabled, |this| this.opacity(0.5))
+                                .border_color(cx.theme().input)
+                                .rounded(cx.theme().radius)
                         })
-                    })
-                    .overflow_hidden()
-                    .input_size(self.state.size)
-                    .input_text_size(self.state.size)
-                    .refine_style(&self.state.style)
-                    .when(outline_visible, |this| this.focused_border(cx))
-                    .when(allow_open, |this| {
-                        this.on_click(cx.listener(Self::toggle_menu))
-                    })
-                    .child(
-                        h_flex()
-                            .id("inner")
-                            .w_full()
-                            .items_center()
-                            .justify_between()
-                            .gap_1()
-                            .child(
-                                div()
-                                    .id("title")
-                                    .w_full()
-                                    .overflow_hidden()
-                                    .whitespace_nowrap()
-                                    .truncate()
-                                    .child(self.display_title(window, cx)),
-                            )
-                            .when(show_clean, |this| {
-                                this.child(clear_button(cx).map(|this| {
-                                    if self.state.disabled {
-                                        this.disabled(true)
-                                    } else {
-                                        this.on_click(cx.listener(Self::clean))
-                                    }
-                                }))
+                        .when(self.state.trigger_ghost && !self.state.disabled, |this| {
+                            this.rounded(cx.theme().radius).map(|this| {
+                                if self.state.open {
+                                    this.bg(cx.theme().foreground.opacity(0.2))
+                                } else {
+                                    this.hover(|this| this.bg(cx.theme().foreground.opacity(0.12)))
+                                        .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
+                                }
                             })
-                            .when(!show_clean, |this| {
-                                let icon = match self.icon.clone() {
-                                    Some(icon) => icon
-                                        .xsmall()
-                                        .text_color(cx.theme().muted_foreground)
-                                        .into_any_element(),
-                                    None => Caret::new(self.state.size)
-                                        .text_color(cx.theme().muted_foreground)
-                                        .into_any_element(),
-                                };
+                        })
+                        .input_size(self.state.size)
+                        .input_text_size(self.state.size)
+                        .refine_style(&self.state.style)
+                        .when(outline_visible && self.state.appearance, |this| {
+                            this.border_1().border_color(cx.theme().ring)
+                        })
+                        .when(
+                            outline_visible && self.state.appearance && self.focus_ring_enabled,
+                            |this| this.focus_ring_style(window, cx),
+                        )
+                        .when(allow_open, |this| {
+                            this.on_click(cx.listener(Self::toggle_menu))
+                        })
+                        .child(
+                            h_flex()
+                                .id("inner")
+                                .w_full()
+                                .overflow_hidden()
+                                .items_center()
+                                .justify_between()
+                                .gap_1()
+                                .child(
+                                    div()
+                                        .id("title")
+                                        .w_full()
+                                        .overflow_hidden()
+                                        .whitespace_nowrap()
+                                        .truncate()
+                                        .child(self.display_title(window, cx)),
+                                )
+                                .when(show_clean, |this| {
+                                    this.child(clear_button(cx).map(|this| {
+                                        if self.state.disabled {
+                                            this.disabled(true)
+                                        } else {
+                                            this.on_click(cx.listener(Self::clean))
+                                        }
+                                    }))
+                                })
+                                .when(!show_clean, |this| {
+                                    let icon = match self.icon.clone() {
+                                        Some(icon) => icon
+                                            .xsmall()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .into_any_element(),
+                                        None => Caret::new(self.state.size)
+                                            .text_color(cx.theme().muted_foreground)
+                                            .into_any_element(),
+                                    };
 
-                                this.child(icon)
-                            }),
-                    )
-                    .on_prepaint({
-                        let state = cx.entity();
-                        move |bounds, _, cx| state.update(cx, |r, _| r.state.bounds = bounds)
-                    }),
-            )
-            .when(self.state.open, |this| {
-                this.child(
-                    deferred(
-                        anchored().snap_to_window_with_margin(px(8.)).child(
-                            div()
+                                    this.child(icon)
+                                }),
+                        ),
+                )
+                .when(self.state.open, |this| {
+                    this.child(
+                        deferred(crate::popover::dropdown_popup(
+                            ("select-popup", cx.entity_id()),
+                            bounds,
+                            v_flex()
                                 .occlude()
                                 .map(|this| match self.state.menu_width {
                                     Length::Auto => this.w(bounds.size.width + px(2.)),
                                     Length::Definite(w) => this.w(w),
                                 })
+                                .popover_style(cx)
+                                .when_some(self.state.menu_bg, |this, bg| this.bg(bg))
+                                .when_some(self.state.menu_border, |this, border| {
+                                    this.border_color(border)
+                                })
                                 .child(
-                                    v_flex()
-                                        .occlude()
-                                        .mt_1p5()
-                                        .elevated_surface(cx)
-                                        .rounded(popup_radius)
-                                        .when_some(self.state.menu_bg, |this, bg| this.bg(bg))
-                                        .when_some(self.state.menu_border, |this, border| {
-                                            this.border_color(border)
-                                        })
-                                        .child(
-                                            List::new(&self.state.list)
-                                                .when_some(
-                                                    self.state.search_placeholder.clone(),
-                                                    |this, placeholder| {
-                                                        this.search_placeholder(placeholder)
-                                                    },
-                                                )
-                                                .with_size(self.state.size)
-                                                .max_h(self.state.menu_max_h)
-                                                .paddings(Edges::all(px(4.))),
-                                        ),
+                                    List::new(&self.state.list)
+                                        .when_some(
+                                            self.state.search_placeholder.clone(),
+                                            |this, placeholder| {
+                                                this.search_placeholder(placeholder)
+                                            },
+                                        )
+                                        .with_size(self.state.size)
+                                        .max_h(self.state.menu_max_h)
+                                        .paddings(Edges::all(px(4.))),
                                 )
                                 .on_mouse_down_out(cx.listener(|this, _, window, cx| {
                                     this.escape(&Cancel, window, cx);
                                 })),
-                        ),
+                            cx,
+                        ))
+                        .with_priority(gpui_base::POPUP_PRIORITY),
                     )
-                    .with_priority(gpui_base::POPUP_PRIORITY),
-                )
-            })
+                }),
+        )
     }
 }
 
@@ -623,24 +623,6 @@ where
     /// Set the max height of the dropdown menu, default: 20rem.
     pub fn menu_max_h(mut self, max_h: impl Into<Length>) -> Self {
         self.options.menu_max_h = max_h.into();
-        self
-    }
-
-    /// Override the dropdown menu background.
-    pub fn menu_bg(mut self, bg: impl Into<Hsla>) -> Self {
-        self.options.menu_bg = Some(bg.into());
-        self
-    }
-
-    /// Override the dropdown menu border.
-    pub fn menu_border(mut self, border: impl Into<Hsla>) -> Self {
-        self.options.menu_border = Some(border.into());
-        self
-    }
-
-    /// Override selected and hovered row accents in the dropdown.
-    pub fn menu_accent(mut self, accent: impl Into<Hsla>) -> Self {
-        self.options.menu_accent = Some(accent.into());
         self
     }
 
@@ -699,7 +681,25 @@ where
         self
     }
 
-    /// Use a borderless trigger with ghost-button hover and pressed tints.
+    /// Override the dropdown menu background.
+    pub fn menu_bg(mut self, bg: impl Into<Hsla>) -> Self {
+        self.options.menu_bg = Some(bg.into());
+        self
+    }
+
+    /// Override the dropdown menu border.
+    pub fn menu_border(mut self, border: impl Into<Hsla>) -> Self {
+        self.options.menu_border = Some(border.into());
+        self
+    }
+
+    /// Override selected and hovered row accents in the dropdown.
+    pub fn menu_accent(mut self, accent: impl Into<Hsla>) -> Self {
+        self.options.menu_accent = Some(accent.into());
+        self
+    }
+
+    /// Borderless trigger with ghost Button hover/press tints.
     pub fn ghost(mut self) -> Self {
         self.options.appearance = false;
         self.options.trigger_ghost = true;
@@ -715,6 +715,21 @@ where
     fn with_size(mut self, size: impl Into<Size>) -> Self {
         self.options.size = size.into();
         self
+    }
+}
+
+impl<D> crate::FocusableExt for Select<D>
+where
+    D: SearchableListDelegate + 'static,
+    <D::Item as SearchableListItem>::Value: PartialEq + Clone,
+{
+    fn focus_ring(mut self, enabled: bool) -> Self {
+        self.options.focus_ring_enabled = enabled;
+        self
+    }
+
+    fn is_focus_ring_enabled(&self) -> bool {
+        self.options.focus_ring_enabled
     }
 }
 
@@ -781,6 +796,7 @@ where
             this.state.disabled = opts.disabled;
             this.state.appearance = opts.appearance;
             this.state.trigger_ghost = opts.trigger_ghost;
+            this.focus_ring_enabled = opts.focus_ring_enabled;
             this.icon = opts.icon;
             this.title_prefix = opts.title_prefix;
 
@@ -801,7 +817,7 @@ where
             .on_open_change(move |open, _, cx| {
                 open_state.update(cx, |state, cx| state.set_open(open, cx));
             })
-            .w_full()
+            .size_full()
             .child(self.state)
     }
 }

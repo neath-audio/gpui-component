@@ -15,8 +15,9 @@ use gpui::{
 };
 use gpui_base::{Button as BaseButton, Toggle as BaseToggle};
 
+use crate::ThemeStyled as _;
 use crate::{
-    ActiveTheme, Colorize as _, Disableable, FocusableExt as _, Icon, Selectable, Sizable as _,
+    ActiveTheme, Colorize as _, Disableable, Icon, Selectable, Sizable as _,
     Size, StyledExt,
     spinner::Spinner,
     tooltip::{ManagedTooltipExt, Tooltip},
@@ -423,7 +424,7 @@ impl RenderOnce for IconButton {
                     }),
                 cx,
             )
-            .focus_ring(is_focused, px(0.), window, cx)
+            .when(is_focused, |this| this.focus_ring_style(window, cx))
             .render(window, cx)
     }
 }
@@ -633,7 +634,7 @@ impl RenderOnce for IconToggle {
                     }),
                 cx,
             )
-            .focus_ring(is_focused, px(0.), window, cx)
+            .when(is_focused, |this| this.focus_ring_style(window, cx))
             .render(window, cx)
     }
 }

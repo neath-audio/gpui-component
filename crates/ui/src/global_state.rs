@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 
-use gpui::{
-    App, Bounds, Entity, EntityId, FocusHandle, Global, Pixels, Point, WeakFocusHandle, Window,
-};
+use gpui::{App, Bounds, Entity, EntityId, Global, Pixels, Point, Window};
 
-use crate::text::{SelectionScope, TextViewState};
+use crate::text::TextViewState;
 
 pub use gpui_base::GlobalState;
 
@@ -19,11 +17,9 @@ pub(crate) fn init(cx: &mut App) {
 }
 
 /// UI-only global state whose types cannot cross into `gpui-base`.
-#[derive(Default)]
 pub(crate) struct UiGlobalState {
     pub(crate) text_view_state_stack: Vec<Entity<TextViewState>>,
-    selection_scope_stack: Vec<SelectionScope>,
-    menu_focus_handles: Vec<WeakFocusHandle>,
+    selection_document_order: u64,
     open_menu_bounds: HashMap<EntityId, Bounds<Pixels>>,
     pub(crate) text_link_handler: Option<TextLinkHandler>,
 }
@@ -32,7 +28,12 @@ impl Global for UiGlobalState {}
 
 impl UiGlobalState {
     fn new() -> Self {
-        Self::default()
+        Self {
+            text_view_state_stack: Vec::new(),
+            selection_document_order: 1,
+            open_menu_bounds: HashMap::new(),
+            text_link_handler: None,
+        }
     }
 
     pub(crate) fn global(cx: &App) -> &Self {
@@ -40,26 +41,21 @@ impl UiGlobalState {
     }
 
     pub(crate) fn global_mut(cx: &mut App) -> &mut Self {
-        cx.default_global::<Self>()
+        cx.global_mut::<Self>()
     }
 
     pub(crate) fn text_view_state(&self) -> Option<&Entity<TextViewState>> {
         self.text_view_state_stack.last()
     }
 
-    pub(crate) fn push_selection_scope(&mut self, scope: SelectionScope) {
-        self.selection_scope_stack.push(scope);
+    pub(crate) fn begin_selection_frame(&mut self) {
+        self.selection_document_order = 1;
     }
 
-    pub(crate) fn pop_selection_scope(&mut self) {
-        self.selection_scope_stack.pop();
-    }
-
-    pub(crate) fn current_selection_scope(&self) -> SelectionScope {
-        self.selection_scope_stack
-            .last()
-            .copied()
-            .unwrap_or(SelectionScope::Base)
+    pub(crate) fn next_selection_document_order(&mut self) -> u64 {
+        let order = self.selection_document_order;
+        self.selection_document_order = self.selection_document_order.wrapping_add(1);
+        order
     }
 
     pub(crate) fn update_menu_bounds(&mut self, id: EntityId, bounds: Bounds<Pixels>) {
@@ -76,16 +72,4 @@ impl UiGlobalState {
             .any(|bounds| bounds.contains(position))
     }
 
-    pub(crate) fn register_menu_focus_handle(&mut self, focus_handle: &FocusHandle) {
-        self.menu_focus_handles
-            .retain(|handle| handle.upgrade().is_some());
-        self.menu_focus_handles.push(focus_handle.downgrade());
-    }
-
-    pub(crate) fn is_menu_focused(&self, window: &Window, cx: &App) -> bool {
-        self.menu_focus_handles
-            .iter()
-            .filter_map(|handle| handle.upgrade())
-            .any(|handle| handle.contains_focused(window, cx))
-    }
 }

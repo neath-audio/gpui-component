@@ -1,8 +1,8 @@
 use gpui::{
-    AnyElement, App, Bounds, ClickEvent, Context, DismissEvent, Div, Edges, ElementId, Entity,
+    AnyElement, App, Bounds, ClickEvent, Context, DismissEvent, Edges, ElementId, Entity,
     EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, Length,
     MouseDownEvent, ParentElement, Pixels, Rems, Render, RenderOnce, SharedString,
-    StatefulInteractiveElement, StyleRefinement, Styled, Window, anchored, deferred, div,
+    StatefulInteractiveElement, StyleRefinement, Styled, Window, deferred, div,
     prelude::FluentBuilder, px, rems,
 };
 
@@ -10,9 +10,10 @@ use rust_i18n::t;
 
 pub use crate::select::Caret;
 
+use crate::ThemeStyled as _;
 use crate::{
-    ActiveTheme, Disableable, ElementExt as _, ElevatedSurfaceExt, Icon, IconName, IndexPath,
-    Sizable, Size, StyleSized, StyledExt, h_flex,
+    ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
+    StyleSized, StyledExt, h_flex,
     input::{clear_button, input_style},
     list::{List, ListState},
     searchable_list::{
@@ -23,15 +24,42 @@ use crate::{
 };
 use gpui_base::{Combobox as BaseCombobox, GlobalState};
 
-// MARK: ComboboxTriggerCtx
+// MARK: ComboboxTriggerContext
 
 /// Context passed to the `render_trigger` closure on [`Combobox`].
-pub struct ComboboxTriggerCtx<'a, D: SearchableListDelegate + 'static> {
-    pub selection: &'a [(IndexPath, D::Item)],
-    pub placeholder: Option<&'a SharedString>,
-    pub open: bool,
-    pub disabled: bool,
-    pub size: Size,
+///
+/// The fields are private and reached through the methods below, so that a new
+/// one can be added without breaking the trigger renderers.
+pub struct ComboboxTriggerContext<'a, D: SearchableListDelegate + 'static> {
+    selection: &'a [(IndexPath, D::Item)],
+    placeholder: Option<&'a SharedString>,
+    open: bool,
+    disabled: bool,
+    size: Size,
+}
+
+impl<'a, D: SearchableListDelegate + 'static> ComboboxTriggerContext<'a, D> {
+    /// The items currently selected, empty when the combobox has no value.
+    pub fn selection(&self) -> &'a [(IndexPath, D::Item)] {
+        self.selection
+    }
+
+    pub fn placeholder(&self) -> Option<&'a SharedString> {
+        self.placeholder
+    }
+
+    /// Whether the dropdown list is showing.
+    pub fn is_open(&self) -> bool {
+        self.open
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self.disabled
+    }
+
+    pub fn size(&self) -> Size {
+        self.size
+    }
 }
 
 // MARK: ComboboxChange
@@ -47,12 +75,13 @@ struct ComboboxOptions {
     cleanable: bool,
     placeholder: Option<SharedString>,
     search_placeholder: Option<SharedString>,
-    search_text_size: Option<Rems>,
-    search_paddings: Option<Edges<Pixels>>,
     menu_width: Length,
     menu_max_h: Length,
     disabled: bool,
     appearance: bool,
+    focus_ring_enabled: bool,
+    search_text_size: Option<Rems>,
+    search_paddings: Option<Edges<Pixels>>,
     trigger_unstyled: bool,
     trigger_icon: Option<Icon>,
     check_icon: Option<Icon>,
@@ -66,12 +95,13 @@ impl Default for ComboboxOptions {
             cleanable: false,
             placeholder: None,
             search_placeholder: None,
-            search_text_size: None,
-            search_paddings: None,
             menu_width: Length::Auto,
             menu_max_h: rems(20.).into(),
             disabled: false,
             appearance: true,
+            focus_ring_enabled: true,
+            search_text_size: None,
+            search_paddings: None,
             trigger_unstyled: false,
             trigger_icon: None,
             check_icon: None,
@@ -93,10 +123,12 @@ where
     searchable: bool,
     trigger_icon: Option<Icon>,
     check_icon: Option<Icon>,
-    render_trigger:
-        Option<Box<dyn Fn(&ComboboxTriggerCtx<D>, &mut Window, &mut App) -> AnyElement + 'static>>,
-    trigger_unstyled: bool,
+    render_trigger: Option<
+        Box<dyn Fn(&ComboboxTriggerContext<D>, &mut Window, &mut App) -> AnyElement + 'static>,
+    >,
     footer: Option<Box<dyn Fn(&mut Window, &mut App) -> AnyElement + 'static>>,
+    focus_ring_enabled: bool,
+    trigger_unstyled: bool,
 }
 
 /// Events emitted by [`ComboboxState`].
@@ -244,8 +276,9 @@ where
             trigger_icon: None,
             check_icon: None,
             render_trigger: None,
-            trigger_unstyled: false,
             footer: None,
+            focus_ring_enabled: true,
+            trigger_unstyled: false,
         }
     }
 
@@ -358,6 +391,19 @@ where
     /// Focus the trigger.
     pub fn focus(&self, window: &mut Window, cx: &mut App) {
         self.state.focus_handle.focus(window, cx);
+    }
+
+    /// Returns the search query.
+    pub fn query(&self, cx: &App) -> SharedString {
+        self.state.list.read(cx).query_input.read(cx).value()
+    }
+
+    /// Sets the search query and updates the filtered items.
+    pub fn set_query(&self, query: impl Into<SharedString>, window: &mut Window, cx: &mut App) {
+        let query = query.into();
+        self.state.list.update(cx, |list, cx| {
+            list.set_query(query.as_ref(), window, cx);
+        });
     }
 
     fn selection_changes(
@@ -489,12 +535,7 @@ where
 
     fn set_open(&mut self, open: bool, cx: &mut Context<Self>) {
         self.state.open = open;
-
-        if self.state.open {
-            GlobalState::register_deferred_popover(&self.state.focus_handle, cx)
-        } else {
-            GlobalState::unregister_deferred_popover(&self.state.focus_handle, cx)
-        }
+        self.state.deferred_context = open.then(|| GlobalState::register_deferred_popover(cx));
 
         cx.notify();
     }
@@ -581,7 +622,7 @@ where
         let has_custom_trigger = self.render_trigger.is_some();
 
         let trigger_body = if let Some(render_trigger) = &self.render_trigger {
-            let ctx = ComboboxTriggerCtx {
+            let trigger = ComboboxTriggerContext {
                 selection,
                 placeholder,
                 open,
@@ -589,7 +630,7 @@ where
                 size,
             };
 
-            render_trigger(&ctx, window, cx)
+            render_trigger(&trigger, window, cx)
         } else {
             self.default_trigger_body(window, cx)
         };
@@ -623,52 +664,58 @@ where
                 None
             };
 
-        let prepaint_handler: Box<dyn Fn(Bounds<Pixels>, &mut Window, &mut App) + 'static> = {
-            let state = cx.entity();
-            Box::new(move |bounds, _, cx| state.update(cx, |r, _| r.state.bounds = bounds))
-        };
-
         let footer_el = self.footer.as_ref().map(|f| f(window, cx));
 
         let dismiss_handler: Box<dyn Fn(&MouseDownEvent, &mut Window, &mut App) + 'static> =
             Box::new(cx.listener(Self::dismiss));
 
-        let trigger: AnyElement = if has_custom_trigger && self.trigger_unstyled {
+        let unstyled = has_custom_trigger && self.trigger_unstyled;
+        let trigger: AnyElement = if unstyled {
             div()
                 .id("input")
                 .when(allow_open, |this| {
                     this.when_some(toggle_handler, |this, handler| this.on_click(handler))
                 })
                 .child(trigger_body)
-                .on_prepaint(prepaint_handler)
+                .on_prepaint({
+                    let state = cx.entity();
+                    move |bounds, _, cx| state.update(cx, |r, _| r.state.bounds = bounds)
+                })
                 .into_any_element()
         } else {
-            render_trigger_container(
-                disabled,
-                self.state.appearance,
-                self.state.size,
-                &self.state.style,
-                bg,
-                fg,
-                outline_visible,
-                allow_open,
-                trigger_body,
-                trailing,
-                toggle_handler,
-                prepaint_handler,
-                cx,
-            )
-            .into_any_element()
+            div()
+                .relative()
+                .on_prepaint({
+                    let state = cx.entity();
+                    move |bounds, _, cx| state.update(cx, |r, _| r.state.bounds = bounds)
+                })
+                .child(render_trigger_container(
+                    disabled,
+                    self.state.appearance,
+                    self.focus_ring_enabled,
+                    self.state.size,
+                    &self.state.style,
+                    bg,
+                    fg,
+                    outline_visible,
+                    allow_open,
+                    trigger_body,
+                    trailing,
+                    toggle_handler,
+                    window,
+                    cx,
+                ))
+                .into_any_element()
         };
-        let unstyled = has_custom_trigger && self.trigger_unstyled;
 
         div()
-            .when(!unstyled, |this| this.w_full())
+            .when(!unstyled, |this| this.size_full())
             .relative()
             .child(trigger)
             .when(self.state.open, |this| {
                 this.child(
                     deferred(render_popup_shell(
+                        ("combobox-popup", cx.entity_id()),
                         &self.state.list,
                         self.state.menu_width,
                         self.state.search_placeholder.clone(),
@@ -728,8 +775,9 @@ where
     id: ElementId,
     state: Entity<ComboboxState<D>>,
     options: ComboboxOptions,
-    render_trigger:
-        Option<Box<dyn Fn(&ComboboxTriggerCtx<D>, &mut Window, &mut App) -> AnyElement + 'static>>,
+    render_trigger: Option<
+        Box<dyn Fn(&ComboboxTriggerContext<D>, &mut Window, &mut App) -> AnyElement + 'static>,
+    >,
     footer: Option<Box<dyn Fn(&mut Window, &mut App) -> AnyElement + 'static>>,
     empty: Option<Box<dyn Fn(&mut Window, &App) -> AnyElement + 'static>>,
 }
@@ -786,7 +834,7 @@ where
         self
     }
 
-    /// Set the query-row text size in the popup list.
+    /// Override the query-row text size in the popup list.
     pub fn search_text_size(mut self, size: impl Into<Rems>) -> Self {
         self.options.search_text_size = Some(size.into());
         self
@@ -827,8 +875,7 @@ where
         self
     }
 
-    /// Render a custom trigger without border, padding, focus ring, or
-    /// trailing icon while retaining click and popup-anchor behavior.
+    /// Skip the input-shaped trigger container when a custom trigger is set.
     pub fn trigger_unstyled(mut self) -> Self {
         self.options.trigger_unstyled = true;
         self
@@ -837,10 +884,10 @@ where
     /// Override the entire trigger element.
     pub fn render_trigger<E: IntoElement + 'static>(
         mut self,
-        f: impl Fn(&ComboboxTriggerCtx<D>, &mut Window, &mut App) -> E + 'static,
+        f: impl Fn(&ComboboxTriggerContext<D>, &mut Window, &mut App) -> E + 'static,
     ) -> Self {
-        self.render_trigger = Some(Box::new(move |ctx, window, cx| {
-            f(ctx, window, cx).into_any_element()
+        self.render_trigger = Some(Box::new(move |trigger, window, cx| {
+            f(trigger, window, cx).into_any_element()
         }));
         self
     }
@@ -866,6 +913,21 @@ where
     }
 }
 
+impl<D> crate::FocusableExt for Combobox<D>
+where
+    D: SearchableListDelegate + 'static,
+    <D::Item as SearchableListItem>::Value: PartialEq + Clone,
+{
+    fn focus_ring(mut self, enabled: bool) -> Self {
+        self.options.focus_ring_enabled = enabled;
+        self
+    }
+
+    fn is_focus_ring_enabled(&self) -> bool {
+        self.options.focus_ring_enabled
+    }
+}
+
 impl<D> Styled for Combobox<D>
 where
     D: SearchableListDelegate + 'static,
@@ -882,7 +944,6 @@ where
     <D::Item as SearchableListItem>::Value: PartialEq + Clone,
 {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let unstyled = self.options.trigger_unstyled && self.render_trigger.is_some();
         let disabled = self.options.disabled;
         let focus_handle = self.state.read(cx).state.focus_handle.clone();
         let render_trigger = self.render_trigger;
@@ -902,6 +963,7 @@ where
             this.state.menu_max_h = opts.menu_max_h;
             this.state.disabled = opts.disabled;
             this.state.appearance = opts.appearance;
+            this.focus_ring_enabled = opts.focus_ring_enabled;
             this.trigger_icon = opts.trigger_icon;
             this.check_icon = opts.check_icon;
             this.render_trigger = render_trigger;
@@ -933,7 +995,7 @@ where
                     cx.emit(ComboboxEvent::Confirm(state.selected_values()));
                 });
             })
-            .when(!unstyled, |this| this.w_full())
+            .size_full()
             .child(self.state)
     }
 }
@@ -945,6 +1007,7 @@ where
 fn render_trigger_container(
     disabled: bool,
     appearance: bool,
+    focus_ring_enabled: bool,
     size: Size,
     style: &StyleRefinement,
     bg: Hsla,
@@ -954,7 +1017,7 @@ fn render_trigger_container(
     trigger_body: AnyElement,
     trailing: AnyElement,
     toggle_handler: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>,
-    prepaint_handler: Box<dyn Fn(Bounds<Pixels>, &mut Window, &mut App) + 'static>,
+    window: &Window,
     cx: &mut App,
 ) -> impl IntoElement {
     div()
@@ -972,13 +1035,16 @@ fn render_trigger_container(
                 .border_color(cx.theme().input)
                 .rounded(cx.theme().radius)
         })
-        .overflow_hidden()
         .input_size(size)
         .input_text_size(size)
         .refine_style(style)
-        .when(appearance && outline_visible, |this| {
-            this.focused_border(cx)
+        .when(outline_visible && appearance, |this| {
+            this.border_1().border_color(cx.theme().ring)
         })
+        .when(
+            outline_visible && appearance && focus_ring_enabled,
+            |this| this.focus_ring_style(window, cx),
+        )
         .when(allow_open, |this| {
             this.when_some(toggle_handler, |this, handler| this.on_click(handler))
         })
@@ -986,18 +1052,19 @@ fn render_trigger_container(
             h_flex()
                 .id("inner")
                 .w_full()
+                .overflow_hidden()
                 .items_center()
                 .justify_between()
                 .gap_1()
                 .child(trigger_body)
                 .child(trailing),
         )
-        .on_prepaint(prepaint_handler)
 }
 
 /// Renders the deferred anchored popup shell containing the searchable list and optional footer.
 #[allow(clippy::too_many_arguments)]
 fn render_popup_shell<D: SearchableListDelegate + 'static>(
+    id: impl Into<ElementId>,
     list: &Entity<ListState<SearchableListAdapter<D>>>,
     menu_width: Length,
     search_placeholder: Option<SharedString>,
@@ -1011,52 +1078,43 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
     cx: &mut App,
 ) -> AnyElement {
     let has_footer = footer_el.is_some();
-    let popup_radius = cx.theme().radius.min(px(8.));
 
-    anchored()
-        .snap_to_window_with_margin(px(8.))
-        .child(
-            div()
-                .occlude()
-                .map(|this| match menu_width {
-                    Length::Auto => this.w(bounds.size.width + px(2.)),
-                    Length::Definite(w) => this.w(w),
-                })
-                .child(
-                    combobox_popup_surface(cx)
-                        .rounded(popup_radius)
-                        .child(
-                            List::new(list)
-                                .when_some(search_placeholder, |this, placeholder| {
-                                    this.search_placeholder(placeholder)
-                                })
-                                .when_some(search_text_size, |this, size| {
-                                    this.search_text_size(size)
-                                })
-                                .when_some(search_paddings, |this, paddings| {
-                                    this.search_paddings(paddings)
-                                })
-                                .with_size(size)
-                                .max_h(menu_max_h)
-                                .paddings(Edges::all(px(4.))),
-                        )
-                        .when(has_footer, |this| {
-                            this.child(
-                                div()
-                                    .border_t_1()
-                                    .border_color(cx.theme().border)
-                                    .p_1()
-                                    .when_some(footer_el, |this, el| this.child(el)),
-                            )
-                        }),
+    crate::popover::dropdown_popup(
+        id,
+        bounds,
+        v_flex()
+            .occlude()
+            .map(|this| match menu_width {
+                Length::Auto => this.w(bounds.size.width + px(2.)),
+                Length::Definite(w) => this.w(w),
+            })
+            .popover_style(cx)
+            .child(
+                List::new(list)
+                    .when_some(search_placeholder, |this, placeholder| {
+                        this.search_placeholder(placeholder)
+                    })
+                    .when_some(search_text_size, |this, size| this.search_text_size(size))
+                    .when_some(search_paddings, |this, paddings| {
+                        this.search_paddings(paddings)
+                    })
+                    .with_size(size)
+                    .max_h(menu_max_h)
+                    .paddings(Edges::all(px(4.))),
+            )
+            .when(has_footer, |this| {
+                this.child(
+                    div()
+                        .border_t_1()
+                        .border_color(cx.theme().border)
+                        .p_1()
+                        .when_some(footer_el, |this, el| this.child(el)),
                 )
-                .on_mouse_down_out(dismiss_handler),
-        )
-        .into_any_element()
-}
-
-fn combobox_popup_surface(cx: &App) -> Div {
-    v_flex().occlude().mt_1p5().elevated_surface(cx)
+            })
+            .on_mouse_down_out(dismiss_handler),
+        cx,
+    )
+    .into_any_element()
 }
 
 // MARK: Tests
@@ -1066,14 +1124,13 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     use gpui::{
-        AppContext as _, Bounds, Context, Entity, Focusable, InteractiveElement as _, IntoElement,
-        Modifiers, MouseButton, MouseDownEvent, Pixels, Point, Render, Styled as _, Subscription,
-        TestAppContext, Window, point, px, size,
+        AppContext as _, Bounds, Context, Entity, Modifiers, MouseButton, MouseDownEvent, Pixels,
+        Point, Subscription, TestAppContext, point, px, size,
     };
 
     use crate::{
-        ElevatedSurfaceExt as _, IndexPath,
-        combobox::{Combobox, ComboboxEvent, ComboboxState, combobox_popup_surface},
+        IndexPath,
+        combobox::{Combobox, ComboboxEvent, ComboboxState},
         searchable_list::{
             SearchableListChange, SearchableListDelegate, SearchableListItem, SearchableListState,
             SearchableVec,
@@ -1083,16 +1140,6 @@ mod tests {
     struct TestComboboxEventCollector {
         event_count: Rc<Cell<usize>>,
         _subscription: Subscription,
-    }
-
-    struct ComboboxRenderHarness {
-        state: Entity<ComboboxState<SearchableVec<&'static str>>>,
-    }
-
-    impl Render for ComboboxRenderHarness {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-            Combobox::new(&self.state)
-        }
     }
 
     impl TestComboboxEventCollector {
@@ -1114,42 +1161,6 @@ mod tests {
                 _subscription,
             }
         }
-    }
-
-    #[gpui::test]
-    fn combobox_popup_surface_uses_styled_elevation(cx: &mut TestAppContext) {
-        cx.update(crate::init);
-        cx.update(|cx| {
-            let mut actual = combobox_popup_surface(cx);
-            let mut expected = crate::v_flex().occlude().mt_1p5().elevated_surface(cx);
-
-            assert_eq!(actual.style().clone(), expected.style().clone());
-        });
-    }
-
-    #[gpui::test]
-    fn open_combobox_renders_with_list_focus(cx: &mut TestAppContext) {
-        cx.update(crate::init);
-        let (root, cx) = cx.add_window_view(|window, cx| {
-            let items = SearchableVec::new(vec!["React", "Vue", "Angular"]);
-            let state = cx.new(|cx| ComboboxState::new(items, vec![], window, cx).searchable(true));
-            ComboboxRenderHarness { state }
-        });
-        let state = root.read_with(cx, |root, _| root.state.clone());
-
-        cx.update(|window, cx| {
-            state.update(cx, |state, cx| {
-                state.set_open(true, cx);
-                state.state.list.focus_handle(cx).focus(window, cx);
-            });
-            window.draw(cx).clear(cx);
-        });
-
-        cx.update(|window, cx| {
-            let state = state.read(cx);
-            assert!(state.state.open);
-            assert!(state.state.list.read(cx).is_focused(window, cx));
-        });
     }
 
     #[gpui::test]
@@ -1207,6 +1218,31 @@ mod tests {
                 .delegate
                 .items_count(0);
             assert_eq!(count_after, 1);
+        });
+    }
+
+    #[gpui::test]
+    fn test_combo_box_set_query_updates_text_and_filters_items(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let cx = cx.add_empty_window();
+        cx.update(|window, cx| {
+            let items = SearchableVec::new(vec!["Rust", "Go", "C++"]);
+            let state = cx.new(|cx| ComboboxState::new(items, vec![], window, cx).searchable(true));
+
+            state.update(cx, |state, cx| state.set_query(" Rust ", window, cx));
+
+            assert_eq!(state.read(cx).query(cx).as_ref(), " Rust ");
+            assert_eq!(
+                state
+                    .read(cx)
+                    .state
+                    .list
+                    .read(cx)
+                    .delegate()
+                    .delegate
+                    .items_count(0),
+                1,
+            );
         });
     }
 

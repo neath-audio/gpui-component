@@ -60,10 +60,12 @@ impl Focusable for NotificationStory {
 
 impl Render for NotificationStory {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const ANCHORS: [Anchor; 6] = [
+        const ANCHORS: [Anchor; 8] = [
             Anchor::TopLeft,
             Anchor::TopCenter,
             Anchor::TopRight,
+            Anchor::LeftCenter,
+            Anchor::RightCenter,
             Anchor::BottomLeft,
             Anchor::BottomCenter,
             Anchor::BottomRight,
@@ -378,6 +380,74 @@ impl Render for NotificationStory {
                             })),
                     ),
             )
+            .child(
+                section("Placement per notification")
+                    .description("Override the global placement for a single notification.")
+                    .children(ANCHORS.into_iter().map(|placement| {
+                        Button::new(format!("show-notify-{placement:?}"))
+                            .outline()
+                            .label(format!("{placement:?}"))
+                            .on_click(cx.listener(move |_, _, window, cx| {
+                                window.push_notification(
+                                    Notification::info(format!(
+                                        "This notification is at {placement:?}."
+                                    ))
+                                    .placement(placement),
+                                    cx,
+                                )
+                            }))
+                    })),
+            )
+            .child({
+                struct SystemNotificationKind;
+
+                section("System notification")
+                    .description(
+                        "Deliver to the OS notification center; click the system \
+                        notification to refocus the app. macOS shows them only when \
+                        running from a bundled .app; Windows requires \
+                        cx.set_app_identity().",
+                    )
+                    .child(
+                        Button::new("show-notify-system")
+                            .outline()
+                            .label("System only")
+                            .on_click(cx.listener(|_, _, window, cx| {
+                                window.push_notification(
+                                    Notification::info(
+                                        "Delivered straight to the notification center.",
+                                    )
+                                    .id::<SystemNotificationKind>()
+                                    .title("Build finished")
+                                    .system()
+                                    .on_click(|_, _, _| {
+                                        println!("[notification] system notification clicked");
+                                    }),
+                                    cx,
+                                )
+                            })),
+                    )
+                    .child(
+                        Button::new("show-notify-in-app-and-system")
+                            .outline()
+                            .label("In-app and system")
+                            .on_click(cx.listener(|_, _, window, cx| {
+                                window.push_notification(
+                                    Notification::info(
+                                        "Shown as a toast and in the notification center.",
+                                    )
+                                    .id::<SystemNotificationKind>()
+                                    .title("Build finished")
+                                    .in_app_and_system()
+                                    .autohide(false)
+                                    .on_click(|_, _, _| {
+                                        println!("[notification] system notification clicked");
+                                    }),
+                                    cx,
+                                )
+                            })),
+                    )
+            })
             .child(
                 section("Custom content")
                     .description("Render application-owned notification content.")

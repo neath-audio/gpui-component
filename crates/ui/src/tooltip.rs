@@ -2,8 +2,8 @@ use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, ElementId, IntoElement,
-    ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, StyleRefinement,
-    Styled, Window, div, prelude::FluentBuilder, px,
+    MouseButton, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement,
+    StyleRefinement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{
     Tooltip as BaseTooltip, TooltipOverlay as BaseTooltipOverlay,
@@ -74,16 +74,15 @@ impl Tooltip {
         self
     }
 
-    /// Set KeyBinding information for the tooltip.
-    pub fn key_binding(mut self, key_binding: Option<Kbd>) -> Self {
-        self.key_binding = key_binding;
+    /// Drop the default margin so a positioner can own the trigger gap.
+    pub fn overlay_anchored(mut self) -> Self {
+        self.overlay_anchored = true;
         self
     }
 
-    /// Remove the legacy bubble margin when the managed overlay owns the
-    /// trigger gap and viewport positioning.
-    pub fn overlay_anchored(mut self) -> Self {
-        self.overlay_anchored = true;
+    /// Set KeyBinding information for the tooltip.
+    pub fn key_binding(mut self, key_binding: Option<Kbd>) -> Self {
+        self.key_binding = key_binding;
         self
     }
 
@@ -125,13 +124,13 @@ impl Render for Tooltip {
                 .text_color(cx.theme().popover_foreground)
                 .bg(cx.theme().tokens.popover)
                 .border_1()
-                .border_color(cx.theme().hairline_strong)
-                .shadow(cx.theme().shadow_2().into_vec())
-                .rounded(px(6.))
+                .border_color(cx.theme().border)
+                .shadow_md()
+                .rounded(cx.theme().radius)
                 .justify_between()
                 .py_0p5()
                 .px_2()
-                .text_xs()
+                .text_sm()
                 .gap_3()
                 .refine_style(&self.style)
                 .map(|this| {
@@ -220,7 +219,6 @@ impl ComponentTooltip {
         } else if let Some((text, action)) = self.text {
             el.managed_tooltip(move |window, cx| {
                 Tooltip::new(text.clone())
-                    .overlay_anchored()
                     .when_some(action.clone(), |this, (action, context)| {
                         this.action(
                             action.boxed_clone().as_ref(),
@@ -235,11 +233,11 @@ impl ComponentTooltip {
     }
 }
 
-// ── Managed tooltip extension trait ─────────────────────────────────────────
+// ── Internal managed tooltip trait ──────────────────────────────────────────
 
-/// Attach the same managed tooltip used by built-in controls to a custom
-/// stateful element.
-pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Sized {
+pub trait ManagedTooltipExt:
+    StatefulInteractiveElement + crate::ElementExt + Sized
+{
     fn managed_tooltip(
         self,
         build_tooltip: impl Fn(&mut Window, &mut App) -> AnyView + 'static,
@@ -273,13 +271,12 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
             move |hovered, window, cx| {
                 if let Some(overlay) = Root::tooltip_overlay(window, cx) {
                     if *hovered {
+                        let bounds = trigger_bounds_cell.get();
                         overlay.update(cx, |o: &mut BaseTooltipOverlay, cx| {
                             let build = build_tooltip.clone();
-                            let request = BaseTooltipRequest::new(
-                                trigger_bounds_cell.get(),
-                                move |window, cx| build(window, cx),
-                            )
-                            .live_bounds(trigger_bounds_cell.clone());
+                            let request = BaseTooltipRequest::new(bounds, move |window, cx| {
+                                build(window, cx)
+                            });
                             let request = match preferred_placement {
                                 Some(placement) => request.placement(placement),
                                 None => request,
@@ -292,6 +289,13 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
                         });
                     }
                 }
+            }
+        })
+        .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+            if let Some(overlay) = Root::tooltip_overlay(window, cx) {
+                overlay.update(cx, |overlay, cx| {
+                    overlay.hide(cx);
+                });
             }
         })
     }

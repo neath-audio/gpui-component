@@ -1,9 +1,10 @@
 use gpui::{
-    AnyElement, App, Div, Hsla, IntoElement, ParentElement, Pixels, Point, RenderOnce,
+    AnyElement, App, Div, Half as _, Hsla, IntoElement, ParentElement, Pixels, Point, RenderOnce,
     SharedString, Size, StyleRefinement, Styled, Window, deferred, div, prelude::FluentBuilder, px,
 };
 
-use crate::{ActiveTheme, Colorize, ElevatedSurfaceExt, StyledExt, h_flex, v_flex};
+use crate::ThemeStyled as _;
+use crate::{ActiveTheme, Colorize, StyledExt, h_flex, v_flex};
 
 #[derive(Default)]
 pub enum CrossLineAxis {
@@ -379,7 +380,12 @@ impl RenderOnce for Tooltip {
                             h_flex()
                                 .items_center()
                                 .gap_1p5()
-                                .child(div().size_2().rounded_sm().bg(row.color))
+                                .child(
+                                    div()
+                                        .size_2()
+                                        .rounded(cx.theme().radius.half())
+                                        .bg(row.color),
+                                )
                                 .child(
                                     div()
                                         .text_color(cx.theme().muted_foreground)
@@ -415,7 +421,7 @@ impl RenderOnce for Tooltip {
                 // never overflows the near side.
                 this.absolute()
                     .when(min_w_unset, |c| c.min_w(px(150.)))
-                    .elevated_surface(cx)
+                    .popover_style(cx)
                     .p_2()
                     .map(|c| {
                         if cursor.x < within.width * 0.5 {

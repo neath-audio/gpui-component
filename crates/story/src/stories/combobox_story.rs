@@ -1,6 +1,6 @@
 use gpui::{prelude::FluentBuilder as _, *};
 use gpui_component::{
-    ActiveTheme, Icon, IconName, IndexPath, Sizable as _,
+    ActiveTheme, Icon, IconName, IndexPath, Sizable as _, ThemeStyled as _,
     button::Button,
     button::ButtonVariants as _,
     combobox::*,
@@ -260,7 +260,7 @@ impl SearchableListDelegate for FeaturedDelegate {
                 })
                 .child(
                     div()
-                        .rounded_sm()
+                        .rounded(cx.theme().radius.half())
                         .bg(cx.theme().primary)
                         .text_color(cx.theme().primary_foreground)
                         .px_1()
@@ -288,7 +288,7 @@ pub struct ComboboxStory {
     // 05 custom check icon (single)
     custom_check: Entity<ComboboxState<SearchableVec<&'static str>>>,
     // 06 footer button (single)
-    with_footer: Entity<ComboboxState<SearchableVec<&'static str>>>,
+    with_footer: Entity<ComboboxState<SearchableVec<String>>>,
     // 07 custom trigger (single)
     custom_trigger: Entity<ComboboxState<SearchableVec<&'static str>>>,
     // 08 multi badges
@@ -399,8 +399,12 @@ impl ComboboxStory {
         });
 
         let with_footer = cx.new(|cx| {
-            let items =
-                SearchableVec::new(vec!["Harvard University", "MIT", "Stanford", "Cambridge"]);
+            let items = SearchableVec::new(vec![
+                "Harvard University".to_string(),
+                "MIT".to_string(),
+                "Stanford".to_string(),
+                "Cambridge".to_string(),
+            ]);
             ComboboxState::new(items, vec![IndexPath::default()], window, cx).searchable(true)
         });
 
@@ -569,8 +573,8 @@ impl Render for ComboboxStory {
                         Combobox::new(&self.with_icon)
                             .placeholder("Select industry category")
                             .search_placeholder("Search…")
-                            .render_trigger(|ctx, _, cx| {
-                                let (icon, title) = match &ctx.selection {
+                            .render_trigger(|trigger, _, cx| {
+                                let (icon, title) = match trigger.selection() {
                                     [] => (None, None),
                                     [(_index, item)] => {
                                         (Some(item.icon.clone()), Some(item.title().clone()))
@@ -601,13 +605,13 @@ impl Render for ComboboxStory {
                                             .overflow_hidden()
                                             .truncate()
                                             .when_some(title, |this, title| this.child(title))
-                                            .when(ctx.selection.is_empty(), |this| {
+                                            .when(trigger.selection().is_empty(), |this| {
                                                 this.text_color(cx.theme().muted_foreground)
                                                     .child("Select industry category")
                                             }),
                                     )
                                     .child(
-                                        Caret::new(ctx.size)
+                                        Caret::new(trigger.size())
                                             .text_color(cx.theme().muted_foreground),
                                     )
                                     .into_any_element()
@@ -631,11 +635,13 @@ impl Render for ComboboxStory {
                 section("Footer")
                     .w(px(280.))
                     .description("Add an action below the option list.")
-                    .child(
+                    .child({
+                        let state = self.with_footer.clone();
                         Combobox::new(&self.with_footer)
                             .placeholder("Select university")
                             .search_placeholder("Search…")
-                            .footer(|_, cx| {
+                            .footer(move |_, cx| {
+                                let state = state.clone();
                                 Button::new("add-new")
                                     .ghost()
                                     .label("New university")
@@ -643,10 +649,26 @@ impl Render for ComboboxStory {
                                     .text_color(cx.theme().foreground)
                                     .w_full()
                                     .justify_start()
+                                    .on_click(move |_, window, cx| {
+                                        let search_query = state.read(cx).query(cx);
+                                        let mut items = SearchableVec::new(vec![
+                                            "Harvard University".to_string(),
+                                            "MIT".to_string(),
+                                            "Stanford".to_string(),
+                                            "Cambridge".to_string(),
+                                            search_query.to_string(),
+                                        ]);
+
+                                        drop(items.perform_search(&search_query, window, cx));
+
+                                        state.update(cx, |state, cx| {
+                                            state.set_items(items, window, cx);
+                                        });
+                                    })
                                     .into_any_element()
                             })
-                            .w(px(280.)),
-                    ),
+                            .w(px(280.))
+                    }),
             )
             .child(
                 section("Custom trigger")
@@ -656,8 +678,8 @@ impl Render for ComboboxStory {
                         Combobox::new(&self.custom_trigger)
                             .placeholder("Select framework")
                             .search_placeholder("Search…")
-                            .render_trigger(|ctx, _, cx| {
-                                let title = match &ctx.selection {
+                            .render_trigger(|trigger, _, cx| {
+                                let title = match trigger.selection() {
                                     [] => None,
                                     [(_index, item)] => Some(item.title().clone()),
                                     items => {
@@ -684,23 +706,24 @@ impl Render for ComboboxStory {
                                                     div()
                                                         .bg(cx.theme().primary)
                                                         .text_color(cx.theme().primary_foreground)
-                                                        .rounded_full()
+                                                        .rounded_full_style(cx)
                                                         .px_2()
                                                         .py_0p5()
                                                         .text_xs()
                                                         .child(title),
                                                 )
                                             })
-                                            .when(ctx.selection.is_empty(), |this| {
+                                            .when(trigger.selection().is_empty(), |this| {
                                                 this.text_color(cx.theme().muted_foreground).child(
-                                                    ctx.placeholder
+                                                    trigger
+                                                        .placeholder()
                                                         .cloned()
                                                         .unwrap_or_else(|| "Select...".into()),
                                                 )
                                             }),
                                     )
                                     .child(
-                                        Caret::new(ctx.size)
+                                        Caret::new(trigger.size())
                                             .text_color(cx.theme().muted_foreground),
                                     )
                                     .into_any_element()
@@ -716,8 +739,8 @@ impl Render for ComboboxStory {
                         Combobox::new(&self.multi_badges)
                             .placeholder("Select frameworks")
                             .search_placeholder("Search…")
-                            .render_trigger(move |ctx, _, cx| {
-                                let items = ctx.selection;
+                            .render_trigger(move |trigger, _, cx| {
+                                let items = trigger.selection();
 
                                 if items.is_empty() {
                                     return div()
@@ -744,7 +767,7 @@ impl Render for ComboboxStory {
                                                         .min_w_0()
                                                         .gap_0p5()
                                                         .items_center()
-                                                        .rounded_sm()
+                                                        .rounded(cx.theme().radius.half())
                                                         .border_1()
                                                         .border_color(cx.theme().border)
                                                         .px_1()
@@ -783,7 +806,7 @@ impl Render for ComboboxStory {
                                     )
                                     .child(
                                         div().flex_shrink_0().child(
-                                            Caret::new(ctx.size)
+                                            Caret::new(trigger.size())
                                                 .text_color(cx.theme().muted_foreground),
                                         ),
                                     )
@@ -833,10 +856,10 @@ impl Render for ComboboxStory {
                         Combobox::new(&self.multi_expand)
                             .placeholder("Select frameworks")
                             .search_placeholder("Search…")
-                            .render_trigger(|ctx, _, cx| {
+                            .render_trigger(|trigger, _, cx| {
                                 const MAX_SHOWN: usize = 2;
 
-                                if ctx.selection.is_empty() {
+                                if trigger.selection().is_empty() {
                                     return div()
                                         .text_color(cx.theme().muted_foreground)
                                         .child("Select frameworks")
@@ -847,10 +870,10 @@ impl Render for ComboboxStory {
                                     .w_full()
                                     .flex_wrap()
                                     .gap_1()
-                                    .children(ctx.selection.iter().take(MAX_SHOWN).map(
+                                    .children(trigger.selection().iter().take(MAX_SHOWN).map(
                                         |(_index, item)| {
                                             div()
-                                                .rounded_sm()
+                                                .rounded(cx.theme().radius.half())
                                                 .border_1()
                                                 .border_color(cx.theme().border)
                                                 .px_1()
@@ -858,11 +881,11 @@ impl Render for ComboboxStory {
                                                 .child(*item)
                                         },
                                     ))
-                                    .when(ctx.selection.len() > MAX_SHOWN, |this| {
-                                        let hidden = ctx.selection.len() - MAX_SHOWN;
+                                    .when(trigger.selection().len() > MAX_SHOWN, |this| {
+                                        let hidden = trigger.selection().len() - MAX_SHOWN;
                                         this.child(
                                             div()
-                                                .rounded_sm()
+                                                .rounded(cx.theme().radius.half())
                                                 .border_1()
                                                 .border_color(cx.theme().border)
                                                 .px_1()
@@ -884,8 +907,8 @@ impl Render for ComboboxStory {
                         Combobox::new(&self.multi_count)
                             .placeholder("Select frameworks")
                             .search_placeholder("Search…")
-                            .render_trigger(|ctx, _, cx| {
-                                let count = ctx.selection.len();
+                            .render_trigger(|trigger, _, cx| {
+                                let count = trigger.selection().len();
 
                                 if count == 0 {
                                     return div()
@@ -910,7 +933,7 @@ impl Render for ComboboxStory {
                                             .min_w(px(16.))
                                             .h(px(16.))
                                             .px_1()
-                                            .rounded_full()
+                                            .rounded_full_style(cx)
                                             .bg(cx.theme().red)
                                             .text_color(white())
                                             .text_size(px(10.))
