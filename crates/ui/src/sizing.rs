@@ -75,6 +75,18 @@ impl Size {
         }
     }
 
+    pub fn input_text_size(&self) -> Rems {
+        self.text_size()
+    }
+
+    pub fn button_text_size(&self) -> Rems {
+        self.text_size()
+    }
+
+    pub fn table_text_size(&self) -> Rems {
+        self.text_size()
+    }
+
     /// Menus may be Small (12) or Medium (13) only. Large and custom clamp to Medium.
     pub fn menu_text_size(&self) -> Rems {
         match self {
@@ -242,13 +254,7 @@ pub trait StyleSized<T: Styled> {
 impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn input_text_size(self, size: Size) -> Self {
-        match size {
-            Size::XSmall => self.text_xs(),
-            Size::Small => self.text_sm(),
-            Size::Medium => self.text_sm(),
-            Size::Large => self.text_base(),
-            Size::Size(size) => self.text_size(size * 0.875),
-        }
+        self.text_size(size.text_size())
     }
 
     #[inline]
@@ -325,24 +331,15 @@ impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn table_cell_size(self, size: Size) -> Self {
         let padding = size.table_cell_padding();
-        match size {
-            Size::XSmall => self.text_sm(),
-            Size::Small => self.text_sm(),
-            _ => self,
-        }
-        .pl(padding.left)
-        .pr(padding.right)
-        .pt(padding.top)
-        .pb(padding.bottom)
+        self.text_size(size.text_size())
+            .pl(padding.left)
+            .pr(padding.right)
+            .pt(padding.top)
+            .pb(padding.bottom)
     }
 
     fn button_text_size(self, size: Size) -> Self {
-        match size {
-            Size::XSmall => self.text_xs(),
-            Size::Small => self.text_sm(),
-            Size::Medium => self.text_sm(),
-            Size::Large | Size::Size(_) => self.text_base(),
-        }
+        self.text_size(size.text_size())
     }
 }
 #[cfg(test)]
@@ -357,6 +354,15 @@ mod tests {
         assert_eq!(Size::Small.text_size(), rems(0.75));
         assert_eq!(Size::Medium.text_size(), rems(0.8125));
         assert_eq!(Size::Large.text_size(), rems(0.9375));
+    }
+
+    #[test]
+    fn style_sized_text_maps_are_the_size_table() {
+        for size in [Size::XSmall, Size::Small, Size::Medium, Size::Large] {
+            assert_eq!(size.input_text_size(), size.text_size());
+            assert_eq!(size.button_text_size(), size.text_size());
+            assert_eq!(size.table_text_size(), size.text_size());
+        }
     }
 
     #[test]
