@@ -7,10 +7,7 @@ use std::{rc::Rc, time::Duration};
 
 use crate::ThemeStyled as _;
 use crate::{
-    Selectable, StyledExt as _,
-    animation::ease_out_cubic,
-    styled::{popover_ring, popover_shadow},
-    v_flex,
+    ActiveTheme as _, Selectable, StyledExt as _, animation::ease_out_cubic, v_flex,
 };
 use gpui_base::Popover as BasePopover;
 pub use gpui_base::PopoverState;
@@ -25,25 +22,24 @@ const DROPDOWN_ENTER_DURATION: Duration = Duration::from_millis(150);
 
 /// Where a dropdown starts out, relative to where it comes to rest.
 ///
-/// Negative is above, so the surface slides *down* out of the trigger's edge —
-/// what shadcn/ui expresses as `data-[side=bottom]:slide-in-from-top-2`. Its
-/// `2` is `0.5rem`, which is 8px at the default root size.
-const DROPDOWN_ENTER_OFFSET: Pixels = px(-8.);
+/// Negative is above, so the surface slides *down* out of the trigger's edge.
+/// Kept to 4px so the resting gap and the slide stay in the same range as the
+/// previous `mt_1` / `mt_1p5` popup inset (user ruling 2026-08-20).
+const DROPDOWN_ENTER_OFFSET: Pixels = px(-4.);
 
 fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
     gpui_base::Positioner::side(bounds)
         .placement(gpui_base::Placement::Bottom)
         .align(gpui_base::Align::Start)
-        .offset(px(6.))
+        .offset(px(4.))
         .margin(px(8.))
 }
 
 /// Positions a dropdown surface under its trigger and animates it in.
 ///
-/// This is the shared open motion for Select, Combobox and DatePicker, modelled
-/// on shadcn/ui: over 150ms the surface fades up from nothing while sliding the
-/// last 8px out of the trigger's edge, on an ease-out curve so it decelerates
-/// into place.
+/// This is the shared open motion for Select, Combobox and DatePicker: over
+/// 150ms the surface fades up from nothing while sliding the last 4px out of
+/// the trigger's edge, on an ease-out curve so it decelerates into place.
 ///
 /// `surface` must be the panel itself — the element carrying
 /// [`ThemeStyled::popover_style`] — and not a wrapper around it. GPUI takes a
@@ -58,8 +54,8 @@ fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
 /// element out of `inset` shadows — so a translucent panel does not hide its own
 /// shadow, and mid-fade the shadow shows straight through the panel as a dark
 /// slab. Ramping the ink by the cube of the fade keeps it out of sight until the
-/// panel is opaque enough to cover it, and still lands on the resting shadow
-/// [`popover_shadow`] gives every other popup.
+/// panel is opaque enough to cover it, and still lands on the resting
+/// [`Theme::shadow_2`] every other popup uses.
 ///
 /// # Departures from shadcn
 ///
@@ -74,7 +70,7 @@ fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
 /// - The slide always comes from above. [`gpui_base::Positioner`] resolves the
 ///   side the surface actually lands on during layout and does not report it
 ///   back, so a dropdown that flips above its trigger for want of room below
-///   slides the opposite way — 8px over 150ms, in the rare case where it
+///   slides the opposite way — 4px over 150ms, in the rare case where it
 ///   happens.
 ///
 /// Reduced motion needs no handling here: GPUI's animation element adopts the
@@ -87,16 +83,21 @@ pub(crate) fn dropdown_popup(
 ) -> gpui_base::Positioner {
     let travel: f32 = DROPDOWN_ENTER_OFFSET.into();
     // Read out here: the animation runs long after `cx` is gone.
-    let ring = popover_ring(cx);
+    let rest_shadow = cx.theme().shadow_2();
 
     dropdown_positioner(bounds).child(surface.with_animation(
         id,
         Animation::new(DROPDOWN_ENTER_DURATION).with_easing(ease_out_cubic),
         move |surface, delta| {
+            let ink = delta * delta * delta;
+            let mut shadow = rest_shadow.clone();
+            for layer in &mut shadow {
+                layer.color.a *= ink;
+            }
             surface
                 .top(px(travel * (1. - delta)))
                 .opacity(delta)
-                .shadow(popover_shadow(ring, delta * delta * delta))
+                .shadow(shadow.into_vec())
         },
     ))
 }

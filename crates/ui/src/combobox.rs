@@ -34,6 +34,7 @@ pub struct ComboboxTriggerContext<'a, D: SearchableListDelegate + 'static> {
     selection: &'a [(IndexPath, D::Item)],
     placeholder: Option<&'a SharedString>,
     open: bool,
+    focused: bool,
     disabled: bool,
     size: Size,
 }
@@ -51,6 +52,11 @@ impl<'a, D: SearchableListDelegate + 'static> ComboboxTriggerContext<'a, D> {
     /// Whether the dropdown list is showing.
     pub fn is_open(&self) -> bool {
         self.open
+    }
+
+    /// Whether the trigger itself is focused (the list may hold focus once open).
+    pub fn is_focused(&self) -> bool {
+        self.focused
     }
 
     pub fn is_disabled(&self) -> bool {
@@ -626,6 +632,7 @@ where
                 selection,
                 placeholder,
                 open,
+                focused: is_focused,
                 disabled,
                 size,
             };

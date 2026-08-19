@@ -31,6 +31,7 @@ const POPOVER_RING_INK: f32 = 0.1;
 /// (`oklch(1 0 0 / 10%)`), so it follows the foreground rather than the border
 /// token: a fixed black ring would all but vanish on a dark surface.
 ///
+#[allow(dead_code)]
 pub(crate) fn popover_ring(cx: &App) -> Hsla {
     cx.theme().foreground.alpha(POPOVER_RING_INK)
 }
@@ -54,6 +55,7 @@ pub(crate) fn popover_ring(cx: &App) -> Hsla {
 ///
 /// The ring is taken as a colour rather than read from the theme here so that an
 /// animation can hold it across frames, where no `App` is in hand.
+#[allow(dead_code)]
 pub(crate) fn popover_shadow(ring: Hsla, strength: f32) -> Vec<BoxShadow> {
     let strength = strength.clamp(0., 1.);
     let ink = hsla(0., 0., 0., SURFACE_SHADOW_INK * strength);
@@ -226,11 +228,14 @@ impl<T: Styled + Sized> ThemeStyled for T {
 
     fn popover_style(self, cx: &App) -> Self {
         let theme = cx.theme();
-        // No border: the edge is the ring inside `popover_shadow`, which is how
-        // shadcn draws it and the only way the shadow can show through it.
-        self.bg(theme.popover)
+        // Opaque hairline + measured menu shadow. The shadcn "ring-as-shadow"
+        // edge reads as a web overlay and dropped the elevated border this
+        // crate's popups used (user ruling 2026-08-20).
+        self.bg(theme.tokens.popover)
             .text_color(theme.popover_foreground)
-            .shadow(popover_shadow(popover_ring(cx), 1.))
+            .border_1()
+            .border_color(theme.hairline_strong)
+            .shadow(theme.shadow_2().into_vec())
             .rounded(theme.radius)
     }
 }

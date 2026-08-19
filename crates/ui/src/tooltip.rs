@@ -11,7 +11,7 @@ use gpui_base::{
 };
 
 use crate::{
-    ActiveTheme, Placement, StyledExt,
+    ActiveTheme, Placement, StyledExt, ThemeStyled as _,
     animation::{EffectTransition, ease_in_out_cubic, ease_out_cubic},
     kbd::Kbd,
     root::Root,
@@ -120,17 +120,11 @@ impl Render for Tooltip {
                 .h_flex()
                 .font_family(cx.theme().font_family.clone())
                 .when(!self.overlay_anchored, |this| this.m_3())
-                .bg(cx.theme().tokens.popover)
-                .text_color(cx.theme().popover_foreground)
-                .bg(cx.theme().tokens.popover)
-                .border_1()
-                .border_color(cx.theme().border)
-                .shadow_md()
-                .rounded(cx.theme().radius)
+                .popover_style(cx)
                 .justify_between()
                 .py_0p5()
                 .px_2()
-                .text_sm()
+                .text_xs()
                 .gap_3()
                 .refine_style(&self.style)
                 .map(|this| {

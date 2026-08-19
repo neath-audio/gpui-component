@@ -7,8 +7,8 @@ use crate::{ActiveTheme, ElementExt, Icon, IconName, Sizable as _, h_flex, v_fle
 use crate::{Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd};
 use gpui::{
     Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
-    EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, KeyBinding,
-    ParentElement, Pixels, Rems, Render, Role, ScrollHandle, SharedString,
+    EventEmitter, FocusHandle, Focusable, FontWeight, Hsla, InteractiveElement, IntoElement,
+    KeyBinding, ParentElement, Pixels, Rems, Render, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement, Styled, WeakEntity, Window, anchored, deferred, div,
     prelude::FluentBuilder, px, rems,
 };
@@ -1533,6 +1533,10 @@ impl Render for PopupMenu {
             .popover_style(cx)
             .when_some(self.menu_bg, |this, bg| this.bg(bg))
             .text_color(cx.theme().popover_foreground)
+            // Anchored menus stay in the trigger's element tree, so a
+            // medium/semibold parent (selected tab, bold button) would
+            // otherwise paint every row at that weight.
+            .font_weight(FontWeight::NORMAL)
             .relative()
             .occlude()
             .child(

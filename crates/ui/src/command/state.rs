@@ -656,8 +656,8 @@ impl CommandState {
             .w_full()
             .gap_2()
             .px_2()
-            .py_1p5()
-            .text_sm()
+            .py_1()
+            .text_size(crate::Size::Medium.text_size())
             .rounded(cx.theme().radius)
             .when(selected, |this| {
                 this.bg(cx.theme().accent)
@@ -669,8 +669,8 @@ impl CommandState {
         div()
             .w_full()
             .px_2()
-            .py_1p5()
-            .text_xs()
+            .py_1()
+            .text_size(crate::Size::Small.text_size())
             .font_medium()
             .text_color(cx.theme().muted_foreground)
             .child(heading)
@@ -830,7 +830,7 @@ impl Render for CommandState {
                 this.child(
                     div()
                         .flex_none()
-                        .px_3()
+                        .px_2()
                         .border_b_1()
                         .border_color(cx.theme().border)
                         .child(
@@ -1344,7 +1344,7 @@ mod tests {
                 CommandRow::Item(_),
             ] if heading == "Settings"
         ));
-        assert_eq!(row_sizes[4].height, px(84.));
+        assert_eq!(row_sizes[4].height, px(80.));
     }
 
     fn command_with_entries(
@@ -1991,7 +1991,7 @@ mod tests {
 
         assert!(selected_row > 30);
         assert!(
-            offset < px(-900.),
+            offset < px(-700.),
             "the list should scroll to the selected row, not row zero ({offset:?})",
         );
     }
@@ -2218,7 +2218,7 @@ mod tests {
         cx.update(|window, cx| _ = window.draw(cx));
         let height = cx.update(|_, cx| harness.read(cx).state.read(cx).row_sizes[0].height);
 
-        assert_eq!(height, px(44.));
+        assert_eq!(height, px(40.));
     }
 
     #[gpui::test]
@@ -2253,10 +2253,10 @@ mod tests {
 
         assert_eq!(row_sizes.len(), 5);
         assert!(row_sizes[0].height > px(0.));
-        assert_eq!(row_sizes[1].height, px(44.));
+        assert_eq!(row_sizes[1].height, px(40.));
         assert_eq!(row_sizes[2].height, px(SEPARATOR_ROW_HEIGHT));
         assert!(row_sizes[3].height > px(0.));
-        assert_eq!(row_sizes[4].height, px(84.));
+        assert_eq!(row_sizes[4].height, px(80.));
     }
 
     #[gpui::test]
@@ -2324,8 +2324,8 @@ mod tests {
             });
         assert_eq!(selected_matched_index, Some(1));
         assert_eq!(selected_index, Some(IndexPath::new(1).section(0)));
-        assert_eq!(row_sizes[0].height, px(84.));
-        assert_eq!(row_sizes[1].height, px(44.));
+        assert_eq!(row_sizes[0].height, px(80.));
+        assert_eq!(row_sizes[1].height, px(40.));
     }
 
     #[gpui::test]
