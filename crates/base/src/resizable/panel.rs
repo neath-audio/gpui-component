@@ -12,7 +12,7 @@ use gpui::{
 
 use crate::{AxisExt, ElementExt, StyledExt as _, h_flex, resizable::PANEL_MIN_SIZE, v_flex};
 
-use super::{ResizableState, resizable_panel, resize_handle};
+use super::{ResizableState, ResizeHandleRenderer, resizable_panel, resize_handle};
 
 pub enum ResizablePanelEvent {
     Resized,
@@ -34,8 +34,8 @@ pub struct ResizablePanelGroup {
     axis: Axis,
     size: Option<Pixels>,
     children: Vec<ResizablePanel>,
-    seamless_handles: bool,
     on_resize: Rc<dyn Fn(&Entity<ResizableState>, &mut Window, &mut App)>,
+    handle_appearance: Option<ResizeHandleRenderer>,
 }
 
 impl ResizablePanelGroup {
@@ -47,16 +47,17 @@ impl ResizablePanelGroup {
             children: vec![],
             state: None,
             size: None,
-            seamless_handles: false,
             on_resize: Rc::new(|_, _, _| {}),
+            handle_appearance: None,
         }
     }
 
-    /// Draw no resting line on this group's resize handles — they're
-    /// transparent until dragged. For splits whose panes carry their own
-    /// visual seam (e.g. a colored pane header at the boundary).
-    pub fn seamless_handles(mut self) -> Self {
-        self.seamless_handles = true;
+    /// Hand the painted part of every divider in this group to `appearance`.
+    ///
+    /// The hit area, the cursor and the drag stay here; a renderer that
+    /// returns `None` for a given handle leaves the built-in line on it.
+    pub fn with_handle_appearance(mut self, appearance: ResizeHandleRenderer) -> Self {
+        self.handle_appearance = Some(appearance);
         self
     }
 
@@ -166,7 +167,7 @@ impl RenderOnce for ResizablePanelGroup {
                         panel.panel_ix = ix;
                         panel.axis = self.axis;
                         panel.state = Some(state.clone());
-                        panel.seamless_handle = self.seamless_handles;
+                        panel.handle_appearance = self.handle_appearance.clone();
                         panel
                     }),
             )
@@ -233,10 +234,8 @@ pub struct ResizablePanel {
     children: Vec<AnyElement>,
     visible: bool,
     pub(super) fixed: bool,
-    /// Whether this panel's leading resize handle (drawn for `panel_ix > 0`)
-    /// is seamless — transparent at rest. Threaded from the group.
-    pub(super) seamless_handle: bool,
     style: StyleRefinement,
+    handle_appearance: Option<ResizeHandleRenderer>,
 }
 
 impl ResizablePanel {
@@ -251,8 +250,8 @@ impl ResizablePanel {
             children: vec![],
             visible: true,
             fixed: false,
-            seamless_handle: false,
             style: StyleRefinement::default(),
+            handle_appearance: None,
         }
     }
 
@@ -381,17 +380,20 @@ impl RenderOnce for ResizablePanel {
             .children(self.children)
             .when(self.panel_ix > 0, |this| {
                 let ix = self.panel_ix - 1;
-                let handle = resize_handle(("resizable-handle", ix), self.axis)
-                    .seamless(self.seamless_handle)
-                    .on_drag(DragPanel, move |drag_panel, _, _, cx| {
-                        cx.stop_propagation();
-                        // Set current resizing panel ix
-                        state.update(cx, |state, _| {
-                            state.resizing_panel_ix = Some(ix);
-                        });
-                        cx.new(|_| drag_panel.deref().clone())
-                    });
-                this.child(handle)
+                this.child(
+                    resize_handle(("resizable-handle", ix), self.axis)
+                        .when_some(self.handle_appearance.clone(), |handle, appearance| {
+                            handle.with_appearance(appearance)
+                        })
+                        .on_drag(DragPanel, move |drag_panel, _, _, cx| {
+                            cx.stop_propagation();
+                            // Set current resizing panel ix
+                            state.update(cx, |state, _| {
+                                state.resizing_panel_ix = Some(ix);
+                            });
+                            cx.new(|_| drag_panel.deref().clone())
+                        }),
+                )
             })
     }
 }

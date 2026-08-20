@@ -20,17 +20,43 @@ pub fn resize_handle<T: 'static, E: 'static + Render>(
     ResizeHandle::new(id, axis)
 }
 
+/// Draws the visible part of a resize handle.
+///
+/// Returning `None` keeps the built-in line, so a renderer can override some
+/// handles and leave the rest alone.
+pub type ResizeHandleRenderer =
+    Rc<dyn Fn(&ResizeHandleContext, &mut Window, &mut App) -> Option<AnyElement>>;
+
+/// What a [`ResizeHandleRenderer`] is told about the handle it is drawing.
+///
+/// The hit area, the cursor and the drag itself stay with the handle; a
+/// renderer only supplies what is painted inside it.
+pub struct ResizeHandleContext {
+    axis: Axis,
+    active: bool,
+}
+
+impl ResizeHandleContext {
+    /// The axis the handle resizes along: `Horizontal` for a vertical divider
+    /// between two side-by-side panels.
+    pub fn axis(&self) -> Axis {
+        self.axis
+    }
+
+    /// Whether this handle is the one being dragged right now.
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+}
+
 #[doc(hidden)]
 pub struct ResizeHandle<T: 'static, E: 'static + Render> {
     id: ElementId,
     axis: Axis,
     drag_value: Option<Rc<T>>,
     placement: Option<Side>,
-    /// When set, the handle draws no resting line — it's transparent until
-    /// dragged (`theme.drag_border`). For splits whose panes already carry
-    /// their own visual seam.
-    seamless: bool,
     on_drag: Option<Rc<dyn Fn(&Point<Pixels>, &mut Window, &mut App) -> Entity<E>>>,
+    appearance: Option<ResizeHandleRenderer>,
 }
 
 impl<T: 'static, E: 'static + Render> ResizeHandle<T, E> {
@@ -41,14 +67,14 @@ impl<T: 'static, E: 'static + Render> ResizeHandle<T, E> {
             on_drag: None,
             drag_value: None,
             placement: None,
-            seamless: false,
+            appearance: None,
             axis,
         }
     }
 
-    /// Draw no resting line — transparent until dragged.
-    pub(crate) fn seamless(mut self, seamless: bool) -> Self {
-        self.seamless = seamless;
+    /// Hand the painted part of this handle to `appearance`.
+    pub fn with_appearance(mut self, appearance: ResizeHandleRenderer) -> Self {
+        self.appearance = Some(appearance);
         self
     }
 
@@ -120,8 +146,6 @@ impl<T: 'static, E: 'static + Render> Element for ResizeHandle<T, E> {
 
             let bg_color = if state.is_active() {
                 cx.theme().resizable.active_handle
-            } else if self.seamless {
-                gpui::transparent_black()
             } else {
                 cx.theme().resizable.handle
             };
@@ -168,11 +192,29 @@ impl<T: 'static, E: 'static + Render> Element for ResizeHandle<T, E> {
                         }),
                 })
                 .child(
-                    div()
-                        .bg(bg_color)
-                        .group_hover("handle", |this| this.bg(bg_color))
-                        .when(axis.is_horizontal(), |this| this.h_full().w(HANDLE_SIZE))
-                        .when(axis.is_vertical(), |this| this.w_full().h(HANDLE_SIZE)),
+                    // A renderer that declines — or is absent — leaves the
+                    // built-in line, so overriding one handle never obliges a
+                    // caller to redraw them all.
+                    self.appearance
+                        .as_ref()
+                        .and_then(|appearance| {
+                            appearance(
+                                &ResizeHandleContext {
+                                    axis,
+                                    active: state.is_active(),
+                                },
+                                window,
+                                cx,
+                            )
+                        })
+                        .unwrap_or_else(|| {
+                            div()
+                                .bg(bg_color)
+                                .group_hover("handle", |this| this.bg(bg_color))
+                                .when(axis.is_horizontal(), |this| this.h_full().w(HANDLE_SIZE))
+                                .when(axis.is_vertical(), |this| this.w_full().h(HANDLE_SIZE))
+                                .into_any_element()
+                        }),
                 )
                 .into_any_element();
 

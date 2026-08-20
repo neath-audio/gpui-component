@@ -127,6 +127,47 @@ impl ResizableState {
         cx.notify();
     }
 
+    /// Adopt slot sizes decided by an owner that keeps its own record of the
+    /// layout — the dock's pane tree does.
+    ///
+    /// Unlike [`Self::insert_panel`], nothing is redistributed: the caller has
+    /// already decided how the space divides, and re-normalizing here would
+    /// undo exactly that decision. Slots the caller left unconstrained keep
+    /// whatever they had.
+    pub(crate) fn adopt_sizes(&mut self, sizes: &[Option<Pixels>], cx: &mut Context<Self>) {
+        let mut changed = false;
+        for (ix, size) in sizes.iter().enumerate() {
+            // The preference is mirrored exactly, `None` included. That is the
+            // load-bearing half: `insert_panel` resolves every existing
+            // panel's `None` into a concrete value as a side effect of
+            // redistributing, so after inserting one slot the caller's "these
+            // two are equally unconstrained" has quietly become "that one is
+            // pinned, this one is the only flexible slot" — and the flexible
+            // one then swallows whatever the pinned ones leave over.
+            if let Some(panel) = self.panels.get_mut(ix) {
+                if panel.size != *size {
+                    panel.size = *size;
+                    changed = true;
+                }
+            }
+
+            // The measurement only moves when the tree names a size; an
+            // unconstrained slot keeps whatever it was last laid out at until
+            // the next pass recomputes it.
+            let Some(size) = size else { continue };
+            if let Some(slot) = self.sizes.get_mut(ix) {
+                if *slot != *size {
+                    *slot = *size;
+                    changed = true;
+                }
+            }
+        }
+
+        if changed {
+            cx.notify();
+        }
+    }
+
     pub(crate) fn sync_panels_count(
         &mut self,
         axis: Axis,
@@ -327,6 +368,17 @@ impl ResizableState {
             return;
         }
 
+        // A panel with no size preference is laid out by flex, and its entry
+        // in `sizes` is a placeholder until something measures it. Rescaling
+        // by a ratio computed from that placeholder drags the panels that
+        // *do* have a preference along with it: a 200px sidebar beside one
+        // flexible panel comes back 587px wide on the frame after the first,
+        // which reads as the layout jumping once for no reason. Flex already
+        // fits the container, so there is nothing here to adjust.
+        if self.panels.iter().any(|panel| panel.size.is_none()) {
+            return;
+        }
+
         let container_size = self.container_size();
         let total = self.sizes.iter().map(|s| s.as_f32()).sum::<f32>();
         if !total.is_finite() || total <= 0. {
@@ -509,5 +561,120 @@ mod tests {
             assert_eq!(state.sizes(), &vec![px(220.), px(180.)]);
         });
         assert_eq!(resizes.get(), 1);
+    }
+
+    struct FixedResizableHarness {
+        state: gpui::Entity<ResizableState>,
+        width: gpui::Pixels,
+        fixed_panel_ix: usize,
+    }
+
+    impl Render for FixedResizableHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let first = if self.fixed_panel_ix == 0 {
+                resizable_panel().size(px(180.)).fixed(true)
+            } else {
+                resizable_panel()
+            }
+            .child(
+                div()
+                    .size_full()
+                    .debug_selector(|| "fixed-first-panel".into()),
+            );
+            let second = if self.fixed_panel_ix == 1 {
+                resizable_panel().size(px(180.)).fixed(true)
+            } else {
+                resizable_panel()
+            }
+            .child(
+                div()
+                    .size_full()
+                    .debug_selector(|| "fixed-second-panel".into()),
+            );
+
+            div().w(self.width).h(px(100.)).child(
+                h_resizable("fixed-resizable")
+                    .with_state(&self.state)
+                    .child(first)
+                    .child(second),
+            )
+        }
+    }
+
+    fn assert_fixed_panel_widths(
+        cx: &mut VisualTestContext,
+        first: gpui::Pixels,
+        second: gpui::Pixels,
+    ) {
+        assert_eq!(
+            cx.debug_bounds("fixed-first-panel").unwrap().size.width,
+            first
+        );
+        assert_eq!(
+            cx.debug_bounds("fixed-second-panel").unwrap().size.width,
+            second
+        );
+    }
+
+    /// A drag or programmatic resize makes every slot concrete. The fixed
+    /// policy must still keep the pinned slot in pixels when the container
+    /// later grows or shrinks; `.flex_none()` alone only fixes first layout.
+    #[gpui::test]
+    fn fixed_panels_keep_pixels_after_resize_and_container_reflow(cx: &mut TestAppContext) {
+        for fixed_panel_ix in [0, 1] {
+            let state = cx.update(|cx| cx.new(|_| ResizableState::default()));
+            let (view, window_cx) = cx.add_window_view({
+                let state = state.clone();
+                move |_, _| FixedResizableHarness {
+                    state,
+                    width: px(400.),
+                    fixed_panel_ix,
+                }
+            });
+
+            window_cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                window.draw(cx).clear(cx);
+            });
+
+            window_cx.update(|window, cx| {
+                state.update(cx, |state, cx| {
+                    state.resize_panel(fixed_panel_ix, px(200.), window, cx);
+                });
+                window.draw(cx).clear(cx);
+            });
+            state.read_with(window_cx, |state, _| {
+                assert!(state.panels.iter().all(|panel| panel.size.is_some()));
+            });
+            assert_fixed_panel_widths(window_cx, px(200.), px(200.));
+
+            view.update(window_cx, |view, cx| {
+                view.width = px(600.);
+                cx.notify();
+            });
+            window_cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                window.draw(cx).clear(cx);
+            });
+            if fixed_panel_ix == 0 {
+                assert_fixed_panel_widths(window_cx, px(200.), px(400.));
+            } else {
+                assert_fixed_panel_widths(window_cx, px(400.), px(200.));
+            }
+
+            view.update(window_cx, |view, cx| {
+                view.width = px(340.);
+                cx.notify();
+            });
+            window_cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                window.draw(cx).clear(cx);
+            });
+            if fixed_panel_ix == 0 {
+                assert_fixed_panel_widths(window_cx, px(200.), px(140.));
+            } else {
+                assert_fixed_panel_widths(window_cx, px(140.), px(200.));
+            }
+        }
     }
 }
