@@ -4523,4 +4523,107 @@ mod tests {
             "render_zoomed must run for a zoomed container"
         );
     }
+
+    /// Outer Left/Right/Bottom are not packed through `ResizableState`, so a
+    /// window grow must not proportionally stretch an explicit edge size.
+    /// Skins honor `dock.size()` the way `DockSkin` and Neath do.
+    struct EdgeSizeSkin {
+        left: Rc<Cell<Option<Bounds<Pixels>>>>,
+    }
+
+    impl DockAreaRenderer for EdgeSizeSkin {
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+        fn tiles_renderer(&self) -> Rc<dyn TilesRenderer> {
+            Rc::new(BareTiles)
+        }
+        fn render_dock(
+            &self,
+            dock: &DockContext,
+            content: AnyElement,
+            _: &mut Window,
+            _: &mut App,
+        ) -> AnyElement {
+            match dock.placement() {
+                DockPlacement::Left => {
+                    let left = self.left.clone();
+                    div()
+                        .id("measured-left")
+                        .flex_none()
+                        .w(dock.size())
+                        .h_full()
+                        .on_prepaint(move |bounds, _, _| left.set(Some(bounds)))
+                        .child(content)
+                        .into_any_element()
+                }
+                DockPlacement::Right => div()
+                    .flex_none()
+                    .w(dock.size())
+                    .h_full()
+                    .child(content)
+                    .into_any_element(),
+                DockPlacement::Bottom => div()
+                    .flex_none()
+                    .w_full()
+                    .h(dock.size())
+                    .child(content)
+                    .into_any_element(),
+                DockPlacement::Center => content,
+            }
+        }
+    }
+
+    fn draw_area(cx: &mut VisualTestContext) {
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            window.draw(cx).clear(cx);
+        });
+    }
+
+    /// Task 13.1: an explicit 260 px left dock stays 260 after the window
+    /// grows. If this is already green, no outer-edge `.fixed(true)` hook.
+    #[gpui::test]
+    fn an_explicit_left_dock_stays_260_after_the_window_grows(cx: &mut TestAppContext) {
+        let left = Rc::new(Cell::new(None));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("edge-size", None, window, cx)
+                .with_renderer(Rc::new(EdgeSizeSkin { left: left.clone() }))
+        });
+        cx.update(|window, cx| {
+            install_four_regions(&area, window, cx);
+            area.update(cx, |area, cx| {
+                area.set_dock_size(DockPlacement::Left, px(260.), window, cx);
+            });
+        });
+
+        cx.simulate_resize(gpui::size(px(800.), px(600.)));
+        draw_area(cx);
+        let at_800 = left.get().expect("left prepainted at 800").size.width;
+        assert_eq!(at_800, px(260.), "left is 260 before the window grows");
+        assert_eq!(
+            cx.read(|cx| area.read(cx).dump(cx).left_dock.as_ref().unwrap().size()),
+            px(260.)
+        );
+
+        cx.simulate_resize(gpui::size(px(1400.), px(600.)));
+        draw_area(cx);
+        let at_1400 = left.get().expect("left prepainted at 1400").size.width;
+        assert_eq!(
+            at_1400,
+            px(260.),
+            "window grow must not stretch an explicit 260 px left dock, got {at_1400:?}"
+        );
+        assert_eq!(
+            cx.read(|cx| area.read(cx).dump(cx).left_dock.as_ref().unwrap().size()),
+            px(260.),
+            "dump size must stay the stored 260, not a rescaled measurement"
+        );
+        let area_width = cx.read(|cx| area.read(cx).bounds().size.width);
+        assert!(
+            area_width > px(800.),
+            "the window has to have grown, or this cannot tell stretch from a no-op; area={area_width:?}"
+        );
+    }
 }
