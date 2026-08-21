@@ -183,7 +183,7 @@ pub(crate) mod test_support;
 mod tiles_geometry;
 mod tiles_state;
 
-pub use dock_area::{DockArea, DockAreaRenderer, DockContext, DockEvent};
+pub use dock_area::{DockArea, DockAreaRenderer, DockContext, DockEvent, DockRegions};
 pub use dock_placement::{Dock, DockSizing};
 pub use drag::{AnyDrag, DragPanel, DropIndicator, DropPlaceholderBounds, DropTarget};
 // `split_placement_at` stays internal for the same reason: where a drop lands

@@ -1513,25 +1513,16 @@ impl Render for DockArea {
             })
             .track_focus(&self.focus_handle)
             .map(|frame| match self.zoomed_view() {
-                Some(view) => frame.child(view),
-                None => frame
-                    .when_some(
-                        self.render_dock(DockPlacement::Left, window, cx),
-                        ParentElement::child,
-                    )
-                    .child(
-                        renderer
-                            .center_frame(window, cx)
-                            .child(self.render_node(self.center.root(), window, cx))
-                            .when_some(
-                                self.render_dock(DockPlacement::Bottom, window, cx),
-                                ParentElement::child,
-                            ),
-                    )
-                    .when_some(
-                        self.render_dock(DockPlacement::Right, window, cx),
-                        ParentElement::child,
-                    ),
+                Some(view) => frame.child(renderer.render_zoomed(view, window, cx)),
+                None => {
+                    let regions = DockRegions {
+                        left: self.render_dock(DockPlacement::Left, window, cx),
+                        center: self.render_node(self.center.root(), window, cx),
+                        bottom: self.render_dock(DockPlacement::Bottom, window, cx),
+                        right: self.render_dock(DockPlacement::Right, window, cx),
+                    };
+                    frame.children(renderer.compose_regions(regions, window, cx))
+                }
             })
     }
 }
@@ -1760,6 +1751,14 @@ impl Render for PlaceholderPanel {
 type DockToggleHandler = Rc<dyn Fn(&mut Window, &mut App)>;
 type DockResizeHandler = Rc<dyn Fn(Point<Pixels>, &mut Window, &mut App)>;
 
+/// The four regions a skin packs in [`DockAreaRenderer::compose_regions`].
+pub struct DockRegions {
+    pub left: Option<AnyElement>,
+    pub center: AnyElement,
+    pub bottom: Option<AnyElement>,
+    pub right: Option<AnyElement>,
+}
+
 /// What a skin needs to draw one dock, and the callbacks it invokes rather
 /// than reimplementing the open/close and clamping behavior.
 #[derive(Clone)]
@@ -1870,6 +1869,43 @@ pub trait DockAreaRenderer: 'static {
         content
     }
 
+    /// Pack the four regions into the area.
+    ///
+    /// The default is the IDE picture: left | (center over bottom) | right.
+    /// Center is `flex_1`/`min_w_0` so that column fills the row.
+    fn compose_regions(
+        &self,
+        regions: DockRegions,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Vec<AnyElement> {
+        vec![
+            div()
+                .id("dock-area-regions")
+                .size_full()
+                .flex()
+                .flex_row()
+                .min_w_0()
+                .children(regions.left)
+                .child(
+                    self.center_frame(window, cx)
+                        .flex_1()
+                        .min_w_0()
+                        .child(regions.center)
+                        .children(regions.bottom),
+                )
+                .children(regions.right)
+                .into_any_element(),
+        ]
+    }
+
+    /// Wrap the container that fills the area while zoomed.
+    ///
+    /// The default fills the frame with the view.
+    fn render_zoomed(&self, view: AnyView, _: &mut Window, _: &mut App) -> AnyElement {
+        div().size_full().child(view).into_any_element()
+    }
+
     /// The stand-in for a panel this build cannot construct — one whose
     /// `panel_name` no [`PanelRegistry`] builder answers to. `None` takes
     /// base's own placeholder, which draws nothing.
@@ -1944,7 +1980,7 @@ impl DockArea {
 mod tests {
     use gpui::{TestAppContext, VisualTestContext};
 
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
 
     use super::*;
     use crate::dock::test_support::{Log, PanelSignal, TestPanel, drain, drain_active, log_of};
@@ -4300,6 +4336,191 @@ mod tests {
         assert!(
             !cx.read(|cx| area.read(cx).is_zoomed()),
             "the area must not fill itself with a group that never zoomed"
+        );
+    }
+
+    fn install_four_regions(area: &Entity<DockArea>, window: &mut Window, cx: &mut App) {
+        let center = TestPanel::new("Center", cx);
+        let left = TestPanel::new("Left", cx);
+        let right = TestPanel::new("Right", cx);
+        let bottom = TestPanel::new("Bottom", cx);
+        area.update(cx, |area, cx| {
+            area.set_center(DockLayout::tabs().panel(center), window, cx);
+            area.set_dock(
+                DockPlacement::Left,
+                DockLayout::tabs().panel(left),
+                window,
+                cx,
+            );
+            area.set_dock(
+                DockPlacement::Right,
+                DockLayout::tabs().panel(right),
+                window,
+                cx,
+            );
+            area.set_dock(
+                DockPlacement::Bottom,
+                DockLayout::tabs().panel(bottom),
+                window,
+                cx,
+            );
+            area.set_dock_size(DockPlacement::Left, px(200.), window, cx);
+            area.set_dock_size(DockPlacement::Right, px(200.), window, cx);
+            area.set_dock_size(DockPlacement::Bottom, px(120.), window, cx);
+        });
+    }
+
+    struct BoundsSkin {
+        bottom: Rc<Cell<Option<Bounds<Pixels>>>>,
+        zoomed: Rc<Cell<bool>>,
+        full_width: bool,
+    }
+
+    impl DockAreaRenderer for BoundsSkin {
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+        fn tiles_renderer(&self) -> Rc<dyn TilesRenderer> {
+            Rc::new(BareTiles)
+        }
+        fn render_dock(
+            &self,
+            dock: &DockContext,
+            content: AnyElement,
+            _: &mut Window,
+            _: &mut App,
+        ) -> AnyElement {
+            let content = match dock.placement() {
+                DockPlacement::Left | DockPlacement::Right => div()
+                    .w(dock.size())
+                    .h_full()
+                    .child(content)
+                    .into_any_element(),
+                _ => content,
+            };
+            if dock.placement() != DockPlacement::Bottom {
+                return content;
+            }
+            let bottom_cell = self.bottom.clone();
+            div()
+                .id("measured-bottom")
+                .on_prepaint(move |bounds, _, _| bottom_cell.set(Some(bounds)))
+                .child(content)
+                .into_any_element()
+        }
+        fn compose_regions(
+            &self,
+            regions: DockRegions,
+            window: &mut Window,
+            cx: &mut App,
+        ) -> Vec<AnyElement> {
+            if !self.full_width {
+                return BareDefaultSkin.compose_regions(regions, window, cx);
+            }
+            vec![
+                div()
+                    .id("full-width-shell")
+                    .size_full()
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .flex()
+                            .flex_row()
+                            .children(regions.left)
+                            .child(div().flex_1().min_w_0().child(regions.center))
+                            .children(regions.right),
+                    )
+                    .children(regions.bottom)
+                    .into_any_element(),
+            ]
+        }
+        fn render_zoomed(&self, view: AnyView, _: &mut Window, _: &mut App) -> AnyElement {
+            self.zoomed.set(true);
+            div()
+                .id("zoomed-wrap")
+                .size_full()
+                .pt(px(34.))
+                .child(view)
+                .into_any_element()
+        }
+    }
+
+    /// Marker that forces the trait default `compose_regions` (IDE packing).
+    struct BareDefaultSkin;
+    impl DockAreaRenderer for BareDefaultSkin {
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+        fn tiles_renderer(&self) -> Rc<dyn TilesRenderer> {
+            Rc::new(BareTiles)
+        }
+    }
+
+    #[gpui::test]
+    fn default_compose_keeps_bottom_under_center(cx: &mut TestAppContext) {
+        let bottom = Rc::new(Cell::new(None));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("default-compose", None, window, cx).with_renderer(Rc::new(BoundsSkin {
+                bottom: bottom.clone(),
+                zoomed: Rc::new(Cell::new(false)),
+                full_width: false,
+            }))
+        });
+        cx.update(|window, cx| install_four_regions(&area, window, cx));
+        cx.run_until_parked();
+        let area_width = cx.read(|cx| area.read(cx).bounds().size.width);
+        let bottom_width = bottom.get().expect("bottom prepainted").size.width;
+        assert!(
+            bottom_width < area_width,
+            "IDE default: Bottom is only as wide as Center, got bottom={bottom_width:?} area={area_width:?}"
+        );
+    }
+
+    #[gpui::test]
+    fn a_renderer_can_compose_full_width_bottom(cx: &mut TestAppContext) {
+        let bottom = Rc::new(Cell::new(None));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("full-width", None, window, cx).with_renderer(Rc::new(BoundsSkin {
+                bottom: bottom.clone(),
+                zoomed: Rc::new(Cell::new(false)),
+                full_width: true,
+            }))
+        });
+        cx.update(|window, cx| install_four_regions(&area, window, cx));
+        cx.run_until_parked();
+        let area_width = cx.read(|cx| area.read(cx).bounds().size.width);
+        let bottom_width = bottom.get().expect("bottom prepainted").size.width;
+        assert_eq!(bottom_width, area_width);
+    }
+
+    #[gpui::test]
+    fn render_zoomed_wraps_the_zoomed_view(cx: &mut TestAppContext) {
+        let zoomed = Rc::new(Cell::new(false));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("zoom-wrap", None, window, cx).with_renderer(Rc::new(BoundsSkin {
+                bottom: Rc::new(Cell::new(None)),
+                zoomed: zoomed.clone(),
+                full_width: true,
+            }))
+        });
+        cx.update(|window, cx| {
+            let center = TestPanel::new("Center", cx);
+            area.update(cx, |area, cx| {
+                area.set_center(DockLayout::tabs().panel(center), window, cx);
+            });
+        });
+        // `set_center` wraps a tab group in a Split, so zoom names that group.
+        let node = child_node(&area, 0, cx);
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| area.set_zoomed_in(node, window, cx));
+        });
+        cx.run_until_parked();
+        assert!(
+            zoomed.get(),
+            "render_zoomed must run for a zoomed container"
         );
     }
 }
