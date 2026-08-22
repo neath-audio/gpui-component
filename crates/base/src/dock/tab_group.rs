@@ -527,8 +527,23 @@ impl TabGroup {
             return;
         }
 
-        let placement = split_placement_at(bounds, drag.event.position);
         let dragged = drag.drag(cx);
+        if !self.can_preview_panel_content_drop(dragged) {
+            self.clear_drop_indicator(cx);
+            return;
+        }
+
+        let placement = split_placement_at(bounds, drag.event.position);
+        if let Some(placement) = placement {
+            let context = self.context(cx);
+            if !self
+                .renderer
+                .can_split_panel_drop(dragged, &context, placement, cx)
+            {
+                self.clear_drop_indicator(cx);
+                return;
+            }
+        }
         // The placeholder flies in from wherever the preview currently is.
         let source = DropPlaceholderBounds::new(
             drag.event.position - dragged.drag_offset() - bounds.origin,
@@ -536,6 +551,14 @@ impl TabGroup {
         );
 
         self.sync_drop_placeholder(bounds, placement, dragged.drag_session_id(), source, cx);
+    }
+
+    /// A singleton cannot split out of its own group: detaching it would
+    /// empty the target before immediately rebuilding the same group. Reject
+    /// this while hovering as well as on drop so the skin never advertises a
+    /// blank split that cannot be committed.
+    fn can_preview_panel_content_drop(&self, drag: &DragPanel) -> bool {
+        drag.source() != self.node || self.panels.len() > 1
     }
 
     /// Same as [`Self::on_panel_drag_move`], for a host-owned drag item.
@@ -640,6 +663,17 @@ impl TabGroup {
             Some(_) => None,
             None => indicator.and_then(|indicator| indicator.placement()),
         };
+
+        if let Some(placement) = placement {
+            let context = self.context(cx);
+            if !self
+                .renderer
+                .can_split_panel_drop(drag, &context, placement, cx)
+            {
+                cx.notify();
+                return;
+            }
+        }
 
         // Dropping a panel back onto its own group is a move only when it
         // splits out of a group holding more than itself, or when it lands on
@@ -907,6 +941,19 @@ pub trait TabGroupRenderer: 'static {
         cx: &mut App,
     ) -> AnyElement {
         panel.into_any_element()
+    }
+
+    /// Whether a panel may land on an edge of this group's content and create
+    /// a split. The generic dock accepts every split; product skins can reject
+    /// redundant arrangements while leaving tab-bar merges available.
+    fn can_split_panel_drop(
+        &self,
+        drag: &DragPanel,
+        group: &TabGroupContext,
+        placement: Placement,
+        cx: &App,
+    ) -> bool {
+        true
     }
 
     fn render_drop_indicator(
@@ -1308,6 +1355,61 @@ mod tests {
         cx.run_until_parked();
 
         assert!(events.borrow().is_empty());
+    }
+
+    #[gpui::test]
+    fn a_lone_panel_does_not_preview_a_self_split(cx: &mut TestAppContext) {
+        let log = log_of();
+        let (group, panels, cx) = build_group(&log, &["a"], cx);
+        let drag = DragPanel::new(panel_id(&panels[0], cx), group_node());
+
+        assert!(!cx.update(|_, cx| { group.read(cx).can_preview_panel_content_drop(&drag) }));
+    }
+
+    struct RejectContentSplits;
+
+    impl TabGroupRenderer for RejectContentSplits {
+        fn render_tab_bar(&self, _: &TabGroupContext, _: &mut Window, _: &mut App) -> AnyElement {
+            Empty.into_any_element()
+        }
+
+        fn can_split_panel_drop(
+            &self,
+            _: &DragPanel,
+            _: &TabGroupContext,
+            _: Placement,
+            _: &App,
+        ) -> bool {
+            false
+        }
+    }
+
+    #[gpui::test]
+    fn a_renderer_can_veto_a_content_split(cx: &mut TestAppContext) {
+        let log = log_of();
+        let (group, _panels, cx) = build_group(&log, &["a"], cx);
+        let events = record_events(&group, cx);
+        let drag = DragPanel::new(PanelId::from_u64(99), elsewhere());
+
+        cx.update(|_, cx| {
+            group.update(cx, |group, cx| {
+                group.renderer = Rc::new(RejectContentSplits);
+                group.sync_drop_placeholder(
+                    content_bounds(),
+                    Some(Placement::Right),
+                    drag.drag_session_id(),
+                    DropPlaceholderBounds::for_placement(content_bounds(), None),
+                    cx,
+                );
+                group.on_drop(&drag, None, true, cx);
+            });
+        });
+        cx.run_until_parked();
+
+        assert!(
+            events.borrow().is_empty(),
+            "the renderer's product policy must be able to refuse a content-edge split"
+        );
     }
 
     #[gpui::test]

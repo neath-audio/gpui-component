@@ -381,6 +381,23 @@ impl DockArea {
             cx.notify();
         }
     }
+
+    /// Floor for [`Self::set_dock_size`] and pointer resize of this dock.
+    /// Defaults to [`PANEL_MIN_SIZE`].
+    pub fn set_dock_min_size(
+        &mut self,
+        placement: DockPlacement,
+        min_size: Pixels,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(pane) = self.docks.get_mut(&placement) {
+            pane.dock.set_min_size(min_size);
+            let size = pane.dock.size();
+            pane.dock.set_size(size);
+            cx.notify();
+        }
+    }
 }
 
 /// Editing the layout.
@@ -1226,7 +1243,15 @@ impl DockArea {
                     return;
                 };
                 let result = tree.set_active(node, *ix);
-                self.commit(result, window, cx);
+                // The originating TabGroup already applied the active index to
+                // its live entity. Persist that one tree field and notify
+                // observers, but do not reconcile every container: doing so
+                // reapplies the tree's last persisted split sizes to unrelated
+                // live ResizableStates, whose measurements may have adapted to
+                // a newer container size since the last finished handle drag.
+                if result.changed() {
+                    cx.emit(DockEvent::LayoutChanged);
+                }
             }
             TabGroupEvent::ZoomIn => {
                 let node = group.read(cx).node();
@@ -1367,9 +1392,15 @@ impl DockArea {
             DockPlacement::Right => self.dock_size(DockPlacement::Left),
             _ => None,
         };
+        let min_size = self
+            .docks
+            .get(&placement)
+            .map(|pane| pane.dock.min_size())
+            .unwrap_or(PANEL_MIN_SIZE);
         let sizing = DockSizing::new(placement)
             .with_area_bounds(self.bounds)
-            .with_opposite_dock_size(opposite.unwrap_or(px(0.)));
+            .with_opposite_dock_size(opposite.unwrap_or(px(0.)))
+            .with_min_size(min_size);
         let size = sizing.clamp(sizing.size_from_pointer(pointer));
 
         if let Some(pane) = self.docks.get_mut(&placement) {

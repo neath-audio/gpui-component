@@ -71,5 +71,4 @@ impl UiGlobalState {
             .values()
             .any(|bounds| bounds.contains(position))
     }
-
 }

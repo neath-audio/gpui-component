@@ -17,8 +17,7 @@ use gpui_base::{Button as BaseButton, Toggle as BaseToggle};
 
 use crate::ThemeStyled as _;
 use crate::{
-    ActiveTheme, Colorize as _, Disableable, Icon, Selectable, Sizable as _,
-    Size, StyledExt,
+    ActiveTheme, Colorize as _, Disableable, Icon, Selectable, Sizable as _, Size, StyledExt,
     spinner::Spinner,
     tooltip::{ManagedTooltipExt, Tooltip},
 };

@@ -6,9 +6,7 @@ use gpui::{
 use std::{rc::Rc, time::Duration};
 
 use crate::ThemeStyled as _;
-use crate::{
-    ActiveTheme as _, Selectable, StyledExt as _, animation::ease_out_cubic, v_flex,
-};
+use crate::{ActiveTheme as _, Selectable, StyledExt as _, animation::ease_out_cubic, v_flex};
 use gpui_base::Popover as BasePopover;
 pub use gpui_base::PopoverState;
 

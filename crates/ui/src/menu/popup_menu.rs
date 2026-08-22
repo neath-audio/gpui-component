@@ -1251,11 +1251,7 @@ impl PopupMenu {
 
         let item_height = self.size.list_row_height();
         let compact = matches!(self.size, Size::XSmall | Size::Small);
-        let inner_padding = if compact {
-            rems(0.375)
-        } else {
-            rems(0.5)
-        };
+        let inner_padding = if compact { rems(0.375) } else { rems(0.5) };
         let menu_text = self.size.menu_text_size();
         // Radius is keyed off the popover's own radius, halved only for the
         // compact `XSmall | Small` tiers.
