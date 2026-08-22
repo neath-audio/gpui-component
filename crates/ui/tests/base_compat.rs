@@ -27,9 +27,9 @@ fn legacy_foundation_exports_remain_available() {
 
 #[test]
 fn focus_ring_api_exposes_component_state_without_visual_options() {
-    use gpui_component::FocusableExt as _;
+    use gpui_neath::FocusableExt as _;
 
-    let button = gpui_component::button::Button::new("focus-ring-state").focus_ring(false);
+    let button = gpui_neath::button::Button::new("focus-ring-state").focus_ring(false);
     assert!(!button.is_focus_ring_enabled());
 }
 

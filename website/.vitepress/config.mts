@@ -92,6 +92,8 @@ const baseSidebar = createSidebar("/base/", "GPUI Base");
 const zhSidebar = createSidebar("/zh-CN/docs/", "文档");
 
 function createFooter(prefix = "", locale: "en" | "zh" = "en") {
+  const designGuidesText = locale === "zh" ? "设计指南" : "Design Guides";
+  const codingGuidesText = locale === "zh" ? "编码指南" : "Coding Guides";
   const contributorsText = locale === "zh" ? "贡献者" : "Contributors";
   const skillsText = "Skills";
   const reportBugText = locale === "zh" ? "报告问题" : "Report Bug";
@@ -107,6 +109,10 @@ function createFooter(prefix = "", locale: "en" | "zh" = "en") {
     message,
     copyright: `
       <a href="https://gpui.rs">GPUI</a>
+      |
+      <a href="/gpui-component${prefix}/docs/design-guides">${designGuidesText}</a>
+      |
+      <a href="/gpui-component${prefix}/docs/coding-guides">${codingGuidesText}</a>
       |
       <a href="/gpui-component${prefix}/contributors">${contributorsText}</a>
       |
@@ -181,14 +187,14 @@ const sharedThemeConfig = {
 const SITE_URL = "https://longbridge.github.io/gpui-component";
 const SITE_TITLE = "GPUI Component";
 const SITE_DESCRIPTION =
-  "UI components for building fantastic desktop applications in Rust, using GPUI.";
+  "A comprehensive Rust framework for building fantastic, high-performance desktop apps with GPUI.";
 
 // https://vitepress.dev/reference/site-config
 const config: UserConfig = {
   title: "GPUI Component",
   base: "/gpui-component/",
   description:
-    "Rust GUI components for building fantastic cross-platform desktop application by using GPUI.",
+    "A comprehensive Rust framework for building fantastic, high-performance desktop apps with GPUI.",
   cleanUrls: true,
   head: [
     // One icon link, not a `prefers-color-scheme` pair: the site's own
