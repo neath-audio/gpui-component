@@ -941,7 +941,7 @@ mod tests {
     #[gpui::test]
     fn focused_input_registry_tracks_focus_and_blur(cx: &mut gpui::TestAppContext) {
         use crate::{Root, WindowExt as _};
-        use gpui::{AppContext as _, Render};
+        use gpui::{AppContext as _, Focusable as _, Render};
 
         struct Probe {
             input: Entity<InputState>,
@@ -949,12 +949,13 @@ mod tests {
             editor: Entity<crate::input::EditorState>,
             otp: Entity<gpui_base::OtpState>,
             other: gpui::FocusHandle,
+            show_input: bool,
         }
         impl Render for Probe {
             fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
                 div()
                     .child(div().track_focus(&self.other))
-                    .child(Input::new(&self.input))
+                    .when(self.show_input, |this| this.child(Input::new(&self.input)))
                     .child(crate::input::Textarea::new(&self.textarea))
                     .child(crate::input::Editor::new(&self.editor))
                     .child(crate::input::OtpInput::new(&self.otp))
@@ -967,6 +968,7 @@ mod tests {
         let mut editor = None;
         let mut other_focus = None;
         let mut otp = None;
+        let mut probe_entity = None;
         let window = cx.update(|cx| {
             cx.open_window(Default::default(), |window, cx| {
                 let state = cx.new(|cx| InputState::new(window, cx));
@@ -986,7 +988,9 @@ mod tests {
                     editor: editor_state,
                     otp: otp_state,
                     other,
+                    show_input: true,
                 });
+                probe_entity = Some(probe.clone());
                 cx.new(|cx| Root::new(probe, window, cx))
             })
             .unwrap()
@@ -996,6 +1000,7 @@ mod tests {
         let editor = editor.unwrap();
         let otp = otp.unwrap();
         let other_focus = other_focus.unwrap();
+        let probe = probe_entity.unwrap();
         let mut cx = gpui::VisualTestContext::from_window(window.into(), cx);
 
         // Focusing each kind of input registers it, and blurring clears it.
@@ -1026,6 +1031,37 @@ mod tests {
             });
             assert_eq!(cx.update(|window, cx| window.focused_input(cx)), None);
         }
+
+        // A focused input can disappear before it ever paints unfocused. The
+        // registry deliberately retains the last painted input state, but the
+        // shortcut predicate must validate that state's live focus handle.
+        cx.update(|window, cx| input.focus_handle(cx).focus(window, cx));
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        assert!(cx.update(|window, cx| window.has_focused_input(cx)));
+
+        cx.update(|window, cx| {
+            other_focus.focus(window, cx);
+            probe.update(cx, |probe, cx| {
+                probe.show_input = false;
+                cx.notify();
+            });
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        assert_eq!(
+            cx.update(|window, cx| window.focused_input(cx)),
+            Some(input.into()),
+            "the paint registry keeps the removed input until it can be resynchronized"
+        );
+        assert!(
+            !cx.update(|window, cx| window.has_focused_input(cx)),
+            "a removed input whose focus handle is inactive must not own shortcuts"
+        );
     }
 
     #[test]

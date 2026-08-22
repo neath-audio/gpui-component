@@ -215,7 +215,10 @@ impl WindowExt for Window {
 
     #[inline]
     fn has_focused_input(&mut self, cx: &mut App) -> bool {
-        Root::read(self, cx).focused_input.is_some()
+        Root::read(self, cx)
+            .focused_input
+            .as_ref()
+            .is_some_and(|input| input.focus_handle(cx).is_focused(self))
     }
 
     #[inline]
