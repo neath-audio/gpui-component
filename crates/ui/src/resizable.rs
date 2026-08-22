@@ -6,7 +6,7 @@ use crate::{ActiveTheme as _, AxisExt as _};
 
 pub use gpui_base::{
     ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState, h_resizable,
-    resizable_panel, v_resizable,
+    resizable_panel, resize_handle, v_resizable,
 };
 
 /// Paint a resize divider only while it is active.
