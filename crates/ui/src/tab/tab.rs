@@ -128,7 +128,7 @@ impl TabVariant {
     fn normal(&self, cx: &App) -> TabStyle {
         match self {
             TabVariant::Tab => TabStyle {
-                fg: cx.theme().tab_foreground,
+                fg: cx.theme().text_muted,
                 bg: cx.theme().transparent.into(),
                 borders: Edges {
                     left: px(1.),
@@ -139,24 +139,24 @@ impl TabVariant {
                 ..Default::default()
             },
             TabVariant::Outline => TabStyle {
-                fg: cx.theme().tab_foreground,
+                fg: cx.theme().text_muted,
                 bg: cx.theme().transparent.into(),
                 borders: Edges::all(px(1.)),
                 border_color: cx.theme().border,
                 ..Default::default()
             },
             TabVariant::Pill => TabStyle {
-                fg: cx.theme().foreground,
+                fg: cx.theme().text,
                 bg: cx.theme().transparent.into(),
                 ..Default::default()
             },
             TabVariant::Segmented => TabStyle {
-                fg: cx.theme().tab_foreground,
+                fg: cx.theme().text_muted,
                 bg: cx.theme().transparent.into(),
                 ..Default::default()
             },
             TabVariant::Underline => TabStyle {
-                fg: cx.theme().tab_foreground,
+                fg: cx.theme().text_muted,
                 bg: cx.theme().transparent.into(),
                 inner_bg: cx.theme().transparent.into(),
                 borders: Edges {
@@ -172,7 +172,7 @@ impl TabVariant {
     fn hovered(&self, selected: bool, cx: &App) -> TabStyle {
         match self {
             TabVariant::Tab => TabStyle {
-                fg: cx.theme().tab_active_foreground,
+                fg: cx.theme().text,
                 bg: cx.theme().transparent.into(),
                 borders: Edges {
                     left: px(1.),
@@ -183,29 +183,29 @@ impl TabVariant {
                 ..Default::default()
             },
             TabVariant::Outline => TabStyle {
-                fg: cx.theme().secondary_foreground,
-                bg: cx.theme().tokens.secondary_hover.into(),
+                fg: cx.theme().text,
+                bg: cx.theme().surface_raised_hover.into(),
                 borders: Edges::all(px(1.)),
                 border_color: cx.theme().border,
                 ..Default::default()
             },
             TabVariant::Pill => TabStyle {
-                fg: cx.theme().secondary_foreground,
-                bg: cx.theme().tokens.secondary.into(),
+                fg: cx.theme().text,
+                bg: cx.theme().surface_raised.into(),
                 ..Default::default()
             },
             TabVariant::Segmented => TabStyle {
-                fg: cx.theme().tab_active_foreground,
+                fg: cx.theme().text,
                 bg: cx.theme().transparent.into(),
                 inner_bg: if selected {
-                    cx.theme().tokens.background.into()
+                    cx.theme().bg.into()
                 } else {
                     cx.theme().transparent.into()
                 },
                 ..Default::default()
             },
             TabVariant::Underline => TabStyle {
-                fg: cx.theme().tab_active_foreground,
+                fg: cx.theme().text,
                 bg: cx.theme().transparent.into(),
                 inner_bg: cx.theme().transparent.into(),
                 borders: Edges {
@@ -221,8 +221,8 @@ impl TabVariant {
     fn selected(&self, cx: &App) -> TabStyle {
         match self {
             TabVariant::Tab => TabStyle {
-                fg: cx.theme().tab_active_foreground,
-                bg: cx.theme().tokens.tab_active.into(),
+                fg: cx.theme().text,
+                bg: cx.theme().bg.into(),
                 borders: Edges {
                     left: px(1.),
                     right: px(1.),
@@ -232,32 +232,32 @@ impl TabVariant {
                 ..Default::default()
             },
             TabVariant::Outline => TabStyle {
-                fg: cx.theme().primary,
+                fg: cx.theme().accent,
                 bg: cx.theme().transparent.into(),
                 borders: Edges::all(px(1.)),
-                border_color: cx.theme().primary,
+                border_color: cx.theme().accent,
                 ..Default::default()
             },
             TabVariant::Pill => TabStyle {
-                fg: cx.theme().primary_foreground,
-                bg: cx.theme().tokens.primary.into(),
+                fg: cx.theme().on_accent,
+                bg: cx.theme().accent_strong.into(),
                 ..Default::default()
             },
             TabVariant::Segmented => TabStyle {
-                fg: cx.theme().tab_active_foreground,
+                fg: cx.theme().text,
                 bg: cx.theme().transparent.into(),
-                inner_bg: cx.theme().tokens.background.into(),
+                inner_bg: cx.theme().bg.into(),
                 shadow: true,
                 ..Default::default()
             },
             TabVariant::Underline => TabStyle {
-                fg: cx.theme().tab_active_foreground,
+                fg: cx.theme().text,
                 bg: cx.theme().transparent.into(),
                 borders: Edges {
                     bottom: px(2.),
                     ..Default::default()
                 },
-                border_color: cx.theme().primary,
+                border_color: cx.theme().accent,
                 ..Default::default()
             },
         }
@@ -266,7 +266,7 @@ impl TabVariant {
     fn disabled(&self, selected: bool, cx: &App) -> TabStyle {
         match self {
             TabVariant::Tab => TabStyle {
-                fg: cx.theme().muted_foreground,
+                fg: cx.theme().text_muted,
                 bg: cx.theme().transparent.into(),
                 border_color: if selected {
                     cx.theme().border
@@ -281,11 +281,11 @@ impl TabVariant {
                 ..Default::default()
             },
             TabVariant::Outline => TabStyle {
-                fg: cx.theme().muted_foreground,
+                fg: cx.theme().text_muted,
                 bg: cx.theme().transparent.into(),
                 borders: Edges::all(px(1.)),
                 border_color: if selected {
-                    cx.theme().primary
+                    cx.theme().accent
                 } else {
                     cx.theme().border
                 },
@@ -293,29 +293,29 @@ impl TabVariant {
             },
             TabVariant::Pill => TabStyle {
                 fg: if selected {
-                    cx.theme().primary_foreground.opacity(0.5)
+                    cx.theme().on_accent.opacity(0.5)
                 } else {
-                    cx.theme().muted_foreground
+                    cx.theme().text_muted
                 },
                 bg: if selected {
-                    cx.theme().primary.opacity(0.5).into()
+                    cx.theme().accent_strong.opacity(0.5).into()
                 } else {
                     cx.theme().transparent.into()
                 },
                 ..Default::default()
             },
             TabVariant::Segmented => TabStyle {
-                fg: cx.theme().muted_foreground,
-                bg: cx.theme().tokens.tab_bar.into(),
+                fg: cx.theme().text_muted,
+                bg: cx.theme().surface.into(),
                 inner_bg: if selected {
-                    cx.theme().tokens.background.into()
+                    cx.theme().bg.into()
                 } else {
                     cx.theme().transparent.into()
                 },
                 ..Default::default()
             },
             TabVariant::Underline => TabStyle {
-                fg: cx.theme().muted_foreground,
+                fg: cx.theme().text_muted,
                 bg: cx.theme().transparent.into(),
                 border_color: if selected {
                     cx.theme().border
@@ -685,7 +685,7 @@ impl RenderOnce for Tab {
                 selected_style.border_color
             };
 
-        // For Pill, the newly selected tab's text color (`primary_foreground`)
+        // For Pill, the newly selected tab's text color (`on_accent`)
         // would otherwise snap to white instantly while the indicator is still
         // sliding into place. Fade it from the normal color in sync with the
         // indicator slide (keyed on the indicator epoch so it restarts on each

@@ -1,7 +1,8 @@
 use std::rc::Rc;
 
 use crate::{
-    ActiveTheme, Icon, IconName, InteractiveElementExt as _, Sizable as _, StyledExt, h_flex,
+    ActiveTheme, Colorize as _, Icon, IconName, InteractiveElementExt as _, Sizable as _,
+    StyledExt, WASH_HOVER, WASH_SELECTED, h_flex,
 };
 use gpui::{
     AnyElement, App, Background, ClickEvent, Context, Decorations, Hsla, InteractiveElement,
@@ -166,27 +167,27 @@ impl ControlIcon {
     #[inline]
     fn hover_fg(&self, cx: &App) -> Hsla {
         if self.is_close() {
-            cx.theme().danger_foreground
+            cx.theme().on_accent
         } else {
-            cx.theme().secondary_foreground
+            cx.theme().text
         }
     }
 
     #[inline]
     fn hover_bg(&self, cx: &App) -> Hsla {
         if self.is_close() {
-            cx.theme().danger
+            cx.theme().danger_strong
         } else {
-            cx.theme().secondary_hover
+            cx.theme().wash(WASH_HOVER)
         }
     }
 
     #[inline]
     fn active_bg(&self, cx: &mut App) -> Hsla {
         if self.is_close() {
-            cx.theme().danger_active
+            cx.theme().danger_strong.darken(0.06)
         } else {
-            cx.theme().secondary_active
+            cx.theme().wash(WASH_SELECTED)
         }
     }
 }
@@ -213,7 +214,7 @@ impl RenderOnce for ControlIcon {
             .justify_center()
             .content_center()
             .items_center()
-            .text_color(cx.theme().foreground)
+            .text_color(cx.theme().text)
             .hover(|style| style.bg(hover_bg).text_color(hover_fg))
             .active(|style| style.bg(active_bg).text_color(hover_fg))
             .when(is_windows, |this| {
@@ -334,10 +335,10 @@ impl RenderOnce for TitleBar {
                 .h(TITLE_BAR_HEIGHT)
                 .pl(TITLE_BAR_LEFT_PADDING)
                 .border_b_1()
-                .border_color(cx.theme().title_bar_border)
+                .border_color(cx.theme().border)
                 .bg(default_title_bar_background(
-                    cx.theme().title_bar,
-                    cx.theme().background,
+                    cx.theme().surface,
+                    cx.theme().bg,
                 ))
                 .refine_style(&self.style)
                 .when(is_linux, |this| {

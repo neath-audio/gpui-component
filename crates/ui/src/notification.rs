@@ -38,7 +38,7 @@ pub enum NotificationType {
 impl NotificationType {
     fn icon(&self, cx: &App) -> Icon {
         match self {
-            Self::Info => Icon::new(IconName::Info).text_color(cx.theme().info),
+            Self::Info => Icon::new(IconName::Info).text_color(cx.theme().busy),
             Self::Success => Icon::new(IconName::CircleCheck).text_color(cx.theme().success),
             Self::Warning => Icon::new(IconName::TriangleAlert).text_color(cx.theme().warning),
             Self::Error => Icon::new(IconName::CircleX).text_color(cx.theme().danger),
@@ -419,8 +419,8 @@ impl Render for Notification {
             .relative()
             .w_full()
             .border_1()
-            .border_color(cx.theme().border)
-            .bg(cx.theme().tokens.popover)
+            .border_color(cx.theme().border_strong)
+            .bg(cx.theme().surface_overlay)
             .rounded(cx.theme().radius_lg)
             .shadow(toast_shadow(1.))
             .py_3p5()

@@ -1322,7 +1322,7 @@ impl CodeBlock {
                     .min_w_0()
                     .p_3()
                     .rounded(cx.theme().radius)
-                    .bg(cx.theme().tokens.muted)
+                    .bg(cx.theme().surface_raised)
                     .font_family(cx.theme().mono_font_family.clone())
                     .text_size(cx.theme().mono_font_size)
                     .relative()
@@ -1341,7 +1341,7 @@ impl CodeBlock {
                                 .absolute()
                                 .top_2()
                                 .right_2()
-                                .bg(cx.theme().tokens.muted)
+                                .bg(cx.theme().surface_raised)
                                 .rounded(cx.theme().radius)
                                 .child(actions(&self, window, cx)),
                         )
@@ -1499,7 +1499,7 @@ impl Paragraph {
                     }
 
                     if let Some(mut link_mark) = style.link.clone() {
-                        highlight.color = Some(cx.theme().link);
+                        highlight.color = Some(cx.theme().accent);
                         highlight.underline = Some(gpui::UnderlineStyle {
                             thickness: gpui::px(1.),
                             ..Default::default()
@@ -1621,7 +1621,7 @@ impl Paragraph {
                     }
 
                     if let Some(mut link_mark) = style.link.clone() {
-                        highlight.color = Some(cx.theme().link);
+                        highlight.color = Some(cx.theme().accent);
                         highlight.underline = Some(gpui::UnderlineStyle {
                             thickness: gpui::px(1.),
                             ..Default::default()
@@ -1838,10 +1838,10 @@ impl BlockNode {
                         .justify_center()
                         .rounded(cx.theme().radius.half())
                         .border_1()
-                        .border_color(cx.theme().primary)
-                        .text_color(cx.theme().primary_foreground)
+                        .border_color(cx.theme().accent_strong)
+                        .text_color(cx.theme().on_accent)
                         .when(checked, |this| {
-                            this.bg(cx.theme().tokens.primary)
+                            this.bg(cx.theme().accent_strong)
                                 .child(Icon::new(IconName::Check).size_2().text_xs())
                         }),
                 )
@@ -2355,9 +2355,9 @@ impl BlockNode {
                     div()
                         .id(("blockquote", ix))
                         .w_full()
-                        .text_color(cx.theme().muted_foreground)
+                        .text_color(cx.theme().text_muted)
                         .border_l_3()
-                        .border_color(cx.theme().secondary_active)
+                        .border_color(cx.theme().border_strong)
                         .px_4()
                         .children({
                             let children_len = children.len();

@@ -181,7 +181,7 @@ where
                 x_fn.as_ref(),
                 &x,
                 self.tick_margin,
-                cx.theme().muted_foreground,
+                cx.theme().text_muted,
             );
             axis = axis.x(height).x_label(labels);
         }
@@ -197,7 +197,7 @@ where
         }
 
         // Draw line
-        let stroke = self.stroke.unwrap_or(cx.theme().chart_2);
+        let stroke = self.stroke.unwrap_or(cx.theme().success);
         let x_fn = x_fn.clone();
         let y_fn = y_fn.clone();
         let mut line = Line::new()
@@ -258,7 +258,7 @@ where
         let d = self.data.get(state.index)?;
         let title: SharedString = x_fn(d).into();
         let value = y_fn(d).to_f64()?;
-        let stroke = self.stroke.unwrap_or(cx.theme().chart_2);
+        let stroke = self.stroke.unwrap_or(cx.theme().success);
         let name = self.name.clone().unwrap_or_default();
 
         Some(
@@ -275,7 +275,7 @@ where
                     state
                         .dots
                         .iter()
-                        .map(|p| Dot::new(*p).stroke(cx.theme().background).fill(stroke)),
+                        .map(|p| Dot::new(*p).stroke(cx.theme().bg).fill(stroke)),
                 )
                 .title(title)
                 .row(stroke, name, format!("{}", value))

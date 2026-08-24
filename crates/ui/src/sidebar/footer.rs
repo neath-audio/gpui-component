@@ -75,13 +75,9 @@ impl RenderOnce for SidebarFooter {
             .w_full()
             .justify_between()
             .rounded(cx.theme().radius)
-            .hover(|this| {
-                this.bg(cx.theme().tokens.sidebar_accent)
-                    .text_color(cx.theme().sidebar_accent_foreground)
-            })
+            .hover(|this| this.bg(cx.theme().row_hover).text_color(cx.theme().text))
             .when(self.selected, |this| {
-                this.bg(cx.theme().tokens.sidebar_accent)
-                    .text_color(cx.theme().sidebar_accent_foreground)
+                this.bg(cx.theme().row_selected).text_color(cx.theme().text)
             })
             .child(self.base)
     }

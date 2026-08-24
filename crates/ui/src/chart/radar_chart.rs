@@ -191,7 +191,7 @@ where
         self
     }
 
-    /// Set the text label color (defaults to `cx.theme().muted_foreground`).
+    /// Set the text label color (defaults to `cx.theme().text_muted`).
     ///
     /// Element labels style themselves; this does not apply to them.
     pub fn label_color(mut self, color: impl Into<Hsla>) -> Self {
@@ -247,11 +247,11 @@ where
     /// Defaults to the theme chart colors, cycled per series.
     fn series_stroke(&self, ix: usize, cx: &App) -> Hsla {
         let colors = [
-            cx.theme().chart_1,
-            cx.theme().chart_2,
-            cx.theme().chart_3,
-            cx.theme().chart_4,
-            cx.theme().chart_5,
+            cx.theme().accent,
+            cx.theme().success,
+            cx.theme().warning,
+            cx.theme().danger,
+            cx.theme().busy,
         ];
 
         self.strokes
@@ -460,7 +460,7 @@ where
 
         // Draw the text labels outside the outer ring; `prepaint` resolved them and
         // already placed the element ones.
-        let label_color = self.label_color.unwrap_or(cx.theme().muted_foreground);
+        let label_color = self.label_color.unwrap_or(cx.theme().text_muted);
         let labels = self
             .label_texts
             .iter()
@@ -541,7 +541,7 @@ where
     ) -> Option<AnyElement> {
         let d = self.data.get(state.index)?;
 
-        let dot_stroke = cx.theme().background;
+        let dot_stroke = cx.theme().bg;
 
         // No crosshair: a radar has no cartesian axis to snap to; the dots mark
         // the hovered dimension's vertices instead.

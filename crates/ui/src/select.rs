@@ -9,7 +9,7 @@ use rust_i18n::t;
 use crate::ThemeStyled as _;
 use crate::{
     ActiveTheme, Disableable, ElementExt as _, Icon, IconName, IndexPath, Sizable, Size,
-    StyleSized, StyledExt,
+    StyleSized, StyledExt, WASH_HOVER, WASH_SELECTED,
     actions::Cancel,
     h_flex,
     input::{clear_button, input_style},
@@ -253,7 +253,7 @@ where
                     h_flex()
                         .justify_center()
                         .py_6()
-                        .text_color(cx.theme().muted_foreground.opacity(0.6))
+                        .text_color(cx.theme().text_faint)
                         .child(Icon::new(IconName::Inbox).size(px(28.)))
                         .into_any_element()
                 }
@@ -413,7 +413,7 @@ where
     }
 
     fn display_title(&mut self, _: &Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let default_title = div().text_color(cx.theme().muted_foreground).child(
+        let default_title = div().text_color(cx.theme().text_faint).child(
             self.state
                 .placeholder
                 .clone()
@@ -446,7 +446,7 @@ where
 
         div()
             .when(self.state.disabled, |this| {
-                this.text_color(cx.theme().muted_foreground)
+                this.text_color(cx.theme().text_muted)
             })
             .child(title)
     }
@@ -493,16 +493,16 @@ where
                             this.bg(bg)
                                 .text_color(fg)
                                 .when(self.state.disabled, |this| this.opacity(0.5))
-                                .border_color(cx.theme().input)
+                                .border_color(cx.theme().border_strong)
                                 .rounded(cx.theme().radius)
                         })
                         .when(self.state.trigger_ghost && !self.state.disabled, |this| {
                             this.rounded(cx.theme().radius).map(|this| {
                                 if self.state.open {
-                                    this.bg(cx.theme().foreground.opacity(0.2))
+                                    this.bg(cx.theme().wash(WASH_SELECTED))
                                 } else {
-                                    this.hover(|this| this.bg(cx.theme().foreground.opacity(0.12)))
-                                        .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
+                                    this.hover(|this| this.bg(cx.theme().wash(WASH_HOVER)))
+                                        .active(|this| this.bg(cx.theme().wash(WASH_SELECTED)))
                                 }
                             })
                         })
@@ -510,7 +510,7 @@ where
                         .input_text_size(self.state.size)
                         .refine_style(&self.state.style)
                         .when(outline_visible && self.state.appearance, |this| {
-                            this.border_1().border_color(cx.theme().ring)
+                            this.border_1().border_color(cx.theme().focus)
                         })
                         .when(
                             outline_visible && self.state.appearance && self.focus_ring_enabled,
@@ -549,10 +549,10 @@ where
                                     let icon = match self.icon.clone() {
                                         Some(icon) => icon
                                             .xsmall()
-                                            .text_color(cx.theme().muted_foreground)
+                                            .text_color(cx.theme().text_muted)
                                             .into_any_element(),
                                         None => Caret::new(self.state.size)
-                                            .text_color(cx.theme().muted_foreground)
+                                            .text_color(cx.theme().text_muted)
                                             .into_any_element(),
                                     };
 
@@ -572,6 +572,7 @@ where
                                     Length::Definite(w) => this.w(w),
                                 })
                                 .popover_style(cx)
+                                .bg(cx.theme().surface_overlay)
                                 .when_some(self.state.menu_bg, |this, bg| this.bg(bg))
                                 .when_some(self.state.menu_border, |this, border| {
                                     this.border_color(border)

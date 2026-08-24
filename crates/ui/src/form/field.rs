@@ -335,7 +335,7 @@ impl RenderOnce for Field {
                         this.child(
                             div()
                                 .text_xs()
-                                .text_color(cx.theme().muted_foreground)
+                                .text_color(cx.theme().text_muted)
                                 .child(builder.render(window, cx)),
                         )
                     }),

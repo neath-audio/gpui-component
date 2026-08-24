@@ -108,7 +108,7 @@ impl RenderOnce for MenuItemElement {
             .gap_x(rems(0.375))
             .py_1()
             .px(rems(0.375))
-            .text_color(cx.theme().foreground)
+            .text_color(cx.theme().text)
             .relative()
             .items_center()
             .justify_between()
@@ -118,12 +118,10 @@ impl RenderOnce for MenuItemElement {
             })
             .when(!self.disabled, |this| {
                 this.group_hover(self.group_name, |this| {
-                    this.bg(cx.theme().tokens.accent)
-                        .text_color(cx.theme().accent_foreground)
+                    this.bg(cx.theme().row_hover).text_color(cx.theme().text)
                 })
                 .when(self.selected, |this| {
-                    this.bg(cx.theme().tokens.accent)
-                        .text_color(cx.theme().accent_foreground)
+                    this.bg(cx.theme().row_selected).text_color(cx.theme().text)
                 })
                 .when_some(self.on_click, |this, on_click| {
                     this.on_mouse_down(MouseButton::Left, move |_, _, cx| {
@@ -132,9 +130,7 @@ impl RenderOnce for MenuItemElement {
                     .on_click(on_click)
                 })
             })
-            .when(self.disabled, |this| {
-                this.text_color(cx.theme().muted_foreground)
-            })
+            .when(self.disabled, |this| this.text_color(cx.theme().text_muted))
             .children(self.children)
     }
 }

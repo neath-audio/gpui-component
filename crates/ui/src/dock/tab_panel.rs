@@ -65,8 +65,8 @@ impl Render for DragPanelPreview {
             .border_1()
             .border_color(cx.theme().border)
             .rounded(cx.theme().radius)
-            .text_color(cx.theme().tab_foreground)
-            .bg(cx.theme().tokens.tab_active)
+            .text_color(cx.theme().text_muted)
+            .bg(cx.theme().bg)
             .opacity(0.75)
             .child(panel_title(&self.panel, window, cx))
     }
@@ -478,7 +478,7 @@ impl TabGroupSkin {
                         .border_b_1()
                         .h_full()
                         .border_color(cx.theme().border)
-                        .bg(cx.theme().tokens.tab_bar)
+                        .bg(cx.theme().surface)
                         .px_2()
                         .children(left_button)
                         .children(bottom_button),
@@ -541,7 +541,7 @@ impl TabGroupSkin {
                                         this.rounded_l_none()
                                             .border_l_2()
                                             .border_r_0()
-                                            .border_color(cx.theme().drag_border)
+                                            .border_color(cx.theme().accent)
                                     })
                                     .on_drop({
                                         let group = group.clone();
@@ -559,7 +559,7 @@ impl TabGroupSkin {
                                         this.rounded_l_none()
                                             .border_l_2()
                                             .border_r_0()
-                                            .border_color(cx.theme().drag_border)
+                                            .border_color(cx.theme().accent)
                                     })
                                     .on_drop({
                                         let group = group.clone();
@@ -581,7 +581,7 @@ impl TabGroupSkin {
                     .min_w_16()
                     .when(droppable, |this| {
                         this.drag_over::<DragPanel>(|this, _, _, cx| {
-                            this.bg(cx.theme().tokens.drop_target)
+                            this.bg(cx.theme().accent.opacity(0.2))
                         })
                         .on_drop({
                             let group = group.clone();
@@ -595,7 +595,7 @@ impl TabGroupSkin {
                             }
                         })
                         .drag_over::<AnyDrag>(|this, _, _, cx| {
-                            this.bg(cx.theme().tokens.drop_target)
+                            this.bg(cx.theme().accent.opacity(0.2))
                         })
                         .on_drop({
                             let group = group.clone();
@@ -615,7 +615,7 @@ impl TabGroupSkin {
                         .border_b_1()
                         .h_full()
                         .border_color(cx.theme().border)
-                        .bg(cx.theme().tokens.tab_bar)
+                        .bg(cx.theme().surface)
                         .px_2()
                         .gap_1()
                         .children(
@@ -646,7 +646,7 @@ impl TabGroupRenderer for TabGroupSkin {
             .id("tab-panel")
             .size_full()
             .overflow_hidden()
-            .bg(cx.theme().tokens.background)
+            .bg(cx.theme().bg)
             // A collapsed group is a strip of tabs with no content, and the
             // actions act on content. The old dock gated them the same way.
             .when(!group.is_collapsed(), |this| {
@@ -762,7 +762,7 @@ impl TabGroupRenderer for TabGroupSkin {
                 .child(
                     div()
                         .absolute()
-                        .bg(cx.theme().tokens.drop_target)
+                        .bg(cx.theme().accent.opacity(0.2))
                         .with_animation(
                             gpui::ElementId::NamedInteger(
                                 "drop-placeholder".into(),

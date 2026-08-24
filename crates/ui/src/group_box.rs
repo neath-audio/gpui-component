@@ -131,7 +131,7 @@ impl RenderOnce for GroupBox {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let (bg, border, has_paddings): (Option<Background>, _, _) = match self.variant {
             GroupBoxVariant::Normal => (None, None, false),
-            GroupBoxVariant::Fill => (Some(cx.theme().tokens.group_box.into()), None, true),
+            GroupBoxVariant::Fill => (Some(cx.theme().surface_raised.into()), None, true),
             GroupBoxVariant::Outline => (None, Some(cx.theme().border), true),
         };
 
@@ -144,7 +144,7 @@ impl RenderOnce for GroupBox {
             .when_some(self.title, |this, title| {
                 this.child(
                     div()
-                        .text_color(cx.theme().muted_foreground)
+                        .text_color(cx.theme().text_muted)
                         .line_height(relative(1.))
                         .refine_style(&self.title_style)
                         .child(title),
@@ -154,7 +154,7 @@ impl RenderOnce for GroupBox {
                 v_flex()
                     .when_some(bg, |this, bg| this.bg(bg))
                     .when_some(border, |this, border| this.border_color(border).border_1())
-                    .text_color(cx.theme().group_box_foreground)
+                    .text_color(cx.theme().text)
                     .when(has_paddings, |this| this.p_4())
                     .gap_4()
                     .rounded(cx.theme().radius)

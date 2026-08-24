@@ -491,10 +491,10 @@ fn render_inspector(
         .id("inspector")
         .font_family(cx.theme().font_family.clone())
         .size_full()
-        .bg(cx.theme().tokens.background)
+        .bg(cx.theme().bg)
         .border_l_1()
         .border_color(cx.theme().border)
-        .text_color(cx.theme().foreground)
+        .text_color(cx.theme().text)
         .child(
             h_flex()
                 .w_full()
@@ -505,8 +505,8 @@ fn render_inspector(
                 .overflow_x_hidden()
                 .px_2()
                 .border_b_1()
-                .border_color(cx.theme().title_bar_border)
-                .bg(cx.theme().tokens.title_bar)
+                .border_color(cx.theme().border)
+                .bg(cx.theme().surface)
                 .child(
                     h_flex()
                         .gap_2()

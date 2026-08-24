@@ -116,9 +116,9 @@ impl CrossLine {
     /// solid band fills a `thickness`-wide strip centered on the data point.
     fn line(&self, vertical: bool, cx: &App) -> Div {
         let color = if self.dashed {
-            cx.theme().border.mix(cx.theme().foreground, 0.8)
+            cx.theme().border.mix(cx.theme().text, 0.8)
         } else {
-            cx.theme().foreground.opacity(0.08)
+            cx.theme().text.opacity(0.08)
         };
         // The dashed hairline is a zero-width strip drawn entirely by its 1px border.
         let thickness = if self.dashed { px(0.) } else { self.thickness };
@@ -218,7 +218,7 @@ impl Dot {
 }
 
 impl RenderOnce for Dot {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let border_width = px(1.);
         let offset = self.size / 2. - border_width / 2.;
 
@@ -226,7 +226,7 @@ impl RenderOnce for Dot {
             .absolute()
             .w(self.size)
             .h(self.size)
-            .rounded_full()
+            .rounded(cx.theme().radius_full())
             .border(border_width)
             .border_color(self.stroke)
             .bg(self.fill)
@@ -386,11 +386,7 @@ impl RenderOnce for Tooltip {
                                         .rounded(cx.theme().radius.half())
                                         .bg(row.color),
                                 )
-                                .child(
-                                    div()
-                                        .text_color(cx.theme().muted_foreground)
-                                        .child(row.label),
-                                ),
+                                .child(div().text_color(cx.theme().text_muted).child(row.label)),
                         )
                         .child(div().child(row.value))
                 }))

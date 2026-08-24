@@ -433,12 +433,12 @@ impl std::ops::Deref for HighlightTheme {
 impl HighlightTheme {
     pub fn default_dark() -> std::sync::Arc<Self> {
         use crate::DEFAULT_THEME_COLORS;
-        DEFAULT_THEME_COLORS[&crate::ThemeMode::Dark].1.clone()
+        DEFAULT_THEME_COLORS[&crate::ThemeMode::Dark].clone()
     }
 
     pub fn default_light() -> std::sync::Arc<Self> {
         use crate::DEFAULT_THEME_COLORS;
-        DEFAULT_THEME_COLORS[&crate::ThemeMode::Light].1.clone()
+        DEFAULT_THEME_COLORS[&crate::ThemeMode::Light].clone()
     }
 }
 

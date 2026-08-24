@@ -64,7 +64,7 @@ impl Switch {
     }
 
     /// Set the background color of the switch when checked.
-    /// Defaults to `cx.theme().primary`.
+    /// Defaults to `cx.theme().accent_strong`.
     pub fn color(mut self, color: impl Into<Hsla>) -> Self {
         self.color = Some(color.into());
         self
@@ -106,10 +106,19 @@ impl RenderOnce for Switch {
         let checked_bg = self
             .color
             .map(Background::from)
-            .unwrap_or(cx.theme().tokens.primary.into());
-        let unchecked_bg: Background = cx.theme().tokens.switch.into();
+            .unwrap_or(cx.theme().accent_strong.into());
+        // Bezel keeps the off track visible with neutral ink rather than a
+        // raised-surface token that can merge into its parent plane.
+        let unchecked_bg: Background = cx.theme().ink(0.15).into();
         let disabled_checked_bg = checked_bg.clone().opacity(0.5);
-        let toggle_bg: Background = cx.theme().tokens.switch_thumb.into();
+        // Match the checked track's semantic contrast partner. Bezel uses
+        // `text` / `on_solid`; our accent-authored switch uses the analogous
+        // `accent_strong` / `on_accent` pair.
+        let toggle_bg: Background = if checked {
+            cx.theme().on_accent.into()
+        } else {
+            cx.theme().solid.into()
+        };
 
         let (bg_width, bg_height) = match self.size {
             Size::XSmall | Size::Small => (px(28.), px(16.)),

@@ -10,7 +10,8 @@ use gpui_base::{ElementExt as _, TextSelectionScopeId};
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme as _, IconName, Root, Sizable as _, StyledExt, TITLE_BAR_HEIGHT, WindowExt as _,
+    ActiveTheme as _, IconName, Root, SCRIM_ALPHA_DARK, Sizable as _, StyledExt, TITLE_BAR_HEIGHT,
+    WindowExt as _,
     animation::cubic_bezier,
     button::{Button, ButtonVariant, ButtonVariants as _},
     dialog::{DialogContent, DialogTitle},
@@ -128,6 +129,7 @@ impl DialogButtonProps {
         Button::new("cancel")
             .label(cancel_text)
             .with_variant(cancel_variant)
+            .outline()
             .on_click(|_, window, cx| window.dispatch_action(Box::new(Cancel), cx))
             .into_any_element()
     }
@@ -257,7 +259,31 @@ pub(crate) fn overlay_color(overlay: bool, cx: &App) -> Hsla {
         return hsla(0., 0., 0., 0.);
     }
 
-    cx.theme().overlay
+    cx.theme().scrim(SCRIM_ALPHA_DARK)
+}
+
+fn dialog_elevation_shadows(delta: f32, dark: bool) -> Vec<BoxShadow> {
+    // Notion's scrim elevation: a 1px #383836 outline (owned by the dialog
+    // border) plus a broad seat and a near contact shadow. The dark shadow
+    // pigment is #191919 rather than pure black, so it remains legible over
+    // the lifted #0f backdrop.
+    let (far_alpha, near_alpha) = if dark { (0.639, 0.56) } else { (0.239, 0.14) };
+    vec![
+        BoxShadow {
+            color: hsla(0., 0., 25. / 255., far_alpha * delta),
+            offset: point(px(0.), px(24.)),
+            blur_radius: px(48.),
+            spread_radius: px(0.),
+            inset: false,
+        },
+        BoxShadow {
+            color: hsla(0., 0., 25. / 255., near_alpha * delta),
+            offset: point(px(0.), px(4.)),
+            blur_radius: px(12.),
+            spread_radius: px(0.),
+            inset: false,
+        },
+    ]
 }
 
 impl Dialog {
@@ -484,6 +510,7 @@ impl RenderOnce for Dialog {
         }
 
         let layer_ix = self.layer_ix;
+        let dark = cx.theme().is_dark();
         let selection_scope = self.selection_scope;
         let on_close = self.button_props.on_close.clone();
         let on_ok = self.button_props.on_ok.clone();
@@ -571,9 +598,9 @@ impl RenderOnce for Dialog {
                             .popup(
                                 v_flex()
                                     .id(layer_ix)
-                                    .bg(cx.theme().tokens.background)
+                                    .bg(cx.theme().surface_dialog)
                                     .border_1()
-                                    .border_color(cx.theme().border)
+                                    .border_color(cx.theme().border_strong)
                                     .rounded(cx.theme().radius_lg)
                                     .min_h_24()
                                     .pt(paddings.top)
@@ -661,24 +688,8 @@ impl RenderOnce for Dialog {
                                         "slide-down",
                                         animation.clone(),
                                         move |this, delta| {
-                                            // This is equivalent to `shadow_xl` with an extra opacity.
-                                            let shadow = vec![
-                                                BoxShadow {
-                                                    color: hsla(0., 0., 0., 0.1 * delta),
-                                                    offset: point(px(0.), px(20.)),
-                                                    blur_radius: px(25.),
-                                                    spread_radius: px(-5.),
-                                                    inset: false,
-                                                },
-                                                BoxShadow {
-                                                    color: hsla(0., 0., 0., 0.1 * delta),
-                                                    offset: point(px(0.), px(8.)),
-                                                    blur_radius: px(10.),
-                                                    spread_radius: px(-6.),
-                                                    inset: false,
-                                                },
-                                            ];
-                                            this.top(y * delta).shadow(shadow)
+                                            this.top(y * delta)
+                                                .shadow(dialog_elevation_shadows(delta, dark))
                                         },
                                     )
                                     .text_selection_scope(selection_scope),
@@ -687,5 +698,27 @@ impl RenderOnce for Dialog {
                     .with_animation("fade-in", animation, move |this, delta| this.opacity(delta)),
             )
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_cancel_starts_from_default_before_outline_style() {
+        assert_eq!(
+            DialogButtonProps::default().cancel_variant,
+            ButtonVariant::Default
+        );
+    }
+
+    #[test]
+    fn dialog_elevation_uses_far_and_contact_layers() {
+        let shadows = dialog_elevation_shadows(1.0, true);
+        assert_eq!(shadows.len(), 2);
+        assert!(shadows[0].blur_radius > shadows[1].blur_radius);
+        assert!(shadows[0].offset.y > shadows[1].offset.y);
+        assert!(shadows.iter().all(|shadow| !shadow.inset));
     }
 }

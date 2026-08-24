@@ -33,7 +33,7 @@ const POPOVER_RING_INK: f32 = 0.1;
 ///
 #[allow(dead_code)]
 pub(crate) fn popover_ring(cx: &App) -> Hsla {
-    cx.theme().foreground.alpha(POPOVER_RING_INK)
+    cx.theme().text.alpha(POPOVER_RING_INK)
 }
 
 /// shadcn/ui's popup surface shadow — a hairline `ring` plus `shadow-md` — at
@@ -155,7 +155,7 @@ impl<T: Styled + Sized> ThemeStyled for T {
         // it off. An application whose layout clips heavily turns it off in the
         // theme and keeps the tinted border, which takes no space.
         if !cx.theme().focus_ring {
-            return self.border_color(cx.theme().ring);
+            return self.border_color(cx.theme().focus);
         }
 
         let rem_size = window.rem_size();
@@ -212,7 +212,7 @@ impl<T: Styled + Sized> ThemeStyled for T {
         ring_style.corner_radii.bottom_right = Some(radius.bottom_right.into());
         let inset = FOCUS_RING_WIDTH;
 
-        self.border_color(cx.theme().ring).child(
+        self.border_color(cx.theme().focus).child(
             div()
                 .flex_none()
                 .absolute()
@@ -221,7 +221,7 @@ impl<T: Styled + Sized> ThemeStyled for T {
                 .right(-(inset + border_widths.right))
                 .bottom(-(inset + border_widths.bottom))
                 .border(FOCUS_RING_WIDTH)
-                .border_color(cx.theme().ring.alpha(FOCUS_RING_OPACITY))
+                .border_color(cx.theme().focus.alpha(FOCUS_RING_OPACITY))
                 .refine_style(&ring_style),
         )
     }
@@ -231,10 +231,10 @@ impl<T: Styled + Sized> ThemeStyled for T {
         // Opaque hairline + measured menu shadow. The shadcn "ring-as-shadow"
         // edge reads as a web overlay and dropped the elevated border this
         // crate's popups used (user ruling 2026-08-20).
-        self.bg(theme.tokens.popover)
-            .text_color(theme.popover_foreground)
+        self.bg(theme.surface_overlay)
+            .text_color(theme.text)
             .border_1()
-            .border_color(theme.hairline_strong)
+            .border_color(theme.border_strong)
             .shadow(theme.shadow_2().into_vec())
             .rounded(theme.radius)
     }

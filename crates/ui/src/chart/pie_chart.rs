@@ -135,7 +135,7 @@ impl<T> PieChart<T> {
         self
     }
 
-    /// Set the label text color (defaults to `cx.theme().foreground`).
+    /// Set the label text color (defaults to `cx.theme().text`).
     pub fn label_color(mut self, color: Hsla) -> Self {
         self.label_color = Some(color);
         self
@@ -177,7 +177,7 @@ impl<T> Plot for PieChart<T> {
                 if let Some(color_fn) = self.color.as_ref() {
                     color_fn(a.data)
                 } else {
-                    cx.theme().chart_2
+                    cx.theme().success
                 },
                 Some(inner_radius),
                 Some(outer_radius),
@@ -201,7 +201,7 @@ impl<T> Plot for PieChart<T> {
             .inner_radius(outer_radius)
             .outer_radius(outer_radius);
 
-        let label_color = self.label_color.unwrap_or(cx.theme().foreground);
+        let label_color = self.label_color.unwrap_or(cx.theme().text);
         let default_line_color = cx.theme().border;
 
         // First pass: collect a layout candidate per visible slice, split by

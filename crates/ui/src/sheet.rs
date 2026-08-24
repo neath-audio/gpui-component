@@ -142,8 +142,8 @@ impl RenderOnce for Sheet {
                 window_paddings.top + window_paddings.bottom,
             );
         let top = cx.theme().sheet.margin_top;
-        let surface_color = cx.theme().tokens.background;
-        let edge = cx.theme().hairline_strong;
+        let surface_color = cx.theme().surface_overlay;
+        let edge = cx.theme().border_strong;
         let shadow = cx.theme().shadow_4();
         let base_size = window.text_style().font_size;
         let rem_size = window.rem_size();

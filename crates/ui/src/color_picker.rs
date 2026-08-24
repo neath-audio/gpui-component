@@ -191,18 +191,18 @@ impl ColorPicker {
 
     fn render_palette_panel(&self, cx: &mut App) -> impl IntoElement {
         let featured_colors = self.featured_colors.clone().unwrap_or(vec![
-            cx.theme().red,
-            cx.theme().red_light,
-            cx.theme().blue,
-            cx.theme().blue_light,
-            cx.theme().green,
-            cx.theme().green_light,
-            cx.theme().yellow,
-            cx.theme().yellow_light,
-            cx.theme().cyan,
-            cx.theme().cyan_light,
-            cx.theme().magenta,
-            cx.theme().magenta_light,
+            crate::red_600(),
+            crate::red_400(),
+            crate::blue_600(),
+            crate::blue_400(),
+            crate::green_600(),
+            crate::green_400(),
+            crate::yellow_600(),
+            crate::yellow_400(),
+            crate::cyan_600(),
+            crate::cyan_400(),
+            crate::purple_600(),
+            crate::purple_400(),
         ]);
 
         v_flex()
@@ -249,7 +249,7 @@ impl ColorPicker {
         let alpha_start = hsla(slider_color.h, slider_color.s, slider_color.l, 0.0);
         let alpha_end = hsla(slider_color.h, slider_color.s, slider_color.l, 1.0);
 
-        let label_color = cx.theme().foreground.opacity(0.7);
+        let label_color = cx.theme().text_muted;
 
         v_flex()
             .gap_2()
@@ -533,9 +533,9 @@ impl RenderOnce for ColorPickerButton {
                 this.child(
                     div()
                         .id("square")
-                        .bg(cx.theme().tokens.background)
+                        .bg(cx.theme().bg)
                         .border_1()
-                        .border_color(cx.theme().input)
+                        .border_color(cx.theme().border)
                         .rounded(cx.theme().radius)
                         .overflow_hidden()
                         .size_with(self.size)

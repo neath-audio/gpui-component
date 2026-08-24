@@ -274,21 +274,17 @@ impl SidebarItem for SidebarMenuItem {
                     .rounded(cx.theme().radius)
                     .text_sm()
                     .when(is_hoverable, |this| {
-                        this.hover(|this| {
-                            this.bg(cx.theme().sidebar_accent.opacity(0.8))
-                                .text_color(cx.theme().sidebar_accent_foreground)
-                        })
+                        this.hover(|this| this.bg(cx.theme().row_hover).text_color(cx.theme().text))
                     })
                     .when(is_active, |this| {
                         this.font_medium()
-                            .bg(cx.theme().tokens.sidebar_accent)
-                            .text_color(cx.theme().sidebar_accent_foreground)
+                            .bg(cx.theme().row_selected)
+                            .text_color(cx.theme().text)
                     })
                     .when_some(self.icon.clone(), |this, icon| this.child(icon))
                     .when(is_collapsed, |this| {
                         this.justify_center().when(is_active, |this| {
-                            this.bg(cx.theme().tokens.sidebar_accent)
-                                .text_color(cx.theme().sidebar_accent_foreground)
+                            this.bg(cx.theme().row_selected).text_color(cx.theme().text)
                         })
                     })
                     .when(!is_collapsed, |this| {
@@ -334,9 +330,7 @@ impl SidebarItem for SidebarMenuItem {
                                 )
                             })
                     })
-                    .when(is_disabled, |this| {
-                        this.text_color(cx.theme().muted_foreground)
-                    })
+                    .when(is_disabled, |this| this.text_color(cx.theme().text_muted))
                     .when(!is_disabled, |this| {
                         this.on_click({
                             let open_state = open_state.clone();
@@ -385,7 +379,7 @@ impl SidebarItem for SidebarMenuItem {
                     v_flex()
                         .id("submenu")
                         .border_l_1()
-                        .border_color(cx.theme().sidebar_border)
+                        .border_color(cx.theme().border)
                         .gap_1()
                         .ml_3p5()
                         .pl_2p5()

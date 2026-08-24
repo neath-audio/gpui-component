@@ -152,7 +152,7 @@ impl RenderOnce for DropdownButton {
         let size = self.effective_size();
         let selected = self.selected || self.button.as_ref().is_some_and(Selectable::is_selected);
         let is_ghost = variant.is_ghost();
-        let attached = !(is_ghost && !selected);
+        let attached = !is_ghost || selected;
 
         div()
             .id(self.id)

@@ -265,7 +265,7 @@ where
                     h_flex()
                         .justify_center()
                         .py_6()
-                        .text_color(cx.theme().muted_foreground.opacity(0.6))
+                        .text_color(cx.theme().text_faint)
                         .child(Icon::new(IconName::Inbox).size(px(28.)))
                         .into_any_element()
                 }
@@ -560,7 +560,7 @@ where
 
         if self.state.selection.is_empty() {
             return div()
-                .text_color(cx.theme().muted_foreground)
+                .text_color(cx.theme().text_faint)
                 .child(placeholder_text)
                 .into_any_element();
         }
@@ -656,11 +656,11 @@ where
                 .into_any_element()
         } else if let Some(icon) = self.trigger_icon.clone() {
             icon.xsmall()
-                .text_color(cx.theme().muted_foreground)
+                .text_color(cx.theme().text_muted)
                 .into_any_element()
         } else {
             Caret::new(size)
-                .text_color(cx.theme().muted_foreground)
+                .text_color(cx.theme().text_muted)
                 .into_any_element()
         };
 
@@ -680,14 +680,19 @@ where
         let trigger: AnyElement = if unstyled {
             div()
                 .id("input")
-                .when(allow_open, |this| {
-                    this.when_some(toggle_handler, |this, handler| this.on_click(handler))
-                })
-                .child(trigger_body)
+                // `ElementExt::on_prepaint` appends an absolute measurement
+                // canvas. Add that canvas before the visible child, matching
+                // the styled trigger branch below, so its static position is
+                // the wrapper origin rather than one trigger-height later.
+                .relative()
                 .on_prepaint({
                     let state = cx.entity();
                     move |bounds, _, cx| state.update(cx, |r, _| r.state.bounds = bounds)
                 })
+                .when(allow_open, |this| {
+                    this.when_some(toggle_handler, |this, handler| this.on_click(handler))
+                })
+                .child(trigger_body)
                 .into_any_element()
         } else {
             div()
@@ -1039,14 +1044,14 @@ fn render_trigger_container(
             this.bg(bg)
                 .text_color(fg)
                 .when(disabled, |this| this.opacity(0.5))
-                .border_color(cx.theme().input)
+                .border_color(cx.theme().border_strong)
                 .rounded(cx.theme().radius)
         })
         .input_size(size)
         .input_text_size(size)
         .refine_style(style)
         .when(outline_visible && appearance, |this| {
-            this.border_1().border_color(cx.theme().ring)
+            this.border_1().border_color(cx.theme().focus)
         })
         .when(
             outline_visible && appearance && focus_ring_enabled,
@@ -1096,6 +1101,7 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                 Length::Definite(w) => this.w(w),
             })
             .popover_style(cx)
+            .bg(cx.theme().surface_overlay)
             .child(
                 List::new(list)
                     .when_some(search_placeholder, |this, placeholder| {
@@ -1113,7 +1119,7 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                 this.child(
                     div()
                         .border_t_1()
-                        .border_color(cx.theme().border)
+                        .border_color(cx.theme().border_strong)
                         .p_1()
                         .when_some(footer_el, |this, el| this.child(el)),
                 )
@@ -1131,8 +1137,9 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     use gpui::{
-        AppContext as _, Bounds, Context, Entity, Modifiers, MouseButton, MouseDownEvent, Pixels,
-        Point, Subscription, TestAppContext, point, px, size,
+        AppContext as _, Bounds, Context, Entity, InteractiveElement as _, IntoElement, Modifiers,
+        MouseButton, MouseDownEvent, ParentElement as _, Pixels, Point, Render, Styled as _,
+        Subscription, TestAppContext, Window, div, point, px, size,
     };
 
     use crate::{
@@ -1168,6 +1175,55 @@ mod tests {
                 _subscription,
             }
         }
+    }
+
+    struct CompactTriggerHarness {
+        combobox: Entity<ComboboxState<SearchableVec<&'static str>>>,
+    }
+
+    impl Render for CompactTriggerHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().h(px(64.)).w_full().flex().items_center().child(
+                Combobox::new(&self.combobox)
+                    .trigger_unstyled()
+                    .render_trigger(|_, _, _| {
+                        div()
+                            .debug_selector(|| "compact-combobox-trigger".into())
+                            .w(px(100.))
+                            .h(px(24.))
+                    }),
+            )
+        }
+    }
+
+    #[gpui::test]
+    fn unstyled_combobox_anchors_to_the_visible_trigger(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|window, cx| {
+            let items = SearchableVec::new(vec!["Rust", "Go", "C++"]);
+            let combobox =
+                cx.new(|cx| ComboboxState::new(items, vec![], window, cx).searchable(true));
+            CompactTriggerHarness { combobox }
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        let visible = cx
+            .debug_bounds("compact-combobox-trigger")
+            .expect("custom trigger should prepaint");
+        let recorded = cx.update(|_, cx| {
+            let combobox = view.read(cx).combobox.clone();
+            combobox.read(cx).state.bounds
+        });
+        assert_eq!(
+            recorded.left(),
+            visible.left(),
+            "popup must share the visible trigger's left edge"
+        );
+        assert_eq!(
+            recorded.bottom(),
+            visible.bottom(),
+            "popup gap must start from the visible trigger's bottom edge"
+        );
     }
 
     #[gpui::test]

@@ -1,6 +1,6 @@
 use gpui::{prelude::FluentBuilder, *};
 use gpui_component::{
-    ActiveTheme as _, Icon, IconName, IndexPath, StyledExt as _, ThemeColor, ThemeStyled as _,
+    ActiveTheme as _, Icon, IconName, IndexPath, StyledExt as _, Theme, ThemeStyled as _,
     button::{Button, ButtonVariants as _},
     checkerboard::Checkerboard,
     h_flex,
@@ -76,7 +76,7 @@ impl SelectItem for ThemeItem {
                         this.child(
                             Icon::new(IconName::Check)
                                 .size(rems(1.0))
-                                .text_color(cx.theme().primary),
+                                .text_color(cx.theme().accent_strong),
                         )
                     }),
             )
@@ -175,8 +175,8 @@ impl ThemeColorsStory {
         this
     }
 
-    fn get_theme_colors(&self, cx: &Context<Self>) -> ThemeColor {
-        use gpui_component::{Theme as UITheme, ThemeRegistry};
+    fn get_theme_colors(&self, cx: &Context<Self>) -> Theme {
+        use gpui_component::ThemeRegistry;
 
         if let Some(theme_config) = ThemeRegistry::global(cx)
             .themes()
@@ -184,32 +184,27 @@ impl ThemeColorsStory {
             .cloned()
         {
             let mut temp_theme = if theme_config.mode.is_dark() {
-                UITheme::from(ThemeColor::dark().as_ref())
+                Theme::fallback_dark()
             } else {
-                UITheme::from(ThemeColor::light().as_ref())
+                Theme::fallback_light()
             };
-
-            // Apply the config to get proper colors using the public API
             temp_theme.apply_config(&theme_config);
-            temp_theme.colors
+            temp_theme
         } else {
-            // Fallback to current theme if selected theme not found
-            **cx.theme()
+            cx.theme().clone()
         }
     }
 
-    fn get_isolated_theme(&self, cx: &App) -> (ThemeColor, bool) {
-        use gpui_component::{Theme as UITheme, ThemeRegistry};
+    fn get_isolated_theme(&self, cx: &App) -> (Theme, bool) {
+        use gpui_component::ThemeRegistry;
 
         let registry = ThemeRegistry::global(cx);
 
-        // Look up the selected theme configuration
         let selected_theme_config = registry.themes().get(&self.selected_theme_name);
 
         let is_dark = if let Some(config) = selected_theme_config {
             config.mode.is_dark()
         } else {
-            // Fallback to system appearance if selected theme lookup fails
             let appearance = cx.window_appearance();
             appearance == WindowAppearance::Dark || appearance == WindowAppearance::VibrantDark
         };
@@ -221,13 +216,13 @@ impl ThemeColorsStory {
         };
 
         let mut temp_theme = if theme_config.mode.is_dark() {
-            UITheme::from(ThemeColor::dark().as_ref())
+            Theme::fallback_dark()
         } else {
-            UITheme::from(ThemeColor::light().as_ref())
+            Theme::fallback_light()
         };
 
         temp_theme.apply_config(theme_config);
-        (temp_theme.colors, is_dark)
+        (temp_theme, is_dark)
     }
 
     fn compute_categories(&mut self, cx: &Context<Self>) {
@@ -295,7 +290,7 @@ impl ThemeColorsStory {
         color: Hsla,
         hex: String,
         is_explicit: bool,
-        isolated_theme: &ThemeColor,
+        isolated_theme: &Theme,
         cx: &App,
     ) -> impl IntoElement {
         use gpui_component::{WindowExt as _, clipboard::Clipboard};
@@ -329,7 +324,7 @@ impl ThemeColorsStory {
                                     div()
                                         .size_1p5()
                                         .rounded_full_style(cx)
-                                        .bg(isolated_theme.foreground)
+                                        .bg(isolated_theme.text)
                                         .flex_shrink_0(),
                                 )
                             })
@@ -338,11 +333,9 @@ impl ThemeColorsStory {
                                     .text_sm()
                                     .font_medium()
                                     .when(!is_explicit, |this: Div| {
-                                        this.text_color(isolated_theme.muted_foreground)
+                                        this.text_color(isolated_theme.text_muted)
                                     })
-                                    .when(is_explicit, |this| {
-                                        this.text_color(isolated_theme.foreground)
-                                    })
+                                    .when(is_explicit, |this| this.text_color(isolated_theme.text))
                                     .child(name.clone()),
                             ),
                     )
@@ -353,7 +346,7 @@ impl ThemeColorsStory {
                             .child(
                                 div()
                                     .text_sm()
-                                    .text_color(isolated_theme.muted_foreground)
+                                    .text_color(isolated_theme.text_muted)
                                     .child(rgb_str.clone()),
                             )
                             .child(
@@ -444,7 +437,7 @@ impl ThemeColorsStory {
                                                     div()
                                                         .size_1p5()
                                                         .rounded_full_style(cx)
-                                                        .bg(cx.theme().foreground),
+                                                        .bg(cx.theme().text),
                                                 )
                                             })
                                             .child(
@@ -542,7 +535,7 @@ impl ThemeColorsStory {
                                                 .pb_2()
                                                 .border_b_1()
                                                 .border_color(isolated_theme.border)
-                                                .text_color(isolated_theme.foreground)
+                                                .text_color(isolated_theme.text)
                                                 .child(category_name.clone()),
                                         )
                                         .child(div().flex().flex_wrap().gap_4().children(
@@ -568,14 +561,48 @@ impl ThemeColorsStory {
     }
 }
 
+fn role_swatches(theme: &Theme) -> [(&'static str, Hsla); 31] {
+    [
+        ("bg", theme.bg),
+        ("surface", theme.surface),
+        ("surface_raised", theme.surface_raised),
+        ("surface_raised_hover", theme.surface_raised_hover),
+        ("surface_card", theme.surface_card),
+        ("surface_dialog", theme.surface_dialog),
+        ("surface_overlay", theme.surface_overlay),
+        ("band", theme.band),
+        ("input_bg", theme.input_bg),
+        ("text", theme.text),
+        ("text_muted", theme.text_muted),
+        ("text_faint", theme.text_faint),
+        ("text_dim", theme.text_dim),
+        ("border", theme.border),
+        ("border_strong", theme.border_strong),
+        ("accent", theme.accent),
+        ("accent_strong", theme.accent_strong),
+        ("on_accent", theme.on_accent),
+        ("solid", theme.solid),
+        ("on_solid", theme.on_solid),
+        ("danger", theme.danger),
+        ("danger_muted", theme.danger_muted),
+        ("danger_strong", theme.danger_strong),
+        ("warning", theme.warning),
+        ("warning_muted", theme.warning_muted),
+        ("success", theme.success),
+        ("success_muted", theme.success_muted),
+        ("busy", theme.busy),
+        ("selection", theme.selection),
+        ("caret", theme.caret),
+        ("cursor", theme.cursor),
+    ]
+}
+
 fn format_colors(
-    theme: &ThemeColor,
+    theme: &Theme,
     config: Option<&gpui_component::theme::ThemeConfigColors>,
 ) -> Vec<ColorCategory> {
-    let json_theme = serde_json::to_value(theme).unwrap_or(serde_json::Value::Null);
     let mut categories: BTreeMap<String, Vec<ColorEntry>> = BTreeMap::new();
 
-    // Create a set of keys present in the config (if available)
     let config_keys: Option<std::collections::HashSet<String>> = config.map(|c| {
         let json_config = serde_json::to_value(c).unwrap_or(serde_json::Value::Null);
         if let serde_json::Value::Object(map) = json_config {
@@ -588,26 +615,21 @@ fn format_colors(
         }
     });
 
-    if let serde_json::Value::Object(map) = json_theme {
-        for (key, value) in map {
-            if let Ok(color) = serde_json::from_value::<Hsla>(value) {
-                let parsed = super::mapper::parse_theme_key(&key);
-                let category = parsed.category;
-                let name = parsed.name;
+    for (key, color) in role_swatches(theme) {
+        let parsed = super::mapper::parse_theme_key(key);
+        let category = parsed.category;
+        let name = parsed.name;
 
-                // Check if this key is explicit in the user config
-                let is_explicit = config_keys
-                    .as_ref()
-                    .map_or(false, |k| k.contains(&parsed.canonical_key));
+        let is_explicit = config_keys.as_ref().map_or(false, |k| {
+            k.contains(&parsed.canonical_key) || k.contains(key)
+        });
 
-                categories.entry(category).or_default().push(ColorEntry {
-                    name,
-                    color,
-                    hex: hsla_to_hex(color),
-                    is_explicit,
-                });
-            }
-        }
+        categories.entry(category).or_default().push(ColorEntry {
+            name,
+            color,
+            hex: hsla_to_hex(color),
+            is_explicit,
+        });
     }
 
     for colors in categories.values_mut() {

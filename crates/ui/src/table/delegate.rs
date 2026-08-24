@@ -150,7 +150,7 @@ pub trait TableDelegate: Sized + 'static {
         h_flex()
             .size_full()
             .justify_center()
-            .text_color(cx.theme().muted_foreground.opacity(0.6))
+            .text_color(cx.theme().text_muted.opacity(0.6))
             .child(Icon::new(IconName::Inbox).size_12())
             .into_any_element()
     }

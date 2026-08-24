@@ -60,7 +60,7 @@ impl RenderOnce for SplitButton {
         h_flex()
             .id(self.id)
             .items_center()
-            .rounded(px(5.))
+            .rounded(cx.theme().radius)
             .border_1()
             .border_color(cx.theme().border)
             .refine_style(&self.style)

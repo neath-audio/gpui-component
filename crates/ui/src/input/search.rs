@@ -332,10 +332,10 @@ impl<M: crate::input::overlay::OverlayMode> Render for SearchPanel<M> {
             .px_3()
             .w_full()
             .gap_1()
-            .bg(cx.theme().tokens.popover)
+            .bg(cx.theme().surface_overlay)
             .border_b_1()
             .rounded(cx.theme().radius.half())
-            .border_color(cx.theme().border)
+            .border_color(cx.theme().border_strong)
             .child(
                 h_flex()
                     .w_full()
@@ -409,9 +409,7 @@ impl<M: crate::input::overlay::OverlayMode> Render for SearchPanel<M> {
                     )
                     .child(
                         Label::new(self.session.matcher.label())
-                            .when(!has_matches, |this| {
-                                this.text_color(cx.theme().muted_foreground)
-                            })
+                            .when(!has_matches, |this| this.text_color(cx.theme().text_muted))
                             .text_left()
                             .min_w_16(),
                     )

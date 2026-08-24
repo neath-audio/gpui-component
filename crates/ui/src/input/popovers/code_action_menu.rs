@@ -12,7 +12,7 @@ const MAX_MENU_WIDTH: Pixels = px(320.);
 const MAX_MENU_HEIGHT: Pixels = px(480.);
 
 use crate::{
-    ActiveTheme, IndexPath, Selectable, actions, h_flex,
+    ActiveTheme, IndexPath, Selectable, WASH_HOVER, WASH_SELECTED, actions, h_flex,
     input::{self, EditorState, popovers::editor_popover},
     list::{List, ListDelegate, ListEvent, ListState},
 };
@@ -81,10 +81,10 @@ impl RenderOnce for MenuItem {
             .text_xs()
             .line_height(relative(1.))
             .rounded(cx.theme().radius.half())
-            .hover(|this| this.bg(cx.theme().accent.opacity(0.8)))
+            .hover(|this| this.bg(cx.theme().wash(WASH_HOVER)))
             .when(self.selected, |this| {
-                this.bg(cx.theme().tokens.accent)
-                    .text_color(cx.theme().accent_foreground)
+                this.bg(cx.theme().wash(WASH_SELECTED))
+                    .text_color(cx.theme().text)
             })
             .child(
                 div().child(StyledText::new(item.action.title.clone()).with_highlights(highlights)),
