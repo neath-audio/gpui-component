@@ -22,6 +22,9 @@ use crate::{
     resize_handle,
 };
 
+/// The height a closed bottom dock keeps, so its tab bar stays clickable.
+const CLOSED_BOTTOM_STRIP: Pixels = px(29.);
+
 /// The payload a dock's resize handle drags. It draws nothing: the handle
 /// itself is the affordance.
 #[derive(Clone)]
@@ -79,11 +82,16 @@ impl DockAreaRenderer for DockSkin {
         cx: &mut App,
     ) -> AnyElement {
         let placement = dock.placement();
-        let open = dock.is_open();
 
         // A closed left or right dock takes no space at all; a closed bottom
         // dock keeps a strip so its tab bar stays clickable.
-        if !open && !placement.is_bottom() {
+        let size = match (dock.is_open(), placement) {
+            (true, _) => dock.size(),
+            (false, DockPlacement::Bottom) => CLOSED_BOTTOM_STRIP,
+            (false, _) => px(0.),
+        };
+
+        if size <= px(0.) {
             return div().into_any_element();
         }
 
@@ -93,12 +101,11 @@ impl DockAreaRenderer for DockSkin {
             .relative()
             .overflow_hidden()
             .map(|this| match placement {
-                DockPlacement::Left | DockPlacement::Right => this.h_flex().h_full().w(dock.size()),
-                DockPlacement::Bottom => this.w_full().h(dock.size()),
+                DockPlacement::Left | DockPlacement::Right => this.h_flex().h_full().w(size),
+                DockPlacement::Bottom => this.w_full().h(size),
                 // Base never builds a dock for the centre.
                 DockPlacement::Center => this,
             })
-            .when(!open && placement.is_bottom(), |this| this.h(px(29.)))
             .child(content)
             .child(self.render_resize_handle(dock, window, cx))
             .child(DockResizeTracker {
@@ -143,7 +150,18 @@ impl DockSkin {
         let placement = dock.placement();
         let shared = self.shared().clone();
 
-        resize_handle("resize-handle", placement.axis())
+        // One id per placement: the docks all render under the same stateful
+        // ancestor, so a shared literal would collapse the handles into one
+        // GlobalElementId and GPUI would silently share their element state —
+        // a press on the left handle then starts the right handle's drag.
+        let id = match placement {
+            DockPlacement::Left => "resize-handle-left",
+            DockPlacement::Right => "resize-handle-right",
+            DockPlacement::Bottom => "resize-handle-bottom",
+            DockPlacement::Center => "resize-handle-center",
+        };
+
+        resize_handle(id, placement.axis())
             .when(placement.is_left(), |this| this.placement(Side::Left))
             .on_drag(ResizePanel, move |info, _, _, cx| {
                 cx.stop_propagation();
@@ -255,5 +273,98 @@ impl Element for DockResizeTracker {
                     .update(cx, |_, cx| cx.emit(DockEvent::LayoutChanged));
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use gpui::{
+        Entity, Modifiers, MouseButton, TestAppContext, VisualTestContext, point, px, size,
+    };
+
+    use crate::dock::{DockArea, DockLayout, DockPlacement, DockSkin, test_support::MeasuredProbe};
+
+    fn area_with_side_docks(cx: &mut TestAppContext) -> (Entity<DockArea>, &mut VisualTestContext) {
+        cx.update(|cx| crate::init(cx));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("test", None, window, cx).with_renderer(DockSkin::new(cx))
+        });
+        cx.simulate_resize(size(px(800.), px(600.)));
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.set_center(
+                    DockLayout::tabs().panel(MeasuredProbe::new(Rc::default(), cx)),
+                    window,
+                    cx,
+                );
+                area.set_dock(
+                    DockPlacement::Left,
+                    DockLayout::tabs().panel(MeasuredProbe::new(Rc::default(), cx)),
+                    window,
+                    cx,
+                );
+                area.set_dock(
+                    DockPlacement::Right,
+                    DockLayout::tabs().panel(MeasuredProbe::new(Rc::default(), cx)),
+                    window,
+                    cx,
+                );
+            });
+        });
+        cx.run_until_parked();
+        (area, cx)
+    }
+
+    /// Every dock's handle once shared the literal element id
+    /// `"resize-handle"`, so GPUI silently handed them one element state —
+    /// including the pending-mouse-down that starts a drag. Pressing the left
+    /// handle then let the right dock's drag listener (painted later, so
+    /// dispatched first) claim the drag, and one pixel of movement threw the
+    /// right dock to nearly the full area width.
+    #[gpui::test]
+    fn dragging_the_left_handle_resizes_only_the_left_dock(cx: &mut TestAppContext) {
+        let (area, cx) = area_with_side_docks(cx);
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        // The left dock is 200px wide, so its handle sits at x ∈ [198, 199).
+        cx.simulate_mouse_down(
+            point(px(198.5), px(300.)),
+            MouseButton::Left,
+            Modifiers::none(),
+        );
+        // Past the drag threshold: the drag starts and claims a dock.
+        cx.simulate_mouse_move(
+            point(px(204.), px(300.)),
+            MouseButton::Left,
+            Modifiers::none(),
+        );
+        // The move the claimed dock resizes to.
+        cx.simulate_mouse_move(
+            point(px(240.), px(300.)),
+            MouseButton::Left,
+            Modifiers::none(),
+        );
+        cx.simulate_mouse_up(
+            point(px(240.), px(300.)),
+            MouseButton::Left,
+            Modifiers::none(),
+        );
+        cx.run_until_parked();
+
+        let (left, right) = cx.update(|_, cx| {
+            let area = area.read(cx);
+            (
+                area.dock_size(DockPlacement::Left),
+                area.dock_size(DockPlacement::Right),
+            )
+        });
+        assert_eq!(
+            right,
+            Some(px(200.)),
+            "the right dock must not move when the left handle is dragged"
+        );
+        assert_eq!(left, Some(px(240.)), "the left dock follows the pointer");
     }
 }

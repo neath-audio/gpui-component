@@ -344,7 +344,6 @@ impl<E: ParentElement + Styled + IntoElement + 'static> Element for ContextMenu<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::Theme;
     use gpui::{
         Context, FocusHandle, IntoElement, Render, TestAppContext, VisualTestContext, actions,
         point, px,
@@ -389,10 +388,7 @@ mod tests {
 
     #[gpui::test]
     fn action_bubbles_from_trigger_and_focus_restores_on_dismiss(cx: &mut TestAppContext) {
-        cx.update(|cx| {
-            cx.set_global(Theme::default());
-            super::super::popup_menu::init(cx);
-        });
+        cx.update(crate::init);
 
         let received = Rc::new(Cell::new(false));
         let (root, cx) = cx.add_window_view({

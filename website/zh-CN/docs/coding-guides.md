@@ -364,7 +364,7 @@ Reusable component 应遵守：
 - builder 消费并返回 `Self`，使用 domain 词汇；
 - callback 描述 requested change；只有 pointer modifier/detail 有意义时才带 pointer event；
 - 需要持续演进的行为接口使用私有字段、构造方法与读取方法；
-- boolean reader 在同名 builder 存在时使用 `is_` / `has_` / `can_`；
+- boolean reader 在同名 builder 存在时使用 `is_` / `has_`；
 - reader 需要 plain field name 时，non-boolean setter 使用 `with_`；
 - explicit compound part 优于检查 arbitrary descendant；
 - reusable behavior 不能强制 product-level visual choice。
@@ -405,14 +405,30 @@ Platform branch 即使 presentation 不同，也必须保留 semantic contract�
 | Fluent property | 名词或形容词 | `label`, `disabled`, `selected`, `placement` |
 | 通用 non-boolean builder | `with_<field>` | `with_size`, `with_mode` |
 | In-place mutation | `set_<field>` | `set_items`, `set_selected_index` |
-| Boolean reader | `is_` / `has_` / `can_` | `is_open`, `has_selection` |
+| Boolean reader | `is_<形容词>` / `has_<名词>` | `is_open`, `is_closable`, `has_selection` |
 | Plain value reader | field noun | `placement`, `selected_value` |
 | Callback registration | `on_<event/intent>` | `on_click`, `on_open_change` |
 | Named region renderer | `render_<region>` | `render_toolbar`, `render_content` |
 
 新 API 中，消费并返回 `Self` 的链式构造方法不加 `set_`；通过 `&mut self` 修改状态时使用`set_`。已经公开的名称应保持兼容，现有的 `set_position` 等链式方法属于兼容例外，不作为新 API 的命名范例。
 
+Boolean reader 只有两种：值持有某物时用 `has_<名词>`，描述状态或许可时用 `is_<形容词>`。只要动作有对应的形容词形式就用形容词：`is_closable` 而非 `can_close`，`is_zoomable` 而非 `can_zoom`，`is_copyable` 而非 `can_copy`。动作是没有形容词形式的动词短语时，改为命名它所需要的东西：用 `has_definition`，不用 `can_go_to_definition`。不再新增 `can_` reader。
+
 Boolean builder 可叫 `disabled(bool)`，reader 叫 `is_disabled()`。含 non-boolean field 的公开接口中的非布尔字段使用 `with_item_ix(...)` 构造、`item_ix()` 读取，避免冲突。新的局部或内部零起始索引优先使用 `_ix`，现有公开名称如 `selected_index` 保持不变，不再引入 `_idx`。调用方从不构造的快照，不要为了对称而发布构造方法。
+
+### 让外层名字承担上下文
+
+名字总是在某个东西内部被阅读。字段在它的类型内部被读到，参数在它的方法签名内部
+被读到，所以两者都不重复外层已经说过的话：`with_item_ix(ix)`，而不是
+`with_item_ix(item_ix)`。
+
+同一个类型的字段保持相同的缩写程度。其中若有一个写全了，它就成了异类，读者会去
+找那个让它与众不同的区别。又因为 builder 按 `with_<field>` 命名，缩短字段会同时
+缩短它的 builder，两者始终配对。
+
+只在外层名字确实能消除歧义时才缩短。当短形式在生态的别处同时是*另一个量*的既有
+术语时，在 doc comment 里说明你指的是哪一个，而不是把标识符加长 —— doc 是在调用处
+被读到的，它能解释清楚一个更长的名字只能暗示的东西。
 
 ### 精确区分领域词汇
 

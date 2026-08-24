@@ -315,11 +315,7 @@ where
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.state.list.update(cx, |list, cx| {
-            if !list.query_input.read(cx).value().is_empty() {
-                list.set_query("", window, cx);
-            }
-        });
+        self.state.clear_query(window, cx);
 
         let selected_index = self
             .state
@@ -523,14 +519,17 @@ where
                             h_flex()
                                 .id("inner")
                                 .w_full()
+                                .min_w_0()
                                 .overflow_hidden()
+                                .whitespace_nowrap()
                                 .items_center()
                                 .justify_between()
                                 .gap_1()
                                 .child(
                                     div()
                                         .id("title")
-                                        .w_full()
+                                        .flex_1()
+                                        .min_w_0()
                                         .overflow_hidden()
                                         .whitespace_nowrap()
                                         .truncate()
