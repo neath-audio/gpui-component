@@ -1,5 +1,5 @@
 use crate::{
-    ActiveTheme as _, Collapsible, Icon, IconName, Placement, Sizable as _, StyledExt,
+    ActiveTheme as _, Collapsible, Icon, IconName, Placement, Sizable, Size, StyledExt,
     button::{Button, ButtonVariants as _},
     h_flex,
     menu::{ContextMenuExt, PopupMenu},
@@ -13,6 +13,15 @@ use gpui::{
     Window, div, percentage, prelude::FluentBuilder,
 };
 use std::rc::Rc;
+
+/// Vertical gap between expanded sidebar menu items.
+///
+/// Nested submenus already use this 4px (`gap_1`) rhythm. The top-level
+/// stack previously used `gap_2` (8px), which left a full extra gutter
+/// between 28px rows once Settings followed the Size type table.
+fn sidebar_menu_item_stack() -> gpui::Div {
+    v_flex().gap_1()
+}
 
 /// Menu for the [`super::Sidebar`]
 #[derive(Clone)]
@@ -70,8 +79,7 @@ impl SidebarItem for SidebarMenu {
     ) -> impl IntoElement {
         let id = id.into();
 
-        v_flex()
-            .gap_2()
+        sidebar_menu_item_stack()
             .refine_style(&self.style)
             .children(self.items.into_iter().enumerate().map(|(ix, item)| {
                 let id = SharedString::from(format!("{}-{}", id, ix));
@@ -93,6 +101,7 @@ impl Styled for SidebarMenu {
 pub struct SidebarMenuItem {
     icon: Option<Icon>,
     label: SharedString,
+    size: Size,
     handler: Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
     active: bool,
     default_open: bool,
@@ -111,6 +120,7 @@ impl SidebarMenuItem {
         Self {
             icon: None,
             label: label.into(),
+            size: Size::default(),
             handler: Rc::new(|_, _, _| {}),
             active: false,
             collapsed: false,
@@ -220,6 +230,13 @@ impl SidebarMenuItem {
     }
 }
 
+impl Sizable for SidebarMenuItem {
+    fn with_size(mut self, size: impl Into<Size>) -> Self {
+        self.size = size.into();
+        self
+    }
+}
+
 impl FluentBuilder for SidebarMenuItem {}
 
 impl Collapsible for SidebarMenuItem {
@@ -244,6 +261,8 @@ impl SidebarItem for SidebarMenuItem {
         let click_to_toggle = self.click_to_toggle;
         let default_open = self.default_open;
         let collapsed_tooltip = self.collapsed_tooltip();
+        let size = self.size;
+        let text_size = size.control_text_size();
         let id = id.into();
         let is_submenu = self.is_submenu();
         let open_state = if is_submenu {
@@ -272,7 +291,7 @@ impl SidebarItem for SidebarMenuItem {
                     .p_2()
                     .gap_x_2()
                     .rounded(cx.theme().radius)
-                    .text_sm()
+                    .text_size(text_size)
                     .when(is_hoverable, |this| {
                         this.hover(|this| this.bg(cx.theme().row_hover).text_color(cx.theme().text))
                     })
@@ -387,11 +406,13 @@ impl SidebarItem for SidebarMenuItem {
                         // submenu's only space above its first item was the 2px
                         // top padding, so the group→first-item gap (2px) didn't
                         // match the item→item gap (4px). Match them; the bottom
-                        // is handled by the menu's own `gap_2` to the next item.
+                        // is handled by the menu's own `gap_1` to the next item.
                         .pt_1()
                         .children(self.children.into_iter().enumerate().map(|(ix, item)| {
                             let id = format!("{}-{}", id, ix);
-                            item.render(id, window, cx).into_any_element()
+                            item.with_size(size)
+                                .render(id, window, cx)
+                                .into_any_element()
                         })),
                 )
             })
@@ -418,5 +439,17 @@ mod tests {
 
         assert!(expanded.collapsed_tooltip().is_none());
         assert!(iconless.collapsed_tooltip().is_none());
+    }
+
+    #[test]
+    fn expanded_menu_uses_the_same_item_gap_as_submenus() {
+        let mut stack = sidebar_menu_item_stack();
+        let mut submenu = v_flex().gap_1();
+
+        assert_eq!(
+            stack.style().gap,
+            submenu.style().gap,
+            "top-level settings/sidebar rows must use the 4px submenu gap, not gap_2"
+        );
     }
 }

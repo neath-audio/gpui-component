@@ -254,6 +254,7 @@ impl SettingItem {
         window: &mut Window,
         cx: &mut App,
     ) -> Stateful<Div> {
+        let text_size = options.size().control_text_size();
         div()
             .id(SharedString::from(format!("item-{}", options.item_ix())))
             .w_full()
@@ -293,12 +294,12 @@ impl SettingItem {
                                     }
                                 })
                                 .gap_1()
-                                .child(Label::new(title).text_sm())
+                                .child(Label::new(title).text_size(text_size))
                                 .when_some(description, |this, description| {
                                     this.child(
                                         div()
                                             .size_full()
-                                            .text_sm()
+                                            .text_size(text_size)
                                             .text_color(cx.theme().text_muted)
                                             .child(description),
                                     )

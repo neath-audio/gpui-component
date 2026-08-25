@@ -126,6 +126,7 @@ impl SettingPage {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
+        let text_size = options.size().control_text_size();
         let search_input = state.read(cx).search_input.clone();
         let query = search_input.read(cx).value();
         let groups = self
@@ -170,7 +171,7 @@ impl SettingPage {
                     // The page title is the page's one heading — semibold so it
                     // outranks the group titles below, which stay regular. Size
                     // is inherited, so `header_style` can re-tier it without
-                    // touching the description (whose `text_sm` still wins).
+                    // touching the description (whose Settings size still wins).
                     .child(
                         h_flex()
                             .justify_between()
@@ -208,7 +209,7 @@ impl SettingPage {
                     .when_some(self.description.clone(), |this, description| {
                         this.child(
                             Label::new(description)
-                                .text_sm()
+                                .text_size(text_size)
                                 .text_color(cx.theme().text_muted),
                         )
                     }),

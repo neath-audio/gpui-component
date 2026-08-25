@@ -81,13 +81,14 @@ impl SettingGroup {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
+        let text_size = options.size().control_text_size();
         GroupBox::new()
             .id(SharedString::from(format!("group-{}", options.group_ix())))
             .with_variant(options.group_variant())
             .when_some(self.title.clone(), |this, title| {
                 // Promote the group title to a real section heading: the
                 // `GroupBox` wraps its title in `text_muted`, so override
-                // it back to `text` here. `text_sm`, regular
+                // it back to `text` here. Settings-size text, regular
                 // weight — one tier below the (semibold, size-inherited) page
                 // title above; against the same-size item labels the heading
                 // role is carried by position and the muted description,
@@ -99,11 +100,16 @@ impl SettingGroup {
                         // promoted heading against its description. 8px gives
                         // it room without matching the page header's 12px.
                         .gap_2()
-                        .child(div().text_sm().text_color(cx.theme().text).child(title))
+                        .child(
+                            div()
+                                .text_size(text_size)
+                                .text_color(cx.theme().text)
+                                .child(title),
+                        )
                         .when_some(self.description.clone(), |this, description| {
                             this.child(
                                 Label::new(description)
-                                    .text_sm()
+                                    .text_size(text_size)
                                     .text_color(cx.theme().text_muted),
                             )
                         }),
