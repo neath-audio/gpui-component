@@ -17,8 +17,7 @@ use gpui_base::{Button as BaseButton, Toggle as BaseToggle};
 
 use crate::ThemeStyled as _;
 use crate::{
-    ActiveTheme, Colorize as _, Disableable, Icon, PRESS_ACTIVE, Selectable, Sizable as _, Size,
-    StyledExt,
+    ActiveTheme, Colorize as _, Disableable, Icon, Selectable, Sizable as _, Size, StyledExt,
     spinner::Spinner,
     tooltip::{ManagedTooltipExt, Tooltip},
 };
@@ -39,17 +38,15 @@ pub(crate) fn tint(
     dimmed: bool,
     disabled: bool,
     active_color: Option<Hsla>,
-    filled: bool,
     cx: &App,
 ) -> Tint {
     let t = cx.theme();
     if disabled {
-        let c = t.text_muted.opacity(0.5);
+        let c = t.muted_foreground.opacity(0.5);
         return Tint { base: c, hover: c };
     }
     if active {
-        let default = if filled { t.accent_strong } else { t.accent };
-        let base = active_color.unwrap_or(default);
+        let base = active_color.unwrap_or(t.primary);
         return Tint {
             base,
             hover: brighten(base, 0.12),
@@ -57,24 +54,20 @@ pub(crate) fn tint(
     }
     if dimmed {
         return Tint {
-            base: t.text_muted.opacity(0.5),
-            hover: t.text_muted,
+            base: t.muted_foreground.opacity(0.5),
+            hover: t.muted_foreground,
         };
     }
     if prominent {
         return Tint {
-            base: t.text.opacity(0.85),
-            hover: t.text,
+            base: t.foreground.opacity(0.85),
+            hover: t.foreground,
         };
     }
     Tint {
-        base: t.text_muted,
-        hover: t.text,
+        base: t.muted_foreground,
+        hover: t.foreground,
     }
-}
-
-fn pressed_surface(cx: &App) -> Hsla {
-    cx.theme().press(PRESS_ACTIVE)
 }
 
 type ClickHandler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
@@ -107,10 +100,9 @@ impl IconChrome {
         let filled = self.filled;
         let base = self.tint.base;
         let hover = self.tint.hover;
-        let on_fill = cx.theme().on_accent;
+        let on_fill = cx.theme().primary_foreground;
         let pressed_fill = base.darken(0.08);
-        let pressed_flash = pressed_surface(cx);
-        let chrome_radius = cx.theme().radius;
+        let pressed_flash = cx.theme().foreground.opacity(0.2);
         let icon_size = self.icon_size;
         let fill_corners = self.fill_corners;
         let instance_style = self.instance_style.clone();
@@ -130,7 +122,7 @@ impl IconChrome {
             .text_xs()
             .map(|this| {
                 if filled {
-                    let r = chrome_radius;
+                    let r = px(4.);
                     this.bg(base)
                         .text_color(on_fill)
                         .when(fill_corners.top_left, |d| d.rounded_tl(r))
@@ -147,9 +139,8 @@ impl IconChrome {
                     this.hover(move |s| s.bg(hover))
                         .active(move |s| s.bg(pressed_fill))
                 } else {
-                    this.hover(move |s| s.text_color(hover)).active(move |s| {
-                        s.text_color(hover).bg(pressed_flash).rounded(chrome_radius)
-                    })
+                    this.hover(move |s| s.text_color(hover))
+                        .active(move |s| s.text_color(hover).bg(pressed_flash).rounded(px(4.)))
                 }
             })
             .when_some(self.tooltip, |this, tooltip| {
@@ -330,8 +321,7 @@ impl IconButton {
         self
     }
 
-    /// Override the active-state icon color (default `theme.accent`, or
-    /// `theme.accent_strong` when filled).
+    /// Override the active-state icon color (default `theme.primary`).
     pub fn active_color(mut self, color: Hsla) -> Self {
         self.active_color = Some(color);
         self
@@ -339,21 +329,19 @@ impl IconButton {
 
     fn chrome(&self, cx: &App) -> IconChrome {
         let active = self.selected;
-        let filled = self.filled && active;
         let tint = tint(
             active,
             self.prominent,
             self.dimmed,
             self.disabled,
             self.active_color,
-            filled,
             cx,
         );
         let clickable = !self.disabled && !self.loading && self.on_click.is_some();
         let hover_feedback = clickable || (self.hoverable && !self.disabled && !self.loading);
         IconChrome {
             tight: self.tight,
-            filled,
+            filled: self.filled && active,
             fill_corners: self.fill_corners,
             tint,
             hover_feedback,
@@ -440,7 +428,7 @@ impl RenderOnce for IconButton {
     }
 }
 
-/// A stateful, background-free icon toggle: active = accent-tinted icon.
+/// A stateful, background-free icon toggle: active = primary-tinted icon.
 #[derive(IntoElement)]
 pub struct IconToggle {
     id: ElementId,
@@ -563,19 +551,17 @@ impl IconToggle {
 
     fn chrome(&self, cx: &App) -> IconChrome {
         let active = self.visually_active();
-        let filled = self.filled && active;
         let tint = tint(
             active,
             self.prominent,
             false,
             self.disabled,
             self.active_color,
-            filled,
             cx,
         );
         IconChrome {
             tight: self.tight,
-            filled,
+            filled: self.filled && active,
             fill_corners: self.fill_corners,
             tint,
             hover_feedback: !self.disabled && self.on_click.is_some(),
@@ -670,61 +656,47 @@ mod tests {
     fn tint_tiers_follow_spec(cx: &mut TestAppContext) {
         cx.update(|cx| {
             crate::init(cx);
-            let (accent, accent_strong, muted, fg) = {
+            let (primary, muted, fg) = {
                 let t = cx.theme();
-                (t.accent, t.accent_strong, t.text_muted, t.text)
+                (t.primary, t.muted_foreground, t.foreground)
             };
 
-            let n = tint(false, false, false, false, None, false, cx);
+            let n = tint(false, false, false, false, None, cx);
             assert_eq!(n.base, muted);
             assert_eq!(n.hover, fg);
 
-            let a = tint(true, false, false, false, None, false, cx);
-            assert_eq!(a.base, accent);
-            assert!(a.hover.l > accent.l, "hover brightens, same hue");
-            assert_eq!(a.hover.h, accent.h);
-
-            let filled = tint(true, false, false, false, None, true, cx);
-            assert_eq!(filled.base, accent_strong);
+            let a = tint(true, false, false, false, None, cx);
+            assert_eq!(a.base, primary);
+            assert!(a.hover.l > primary.l, "hover brightens, same hue");
+            assert_eq!(a.hover.h, primary.h);
 
             let danger = cx.theme().danger;
-            let ac = tint(true, false, false, false, Some(danger), false, cx);
+            let ac = tint(true, false, false, false, Some(danger), cx);
             assert_eq!(ac.base, danger);
             assert!(ac.hover.l >= danger.l, "hover brightens override, same hue");
             assert_eq!(ac.hover.h, danger.h);
 
-            let d = tint(false, false, true, false, None, false, cx);
+            let d = tint(false, false, true, false, None, cx);
             assert_eq!(d.base, muted.opacity(0.5));
             assert_eq!(d.hover, muted);
 
-            let x = tint(false, false, false, true, None, false, cx);
+            let x = tint(false, false, false, true, None, cx);
             assert_eq!(x.base, muted.opacity(0.5));
             assert_eq!(x.hover, x.base);
 
-            let p = tint(false, true, false, false, None, false, cx);
+            let p = tint(false, true, false, false, None, cx);
             assert_eq!(p.base, fg.opacity(0.85));
             assert_eq!(p.hover, fg);
 
-            let pa = tint(true, true, false, false, None, false, cx);
-            assert_eq!(pa.base, accent);
+            let pa = tint(true, true, false, false, None, cx);
+            assert_eq!(pa.base, primary);
 
-            let pd = tint(false, true, true, false, None, false, cx);
+            let pd = tint(false, true, true, false, None, cx);
             assert_eq!(pd.base, muted.opacity(0.5));
 
-            let px_ = tint(false, true, false, true, None, false, cx);
+            let px_ = tint(false, true, false, true, None, cx);
             assert_eq!(px_.base, muted.opacity(0.5));
             assert_eq!(px_.hover, px_.base);
-        });
-    }
-
-    #[gpui::test]
-    fn unfilled_icon_press_uses_a_recessed_surface(cx: &mut TestAppContext) {
-        cx.update(|cx| {
-            crate::init(cx);
-            assert_eq!(pressed_surface(cx), cx.theme().press(PRESS_ACTIVE));
-
-            crate::Theme::change(crate::ThemeMode::Dark, None, cx);
-            assert_eq!(pressed_surface(cx), cx.theme().press(PRESS_ACTIVE));
         });
     }
 
@@ -858,8 +830,8 @@ mod tests {
     fn loading_button_is_inert_without_disabled_tint(cx: &mut TestAppContext) {
         cx.update(|cx| {
             crate::init(cx);
-            let ordinary = tint(false, false, false, false, None, false, cx);
-            let disabled = tint(false, false, false, true, None, false, cx);
+            let ordinary = tint(false, false, false, false, None, cx);
+            let disabled = tint(false, false, false, true, None, cx);
             assert_ne!(ordinary.base, disabled.base);
             let loading = IconButton::new("loading").loading(true);
             assert!(loading.loading);
@@ -871,7 +843,6 @@ mod tests {
                     loading.dimmed,
                     loading.disabled,
                     loading.active_color,
-                    loading.filled && loading.selected,
                     cx
                 )
                 .base,
@@ -1041,11 +1012,11 @@ mod tests {
     fn selected_toggle_keeps_visual_active_tint(cx: &mut TestAppContext) {
         cx.update(|cx| {
             crate::init(cx);
-            let accent_strong = cx.theme().accent_strong;
-            let muted = cx.theme().text_muted;
+            let primary = cx.theme().primary;
+            let muted = cx.theme().muted_foreground;
             let selected = IconToggle::new("open", false).selected(true).filled();
             let chrome = selected.chrome(cx);
-            assert_eq!(chrome.tint.base, accent_strong);
+            assert_eq!(chrome.tint.base, primary);
             assert!(chrome.filled, "selected presentation stays visually active");
 
             let idle = IconToggle::new("idle", false).chrome(cx);

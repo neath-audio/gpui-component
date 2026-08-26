@@ -662,7 +662,8 @@ impl CommandState {
             .text_size(crate::Size::Medium.text_size())
             .rounded(cx.theme().radius)
             .when(selected, |this| {
-                this.bg(cx.theme().row_selected).text_color(cx.theme().text)
+                this.bg(cx.theme().accent)
+                    .text_color(cx.theme().accent_foreground)
             })
     }
 
@@ -673,7 +674,7 @@ impl CommandState {
             .py_1()
             .text_size(crate::Size::Small.text_size())
             .font_medium()
-            .text_color(cx.theme().text_muted)
+            .text_color(cx.theme().muted_foreground)
             .child(heading)
     }
 
@@ -704,9 +705,9 @@ impl CommandState {
 
         let disabled = item.is_disabled();
         let selected = self.selected_index == Some(matched_ix) && !disabled;
-        let muted_foreground = cx.theme().text_muted;
+        let muted_foreground = cx.theme().muted_foreground;
         let icon_color = if selected {
-            cx.theme().text
+            cx.theme().accent_foreground
         } else {
             muted_foreground
         };
@@ -772,7 +773,7 @@ impl CommandState {
             .w_full()
             .text_center()
             .text_sm()
-            .text_color(cx.theme().text_muted)
+            .text_color(cx.theme().muted_foreground)
             .child(message)
             .into_any_element()
     }
@@ -816,12 +817,12 @@ impl Render for CommandState {
             .on_action(cx.listener(Self::on_action_cancel))
             .w_full()
             .overflow_hidden()
-            .bg(cx.theme().surface_overlay)
-            .text_color(cx.theme().text)
+            .bg(cx.theme().popover)
+            .text_color(cx.theme().popover_foreground)
             .when(self.options.bordered, |this| {
                 this.rounded(cx.theme().radius_lg)
                     .border_1()
-                    .border_color(cx.theme().border_strong)
+                    .border_color(cx.theme().border)
             })
             .refine_style(&self.options.style)
             .when_some(self.options.header.as_ref(), |this, header| {
@@ -837,7 +838,8 @@ impl Render for CommandState {
                         .child(
                             Input::new(&self.query_input)
                                 .prefix(
-                                    Icon::new(IconName::Search).text_color(cx.theme().text_muted),
+                                    Icon::new(IconName::Search)
+                                        .text_color(cx.theme().muted_foreground),
                                 )
                                 .appearance(false)
                                 .p_0(),

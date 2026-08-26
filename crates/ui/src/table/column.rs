@@ -286,14 +286,14 @@ pub enum ColumnSort {
 
 impl Render for DragColumn {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let muted = cx.theme().text_muted;
+        let muted = cx.theme().muted_foreground;
         let chip = div()
             .flex()
             .items_center()
             .justify_center()
             .px_2()
             .py_1()
-            .bg(cx.theme().table_header_bg)
+            .bg(cx.theme().tokens.table_head)
             .text_color(muted)
             .opacity(0.9)
             .border_1()

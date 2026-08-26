@@ -265,7 +265,7 @@ where
                     h_flex()
                         .justify_center()
                         .py_6()
-                        .text_color(cx.theme().text_faint)
+                        .text_color(cx.theme().muted_foreground.opacity(0.6))
                         .child(Icon::new(IconName::Inbox).size(px(28.)))
                         .into_any_element()
                 }
@@ -562,7 +562,7 @@ where
 
         if self.state.selection.is_empty() {
             return div()
-                .text_color(cx.theme().text_faint)
+                .text_color(cx.theme().muted_foreground)
                 .child(placeholder_text)
                 .into_any_element();
         }
@@ -658,11 +658,11 @@ where
                 .into_any_element()
         } else if let Some(icon) = self.trigger_icon.clone() {
             icon.xsmall()
-                .text_color(cx.theme().text_muted)
+                .text_color(cx.theme().muted_foreground)
                 .into_any_element()
         } else {
             Caret::new(size)
-                .text_color(cx.theme().text_muted)
+                .text_color(cx.theme().muted_foreground)
                 .into_any_element()
         };
 
@@ -1046,14 +1046,14 @@ fn render_trigger_container(
             this.bg(bg)
                 .text_color(fg)
                 .when(disabled, |this| this.opacity(0.5))
-                .border_color(cx.theme().border_strong)
+                .border_color(cx.theme().input)
                 .rounded(cx.theme().radius)
         })
         .input_size(size)
         .input_text_size(size)
         .refine_style(style)
         .when(outline_visible && appearance, |this| {
-            this.border_1().border_color(cx.theme().focus)
+            this.border_1().border_color(cx.theme().ring)
         })
         .when(
             outline_visible && appearance && focus_ring_enabled,
@@ -1112,7 +1112,6 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                 Length::Definite(w) => this.w(w),
             })
             .popover_style(cx)
-            .bg(cx.theme().surface_overlay)
             .child(
                 List::new(list)
                     .when_some(search_placeholder, |this, placeholder| {
@@ -1130,7 +1129,7 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                 this.child(
                     div()
                         .border_t_1()
-                        .border_color(cx.theme().border_strong)
+                        .border_color(cx.theme().border)
                         .p_1()
                         .when_some(footer_el, |this, el| this.child(el)),
                 )

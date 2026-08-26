@@ -71,7 +71,7 @@ impl DockAreaRenderer for DockSkin {
             .flex_1()
             .min_h(px(0.))
             .overflow_hidden()
-            .bg(cx.theme().surface)
+            .bg(cx.theme().tokens.tab_bar)
     }
 
     fn render_dock(

@@ -346,12 +346,12 @@ pub struct StatusColors {
 impl StatusColors {
     #[inline]
     pub fn error(&self, cx: &App) -> Hsla {
-        self.error.unwrap_or(cx.theme().danger)
+        self.error.unwrap_or(cx.theme().red)
     }
 
     #[inline]
     pub fn error_background(&self, cx: &App) -> Hsla {
-        let bg = cx.theme().bg;
+        let bg = cx.theme().background;
         self.error_background
             .unwrap_or(bg.blend(self.error(cx).alpha(0.2)))
     }
@@ -363,12 +363,12 @@ impl StatusColors {
 
     #[inline]
     pub fn warning(&self, cx: &App) -> Hsla {
-        self.warning.unwrap_or(cx.theme().warning)
+        self.warning.unwrap_or(cx.theme().yellow)
     }
 
     #[inline]
     pub fn warning_background(&self, cx: &App) -> Hsla {
-        let bg = cx.theme().bg;
+        let bg = cx.theme().background;
         self.warning_background
             .unwrap_or(bg.blend(self.warning(cx).alpha(0.2)))
     }
@@ -380,12 +380,12 @@ impl StatusColors {
 
     #[inline]
     pub fn info(&self, cx: &App) -> Hsla {
-        self.info.unwrap_or(cx.theme().busy)
+        self.info.unwrap_or(cx.theme().blue)
     }
 
     #[inline]
     pub fn info_background(&self, cx: &App) -> Hsla {
-        let bg = cx.theme().bg;
+        let bg = cx.theme().background;
         self.info_background
             .unwrap_or(bg.blend(self.info(cx).alpha(0.2)))
     }
@@ -397,12 +397,12 @@ impl StatusColors {
 
     #[inline]
     pub fn success(&self, cx: &App) -> Hsla {
-        self.success.unwrap_or(cx.theme().success)
+        self.success.unwrap_or(cx.theme().green)
     }
 
     #[inline]
     pub fn success_background(&self, cx: &App) -> Hsla {
-        let bg = cx.theme().bg;
+        let bg = cx.theme().background;
         self.success_background
             .unwrap_or(bg.blend(self.success(cx).alpha(0.2)))
     }
@@ -414,12 +414,12 @@ impl StatusColors {
 
     #[inline]
     pub fn hint(&self, cx: &App) -> Hsla {
-        self.hint.unwrap_or(cx.theme().text_muted)
+        self.hint.unwrap_or(cx.theme().cyan)
     }
 
     #[inline]
     pub fn hint_background(&self, cx: &App) -> Hsla {
-        let bg = cx.theme().bg;
+        let bg = cx.theme().background;
         self.hint_background
             .unwrap_or(bg.blend(self.hint(cx).alpha(0.2)))
     }
@@ -477,11 +477,11 @@ impl Deref for HighlightTheme {
 
 impl HighlightTheme {
     pub fn default_dark() -> Arc<Self> {
-        DEFAULT_THEME_COLORS[&ThemeMode::Dark].clone()
+        DEFAULT_THEME_COLORS[&ThemeMode::Dark].1.clone()
     }
 
     pub fn default_light() -> Arc<Self> {
-        DEFAULT_THEME_COLORS[&ThemeMode::Light].clone()
+        DEFAULT_THEME_COLORS[&ThemeMode::Light].1.clone()
     }
 }
 

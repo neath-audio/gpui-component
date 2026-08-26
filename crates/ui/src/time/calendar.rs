@@ -5,9 +5,7 @@ use gpui::{
 };
 use rust_i18n::t;
 
-use crate::{
-    ActiveTheme, Icon, IconName, Sizable, Size, StyledExt as _, WASH_HOVER, WASH_SELECTED,
-};
+use crate::{ActiveTheme, Icon, IconName, Sizable, Size, StyledExt as _};
 
 use gpui_base::{Calendar as BaseCalendar, CalendarItemKind};
 pub use gpui_base::{CalendarEvent, CalendarState, Date, Matcher};
@@ -126,7 +124,7 @@ impl RenderOnce for Calendar {
                 .when(state.kind() == CalendarItemKind::Weekday, |this| {
                     this.text_xs()
                         .font_normal()
-                        .text_color(cx.theme().text_muted)
+                        .text_color(cx.theme().muted_foreground)
                 })
                 .when(uses_compact_text(state.kind()), |this| this.text_xs())
                 .when(
@@ -165,12 +163,12 @@ impl RenderOnce for Calendar {
                     },
                 )
                 .when(state.is_muted(), |this| {
-                    this.text_color(cx.theme().text_muted)
+                    this.text_color(cx.theme().muted_foreground)
                         .when(state.is_disabled(), |this| this.opacity(0.5))
                 })
                 .when(state.is_in_range(), |this| {
-                    this.bg(cx.theme().wash(WASH_SELECTED))
-                        .text_color(cx.theme().text)
+                    this.bg(cx.theme().accent)
+                        .text_color(cx.theme().accent_foreground)
                 })
                 .when(
                     !state.is_active()
@@ -178,18 +176,18 @@ impl RenderOnce for Calendar {
                         && state.kind() != CalendarItemKind::Weekday,
                     |this| {
                         this.hover(|this| {
-                            this.bg(cx.theme().wash(WASH_HOVER))
-                                .text_color(cx.theme().text)
+                            this.bg(cx.theme().tokens.secondary_hover)
+                                .text_color(cx.theme().foreground)
                         })
                     },
                 )
                 .when(state.is_active(), |this| {
-                    this.bg(cx.theme().accent_strong)
-                        .text_color(cx.theme().on_accent)
+                    this.bg(cx.theme().tokens.primary)
+                        .text_color(cx.theme().primary_foreground)
                 })
                 .when(state.is_today() && !state.is_active(), |this| {
-                    this.bg(cx.theme().wash(WASH_HOVER))
-                        .text_color(cx.theme().text)
+                    this.bg(cx.theme().accent)
+                        .text_color(cx.theme().accent_foreground)
                 })
                 .into_any_element()
             })

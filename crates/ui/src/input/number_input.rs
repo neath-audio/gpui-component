@@ -8,10 +8,7 @@ use gpui::{
     prelude::FluentBuilder as _,
 };
 
-use crate::{
-    Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _, WASH_HOVER,
-    WASH_SELECTED,
-};
+use crate::{Disableable, Icon, IconName, Sizable, Size, StyleSized as _, StyledExt as _};
 
 use super::{Input, InputState, input::input_style};
 use crate::ThemeStyled as _;
@@ -116,14 +113,14 @@ impl RenderOnce for NumberInput {
         let focused = self.state.read(cx).focus_handle(cx).is_focused(window) && !self.disabled;
         let (bg, _) = input_style(self.disabled, cx);
         let border_color = if self.disabled {
-            cx.theme().border.opacity(0.5)
+            cx.theme().input.opacity(0.5)
         } else {
-            cx.theme().border
+            cx.theme().input
         };
-        // Transparent like a ghost button, with a wash on hover/press.
-        let button_foreground = cx.theme().text;
-        let button_hover = cx.theme().wash(WASH_HOVER);
-        let button_active = cx.theme().wash(WASH_SELECTED);
+        // Transparent like a ghost button, but tinted to the frame on hover.
+        let button_foreground = cx.theme().secondary_foreground;
+        let button_hover = cx.theme().input.opacity(0.4);
+        let button_active = cx.theme().input.opacity(0.6);
         let button_size = self.size;
         // The buttons sit inside the 1px frame, so their corners are a pixel
         // tighter than the frame's, or they paint over its inner curve.
@@ -200,7 +197,7 @@ impl RenderOnce for NumberInput {
                     .border_1()
                     .border_color(border_color)
                     .when(focused, |this| {
-                        this.border_1().border_color(cx.theme().focus)
+                        this.border_1().border_color(cx.theme().ring)
                     })
             })
             .refine_style(&self.style)

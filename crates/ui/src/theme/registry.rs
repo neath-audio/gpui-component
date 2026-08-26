@@ -1,4 +1,4 @@
-use crate::{Theme, ThemeConfig, ThemeMode, ThemeSet, highlighter::HighlightTheme};
+use crate::{Theme, ThemeColor, ThemeConfig, ThemeMode, ThemeSet, highlighter::HighlightTheme};
 #[allow(unused)]
 use anyhow::Result;
 use gpui::{App, Global, SharedString};
@@ -10,26 +10,33 @@ use std::{
 };
 
 const DEFAULT_THEME: &str = include_str!("./default-theme.json");
-pub(crate) static DEFAULT_THEME_COLORS: LazyLock<HashMap<ThemeMode, Arc<HighlightTheme>>> =
-    LazyLock::new(|| {
-        let mut colors = HashMap::new();
+pub(crate) static DEFAULT_THEME_COLORS: LazyLock<
+    HashMap<ThemeMode, (Arc<ThemeColor>, Arc<HighlightTheme>)>,
+> = LazyLock::new(|| {
+    let mut colors = HashMap::new();
 
-        let themes: Vec<ThemeConfig> = serde_json::from_str::<ThemeSet>(DEFAULT_THEME)
-            .expect("Failed to parse themes/default.json")
-            .themes;
+    let themes: Vec<ThemeConfig> = serde_json::from_str::<ThemeSet>(DEFAULT_THEME)
+        .expect("Failed to parse themes/default.json")
+        .themes;
 
-        for theme in themes {
-            let highlight_theme = HighlightTheme {
-                name: theme.name.to_string(),
-                appearance: theme.mode,
-                style: theme.highlight.unwrap_or_default(),
-            };
+    for theme in themes {
+        let mut theme_color = ThemeColor::default();
+        theme_color.apply_config(&theme, &ThemeColor::default());
 
-            colors.insert(theme.mode, Arc::new(highlight_theme));
-        }
+        let highlight_theme = HighlightTheme {
+            name: theme.name.to_string(),
+            appearance: theme.mode,
+            style: theme.highlight.unwrap_or_default(),
+        };
 
-        colors
-    });
+        colors.insert(
+            theme.mode,
+            (Arc::new(theme_color), Arc::new(highlight_theme)),
+        );
+    }
+
+    colors
+});
 
 pub(super) fn init(cx: &mut App) {
     cx.set_global(ThemeRegistry::default());

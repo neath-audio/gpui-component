@@ -151,9 +151,9 @@ impl RenderOnce for Radio {
         let disabled = self.disabled;
 
         let (border_color, bg) = if checked {
-            (cx.theme().accent_strong, cx.theme().accent_strong)
+            (cx.theme().primary, cx.theme().primary)
         } else {
-            (cx.theme().ink(0.25), cx.theme().ink(0.03))
+            (cx.theme().input, cx.theme().input.opacity(0.5))
         };
         let (border_color, bg) = if disabled {
             (border_color.opacity(0.5), bg.opacity(0.5))
@@ -178,7 +178,7 @@ impl RenderOnce for Radio {
             )
             .h_flex()
             .gap_x_2()
-            .text_color(cx.theme().text)
+            .text_color(cx.theme().foreground)
             .items_start()
             .line_height(relative(1.))
             .rounded(cx.theme().radius * 0.5)
@@ -208,9 +208,9 @@ impl RenderOnce for Radio {
                     .border_1()
                     .border_color(border_color)
                     .map(|this| match self.checked {
-                        false => this.bg(bg),
+                        false => this.bg(cx.theme().input_background()),
                         true if disabled => this.bg(bg),
-                        true => this.bg(cx.theme().accent_strong),
+                        true => this.bg(cx.theme().tokens.primary),
                     })
                     .child(checkbox_check_icon(
                         self.id, self.size, checked, disabled, window, cx,
@@ -228,7 +228,7 @@ impl RenderOnce for Radio {
                                     .size_full()
                                     .line_height(relative(1.))
                                     .when(self.disabled, |this| {
-                                        this.text_color(cx.theme().text_muted)
+                                        this.text_color(cx.theme().muted_foreground)
                                     })
                                     .child(label),
                             )

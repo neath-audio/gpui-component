@@ -8,10 +8,7 @@ use gpui::{
 use gpui_base::{Toggle as BaseToggle, ToggleGroup as BaseToggleGroup};
 use smallvec::{SmallVec, smallvec};
 
-use crate::{
-    ActiveTheme, Disableable, Icon, Sizable, Size, StyledExt, WASH_HOVER, WASH_SELECTED,
-    tooltip::ComponentTooltip,
-};
+use crate::{ActiveTheme, Disableable, Icon, Sizable, Size, StyledExt, tooltip::ComponentTooltip};
 
 #[derive(Default, Copy, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ToggleVariant {
@@ -155,8 +152,8 @@ impl RenderOnce for Toggle {
         let disabled = self.disabled;
         let hoverable = !disabled && !checked;
         let rounding = cx.theme().radius;
-        let pressed_background = cx.theme().wash(WASH_SELECTED);
-        let pressed_foreground = cx.theme().text;
+        let pressed_background = cx.theme().tokens.accent;
+        let pressed_foreground = cx.theme().accent_foreground;
         let instance_style = self.style.clone();
 
         BaseToggle::new(self.id)
@@ -197,12 +194,12 @@ impl RenderOnce for Toggle {
                     .when(self.border_edges.top, |this| this.border_t_1())
                     .when(self.border_edges.bottom, |this| this.border_b_1())
                     .border_color(cx.theme().border)
-                    .bg(cx.theme().bg)
+                    .bg(cx.theme().tokens.background)
             })
             .when(hoverable, |this| {
                 this.hover(|this| {
-                    this.bg(cx.theme().wash(WASH_HOVER))
-                        .text_color(cx.theme().text)
+                    this.bg(cx.theme().tokens.accent)
+                        .text_color(cx.theme().accent_foreground)
                 })
             })
             .styles(|styles| {

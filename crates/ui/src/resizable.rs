@@ -17,7 +17,7 @@ pub use gpui_base::{
 pub fn seamless_handle_appearance() -> gpui_base::ResizeHandleRenderer {
     Rc::new(|handle, _, cx| {
         let color = if handle.is_active() {
-            cx.theme().accent
+            cx.theme().drag_border
         } else {
             transparent_black()
         };

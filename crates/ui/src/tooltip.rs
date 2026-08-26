@@ -138,7 +138,7 @@ impl Render for Tooltip {
                         div()
                             .text_xs()
                             .flex_shrink_0()
-                            .text_color(cx.theme().text_muted)
+                            .text_color(cx.theme().muted_foreground)
                             .child(kbd.appearance(false)),
                     )
                 }),

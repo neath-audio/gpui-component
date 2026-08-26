@@ -210,7 +210,7 @@ impl SettingPage {
                         this.child(
                             Label::new(description)
                                 .text_size(text_size)
-                                .text_color(cx.theme().text_muted),
+                                .text_color(cx.theme().muted_foreground),
                         )
                     }),
             )

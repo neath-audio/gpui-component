@@ -256,9 +256,14 @@ mod tests {
         cx.read(|cx| {
             let theme = cx.theme();
             let base = gpui_base::Theme::global(cx);
-            assert_eq!(base.tokens, gpui_base::SemanticThemeTokens::default());
+            assert_eq!(base.tokens.colors.surface, theme.popover);
+            assert_eq!(
+                base.tokens.colors.surface_foreground,
+                theme.popover_foreground
+            );
             assert_eq!(base.resizable.handle, theme.border);
-            assert_eq!(base.resizable.active_handle, theme.accent);
+            assert_eq!(base.resizable.active_handle, theme.drag_border);
+            assert_eq!(base.tokens.colors.ring, theme.ring);
         });
     }
 

@@ -1304,7 +1304,7 @@ impl PopupMenu {
                     .min_h(rems(1.5))
                     .text_size(Size::Small.text_size())
                     .font_medium()
-                    .text_color(cx.theme().text_muted)
+                    .text_color(cx.theme().muted_foreground)
                     .gap_x(ICON_GAP)
                     .children(Self::render_icon(has_left_icon, false, None, window, cx))
                     .child(div().flex_1().child(label.clone())),
@@ -1386,7 +1386,7 @@ impl PopupMenu {
                                     .child(
                                         Icon::new(IconName::ExternalLink)
                                             .xsmall()
-                                            .text_color(cx.theme().text_muted),
+                                            .text_color(cx.theme().muted_foreground),
                                     ),
                             )
                         })
@@ -1425,7 +1425,7 @@ impl PopupMenu {
                                 .child(
                                     Icon::new(IconName::ChevronRight)
                                         .xsmall()
-                                        .text_color(cx.theme().text_muted),
+                                        .text_color(cx.theme().muted_foreground),
                                 ),
                         ),
                 )
@@ -1528,7 +1528,7 @@ impl Render for PopupMenu {
             .on_mouse_down_out(cx.listener(Self::on_mouse_down_out))
             .popover_style(cx)
             .when_some(self.menu_bg, |this, bg| this.bg(bg))
-            .text_color(cx.theme().text)
+            .text_color(cx.theme().popover_foreground)
             // Anchored menus stay in the trigger's element tree, so a
             // medium/semibold parent (selected tab, bold button) would
             // otherwise paint every row at that weight.
@@ -1584,11 +1584,11 @@ mod tests {
         cx.update(crate::init);
         cx.update(|cx| {
             let popover = gpui::hsla(210. / 360., 0.2, 0.3, 1.);
-            crate::Theme::global_mut(cx).surface_overlay = popover;
+            crate::Theme::global_mut(cx).popover = popover;
             // Former overlay_menu recipe: compact density + translucent popover tint.
             let menu = PopupMenu::new(cx)
                 .xsmall()
-                .menu_bg(cx.theme().surface_overlay.opacity(0.92));
+                .menu_bg(cx.theme().popover.opacity(0.92));
             assert_eq!(menu.size, crate::Size::XSmall);
             assert_eq!(menu.menu_bg, Some(popover.opacity(0.92)));
         });

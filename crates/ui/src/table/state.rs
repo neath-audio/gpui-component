@@ -1,13 +1,11 @@
 use std::{ops::Range, rc::Rc, time::Duration};
 
 use crate::{
-    ActiveTheme, Colorize as _, ElementExt, INK_ZEBRA, Icon, IconName, StyleSized as _, StyledExt,
-    VirtualListScrollHandle,
+    ActiveTheme, ElementExt, Icon, IconName, StyleSized as _, StyledExt, VirtualListScrollHandle,
     actions::{
         Cancel, SelectDown, SelectFirst, SelectLast, SelectNextColumn, SelectPageDown,
         SelectPageUp, SelectPrevColumn, SelectUp,
     },
-    flatten,
     global_state::UiGlobalState,
     h_flex,
     menu::{ContextMenuExt, PopupMenu},
@@ -15,9 +13,9 @@ use crate::{
     v_flex,
 };
 use gpui::{
-    App, AppContext, Axis, Bounds, ClickEvent, Context, Div, DragMoveEvent, EventEmitter,
-    FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement, ListSizingBehavior, MouseButton,
-    MouseDownEvent, ParentElement, Pixels, Point, Render, ScrollStrategy, SharedString, Stateful,
+    AppContext, Axis, Bounds, ClickEvent, Context, Div, DragMoveEvent, EventEmitter, FocusHandle,
+    Focusable, InteractiveElement, IntoElement, ListSizingBehavior, MouseButton, MouseDownEvent,
+    ParentElement, Pixels, Point, Render, ScrollStrategy, SharedString, Stateful,
     StatefulInteractiveElement as _, Styled, Task, UniformListScrollHandle, Window, div,
     prelude::FluentBuilder, px, uniform_list,
 };
@@ -29,11 +27,6 @@ enum SelectionMode {
     Column,
     Row,
     Cell,
-}
-
-// Centralized so fixed and virtualized cell renderers cannot silently drift.
-fn selected_cell_border(cx: &App) -> Hsla {
-    cx.theme().table_row_selected_border
 }
 
 impl SelectionMode {
@@ -1302,7 +1295,7 @@ where
         }
 
         if selectable && self.selected_col == Some(col_ix) && self.selection_mode.is_column() {
-            el.bg(cx.theme().table_row_selected)
+            el.bg(cx.theme().tokens.table_active)
         } else {
             el
         }
@@ -1342,7 +1335,7 @@ where
                 div()
                     .h_full()
                     .justify_center()
-                    .bg(cx.theme().border)
+                    .bg(cx.theme().table_row_border)
                     .group_hover(&group_id, |this| this.bg(cx.theme().border).h_full())
                     .w(px(1.)),
             )
@@ -1415,8 +1408,8 @@ where
             .w_3()
             .h_full()
             .border_r_1()
-            .border_color(cx.theme().border)
-            .bg(cx.theme().table_header_bg)
+            .border_color(cx.theme().table_row_border)
+            .bg(cx.theme().tokens.table_head)
             .flex_shrink_0()
             .table_cell_size(self.options.size)
             .when(!is_head, |this| {
@@ -1458,12 +1451,16 @@ where
                     true => this,
                     false => this.opacity(0.5),
                 })
-                .hover(|this| this.bg(cx.theme().surface_raised).opacity(7.))
-                .active(|this| this.bg(cx.theme().surface_raised.darken(0.06)).opacity(1.))
+                .hover(|this| this.bg(cx.theme().tokens.secondary).opacity(7.))
+                .active(|this| this.bg(cx.theme().tokens.secondary_active).opacity(1.))
                 .on_click(
                     cx.listener(move |table, _, window, cx| table.perform_sort(col_ix, window, cx)),
                 )
-                .child(Icon::new(icon).size_3().text_color(cx.theme().text)),
+                .child(
+                    Icon::new(icon)
+                        .size_3()
+                        .text_color(cx.theme().secondary_foreground),
+                ),
         )
     }
 
@@ -1532,7 +1529,7 @@ where
                                         .bottom_0()
                                         .w(px(2.))
                                         .map(|d| if right_side { d.right_0() } else { d.left_0() })
-                                        .bg(cx.theme().accent),
+                                        .bg(cx.theme().drag_border),
                                 )
                             }
                             _ => this,
@@ -1647,8 +1644,8 @@ where
             .h_flex()
             .w_full()
             .flex_shrink_0()
-            .bg(cx.theme().table_header_bg)
-            .text_color(cx.theme().text_muted)
+            .bg(cx.theme().tokens.table_head)
+            .text_color(cx.theme().table_head_foreground)
             .refine_style(&style)
             .on_drag_move(cx.listener(|table, e: &DragMoveEvent<DragColumn>, _, cx| {
                 let drag = e.drag(cx);
@@ -1688,7 +1685,7 @@ where
                     h_flex()
                         .relative()
                         .h_full()
-                        .bg(cx.theme().table_header_bg)
+                        .bg(cx.theme().tokens.table_head)
                         .child(v_flex().min_w_full().flex_shrink_0().children(
                             layout.iter().enumerate().map(|(_row_ix, row_cells)| {
                                 h_flex()
@@ -1748,7 +1745,7 @@ where
                     .overflow_scroll()
                     .relative()
                     .track_scroll(&horizontal_scroll_handle)
-                    .bg(cx.theme().table_header_bg)
+                    .bg(cx.theme().tokens.table_head)
                     .child(v_flex().min_w_full().flex_shrink_0().children(
                         layout.iter().enumerate().map(|(row_ix, row_cells)| {
                             let is_leaf_row = row_ix + 1 == layout_len;
@@ -1842,7 +1839,6 @@ where
         let is_selected = self.selected_row == Some(row_ix);
         let view = cx.entity().clone();
         let row_height = self.options.size.table_row_height();
-        let zebra = flatten(cx.theme().ink(INK_ZEBRA), cx.theme().bg);
 
         if row_ix < rows_count {
             let is_last_row = row_ix + 1 == rows_count;
@@ -1855,15 +1851,15 @@ where
                 .w_full()
                 .h(row_height)
                 .when(need_render_border, |this| {
-                    this.border_b_1().border_color(cx.theme().border)
+                    this.border_b_1().border_color(cx.theme().table_row_border)
                 })
-                .when(is_stripe_row, |this| this.bg(zebra))
+                .when(is_stripe_row, |this| this.bg(cx.theme().tokens.table_even))
                 .refine_style(&style)
                 .hover(|this| {
                     if is_selected || self.right_clicked_row == Some(row_ix) {
                         this
                     } else {
-                        this.bg(cx.theme().table_row_hover)
+                        this.bg(cx.theme().tokens.table_hover)
                     }
                 })
                 .when(self.cell_selectable && self.row_header, |this| {
@@ -1899,11 +1895,10 @@ where
                                                             div()
                                                                 .absolute()
                                                                 .inset_0()
-                                                                .bg(cx.theme().table_row_selected)
+                                                                .bg(cx.theme().tokens.table_active)
                                                                 .border_1()
                                                                 .border_color(
-                                                                    cx.theme()
-                                                                        .table_row_selected_border,
+                                                                    cx.theme().table_active_border,
                                                                 ),
                                                         )
                                                     })
@@ -1917,7 +1912,7 @@ where
                                                                     .border_1()
                                                                     .border_color(
                                                                         cx.theme()
-                                                                            .accent
+                                                                            .table_active_border
                                                                             .opacity(0.5),
                                                                     ),
                                                             )
@@ -2021,10 +2016,12 @@ where
                                                                     .inset_0()
                                                                     .bg(cx
                                                                         .theme()
-                                                                        .table_row_selected)
+                                                                        .tokens
+                                                                        .table_active)
                                                                     .border_1()
                                                                     .border_color(
-                                                                        selected_cell_border(cx),
+                                                                        cx.theme()
+                                                                            .table_active_border,
                                                                     ),
                                                             )
                                                         })
@@ -2039,7 +2036,7 @@ where
                                                                         .border_1()
                                                                         .border_color(
                                                                             cx.theme()
-                                                                                .accent
+                                                                                .table_active_border
                                                                                 .opacity(0.5),
                                                                         ),
                                                                 )
@@ -2093,12 +2090,12 @@ where
                                         .right(px(0.))
                                         .bottom(px(-1.))
                                         .absolute()
-                                        .bg(cx.theme().table_row_selected)
+                                        .bg(cx.theme().tokens.table_active)
                                         .border_1()
-                                        .border_color(cx.theme().table_row_selected_border),
+                                        .border_color(cx.theme().table_active_border),
                                 )
                             } else {
-                                this.bg(cx.theme().table_row_selected)
+                                this.bg(cx.theme().tokens.accent)
                             }
                         })
                     })
@@ -2133,8 +2130,8 @@ where
                 .w_full()
                 .h(row_height)
                 .border_b_1()
-                .border_color(cx.theme().border)
-                .when(is_stripe_row, |this| this.bg(zebra))
+                .border_color(cx.theme().table_row_border)
+                .when(is_stripe_row, |this| this.bg(cx.theme().tokens.table_even))
                 .when(self.cell_selectable && self.row_header, |this| {
                     // Render empty row header cell for fake rows
                     this.child(
@@ -2501,17 +2498,6 @@ mod tests {
 
     use crate::menu::PopupMenuItem;
     use gpui::{App, Entity, Modifiers, TestAppContext, VisualTestContext, point, size};
-
-    #[gpui::test]
-    fn selected_cells_use_the_independent_table_border_role(cx: &mut TestAppContext) {
-        cx.update(|cx| {
-            crate::init(cx);
-            crate::Theme::global_mut(cx).accent = gpui::blue();
-            crate::Theme::global_mut(cx).table_row_selected_border = gpui::red();
-
-            assert_eq!(selected_cell_border(cx), gpui::red());
-        });
-    }
 
     /// Minimal delegate: 1 column, `rows` rows, no context menus configured
     /// (not needed — these tests only exercise `right_clicked_row` /

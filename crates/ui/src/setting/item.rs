@@ -300,7 +300,7 @@ impl SettingItem {
                                         div()
                                             .size_full()
                                             .text_size(text_size)
-                                            .text_color(cx.theme().text_muted)
+                                            .text_color(cx.theme().muted_foreground)
                                             .child(description),
                                     )
                                 }),

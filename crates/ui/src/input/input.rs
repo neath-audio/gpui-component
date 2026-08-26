@@ -12,7 +12,7 @@ use crate::button::{Button, ButtonRounded, ButtonVariants as _};
 use crate::input::clear_button;
 use crate::native_menu::NativeMenu;
 use crate::spinner::Spinner;
-use crate::{ActiveTheme, v_flex};
+use crate::{ActiveTheme, Colorize, v_flex};
 use crate::{IconName, Size};
 use crate::{RoleOverride, Selectable, StyledExt, h_flex};
 use crate::{Sizable, StyleSized};
@@ -96,9 +96,12 @@ fn exposes_accessibility_value(masked: bool, content_type: Option<InputContentTy
 /// Returns `(background, foreground)` colors for input-like components.
 pub(crate) fn input_style(disabled: bool, cx: &App) -> (Hsla, Hsla) {
     if disabled {
-        (cx.theme().input_bg, cx.theme().text_muted)
+        (
+            cx.theme().input.mix_oklab(cx.theme().transparent, 0.8),
+            cx.theme().muted_foreground,
+        )
     } else {
-        (cx.theme().input_bg, cx.theme().text)
+        (cx.theme().input_background(), cx.theme().foreground)
     }
 }
 
@@ -395,8 +398,8 @@ impl RenderOnce for Input {
         state.ensure_highlighter_factory(crate::highlighter::input_highlighter_factory(), cx);
         state.set_editor_style(
             gpui_base::input::InputEditorStyle {
-                foreground: cx.theme().text,
-                muted_foreground: cx.theme().text_faint,
+                foreground: cx.theme().foreground,
+                muted_foreground: cx.theme().muted_foreground,
                 background: cx.theme().editor_background(),
                 border: cx.theme().border,
                 selection: cx.theme().selection,
@@ -573,7 +576,7 @@ impl RenderOnce for Input {
                 styles.focused(|style| {
                     style.when(
                         self.appearance && self.bordered && self.focus_bordered,
-                        |style| style.border_1().border_color(cx.theme().focus),
+                        |style| style.border_1().border_color(cx.theme().ring),
                     )
                 })
             })
@@ -606,7 +609,7 @@ impl RenderOnce for Input {
                 this.bg(bg)
                     .rounded(cx.theme().radius)
                     .when(self.bordered, |this| {
-                        this.border_1().border_color(cx.theme().border_strong)
+                        this.border_1().border_color(cx.theme().input)
                     })
             })
             .items_center()
@@ -636,7 +639,7 @@ impl RenderOnce for Input {
                         .cursor_default()
                         .when(presentation.is_disabled(), |this| this.opacity(0.5))
                         .when(presentation.is_loading(), |this| {
-                            this.child(Spinner::new().color(cx.theme().text_muted))
+                            this.child(Spinner::new().color(cx.theme().muted_foreground))
                         })
                         .when(self.mask_toggle, |this| {
                             this.child(Self::render_toggle_mask_button(&state, cx))

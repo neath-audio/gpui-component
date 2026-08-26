@@ -191,18 +191,18 @@ impl ColorPicker {
 
     fn render_palette_panel(&self, cx: &mut App) -> impl IntoElement {
         let featured_colors = self.featured_colors.clone().unwrap_or(vec![
-            crate::red_600(),
-            crate::red_400(),
-            crate::blue_600(),
-            crate::blue_400(),
-            crate::green_600(),
-            crate::green_400(),
-            crate::yellow_600(),
-            crate::yellow_400(),
-            crate::cyan_600(),
-            crate::cyan_400(),
-            crate::purple_600(),
-            crate::purple_400(),
+            cx.theme().red,
+            cx.theme().red_light,
+            cx.theme().blue,
+            cx.theme().blue_light,
+            cx.theme().green,
+            cx.theme().green_light,
+            cx.theme().yellow,
+            cx.theme().yellow_light,
+            cx.theme().cyan,
+            cx.theme().cyan_light,
+            cx.theme().magenta,
+            cx.theme().magenta_light,
         ]);
 
         v_flex()
@@ -249,7 +249,7 @@ impl ColorPicker {
         let alpha_start = hsla(slider_color.h, slider_color.s, slider_color.l, 0.0);
         let alpha_end = hsla(slider_color.h, slider_color.s, slider_color.l, 1.0);
 
-        let label_color = cx.theme().text_muted;
+        let label_color = cx.theme().foreground.opacity(0.7);
 
         v_flex()
             .gap_2()
@@ -458,6 +458,10 @@ impl RenderOnce for ColorPicker {
         let focus_handle = self.state.focus_handle(cx);
         let open_state = self.state.clone();
         let popover_state = self.state.clone();
+        // A closed picker only needs its trigger. Building the palette grid and
+        // four slider tracks eagerly is especially costly for schema editors
+        // that render many picker triggers at once.
+        let popup_content = open.then(|| self.render_colors(window, cx).into_any_element());
 
         BaseColorPicker::new(self.id.clone())
             .open(open)
@@ -488,7 +492,7 @@ impl RenderOnce for ColorPicker {
                         icon: self.icon.clone(),
                         selected: false,
                     })
-                    .child(self.render_colors(window, cx)),
+                    .children(popup_content),
             )
     }
 }
@@ -533,9 +537,9 @@ impl RenderOnce for ColorPickerButton {
                 this.child(
                     div()
                         .id("square")
-                        .bg(cx.theme().bg)
+                        .bg(cx.theme().tokens.background)
                         .border_1()
-                        .border_color(cx.theme().border)
+                        .border_color(cx.theme().input)
                         .rounded(cx.theme().radius)
                         .overflow_hidden()
                         .size_with(self.size)

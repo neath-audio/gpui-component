@@ -12,7 +12,7 @@ const MAX_MENU_HEIGHT: Pixels = px(240.);
 const POPOVER_GAP: Pixels = px(4.);
 
 use crate::{
-    ActiveTheme, IndexPath, Selectable, WASH_HOVER, WASH_SELECTED, actions, h_flex,
+    ActiveTheme, IndexPath, Selectable, actions, h_flex,
     input::{
         self, EditorState,
         popovers::{editor_popover, render_markdown},
@@ -95,7 +95,7 @@ impl RenderOnce for CompletionMenuItem {
         let highlights = vec![(
             0..matched_len,
             HighlightStyle {
-                color: Some(cx.theme().accent),
+                color: Some(cx.theme().blue),
                 ..Default::default()
             },
         )];
@@ -108,16 +108,16 @@ impl RenderOnce for CompletionMenuItem {
             .line_height(relative(1.))
             .rounded(cx.theme().radius.half())
             .when(item.deprecated.unwrap_or(false), |this| this.line_through())
-            .hover(|this| this.bg(cx.theme().wash(WASH_HOVER)))
+            .hover(|this| this.bg(cx.theme().accent.opacity(0.8)))
             .when(self.selected, |this| {
-                this.bg(cx.theme().wash(WASH_SELECTED))
-                    .text_color(cx.theme().text)
+                this.bg(cx.theme().tokens.accent)
+                    .text_color(cx.theme().accent_foreground)
             })
             .child(div().child(StyledText::new(item.label.clone()).with_highlights(highlights)))
             .when(item.detail.is_some(), |this| {
                 this.child(
                     Label::new(item.detail.as_deref().unwrap_or("").to_string())
-                        .text_color(cx.theme().text_muted)
+                        .text_color(cx.theme().muted_foreground)
                         .when(deprecated, |this| this.line_through())
                         .italic(),
                 )

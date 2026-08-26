@@ -444,7 +444,7 @@ where
                                 Text::new(
                                     band_fn(d).into(),
                                     point(px(band_x + band_offset + band_width / 2.), px(label_y)),
-                                    cx.theme().text_muted,
+                                    cx.theme().muted_foreground,
                                 )
                                 .align(TextAlign::Center),
                             )
@@ -459,7 +459,7 @@ where
                         &band_scale,
                         band_width,
                         self.tick_margin,
-                        cx.theme().text_muted,
+                        cx.theme().muted_foreground,
                     );
                     let (side, align) = if matches!(alignment, BarAlignment::Left) {
                         (AxisLabelSide::Start, TextAlign::Right)
@@ -505,7 +505,7 @@ where
             // so the labels walk the domain in the same direction.
             let labels = value_ticks.iter().enumerate().map(|(i, &tick)| {
                 let value = domain_hi - (domain_hi - domain_lo) * i as f32 / steps as f32;
-                AxisText::new(format_tick(value), px(tick), cx.theme().text_muted)
+                AxisText::new(format_tick(value), px(tick), cx.theme().muted_foreground)
             });
 
             // The labels go in the gap `band_scale` kept clear for them, right-aligned
@@ -527,10 +527,10 @@ where
         // Draw bars.
         let band_fn_cloned = band_fn.clone();
         let value_fn_cloned = value_fn.clone();
-        let default_fill: Background = cx.theme().success.into();
+        let default_fill: Background = cx.theme().chart_2.into();
         let fill = self.fill.clone();
         let fill_gradient = self.fill_gradient.clone();
-        let label_color = cx.theme().text;
+        let label_color = cx.theme().foreground;
 
         // Chart bounds in pixel space, with origin (0, 0) and size equal to
         // the full chart extent. Passed to user `fill` closures so they can
@@ -702,7 +702,7 @@ where
                 .gap(px(8.))
                 .cross_line(cross_line)
                 .title(title)
-                .row(cx.theme().success, name, format!("{}", value))
+                .row(cx.theme().chart_2, name, format!("{}", value))
                 .into_any_element(),
         )
     }

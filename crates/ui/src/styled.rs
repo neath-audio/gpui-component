@@ -1,8 +1,8 @@
 pub use crate::component_traits::{Collapsible, Disableable, Selectable};
 pub use crate::sizing::{Sizable, Size, StyleSized};
 use gpui::{
-    App, BoxShadow, Corners, Edges, Hsla, ParentElement, Pixels, StyleRefinement, Styled, Window,
-    div, hsla, px,
+    App, BoxShadow, Corners, Edges, ParentElement, Pixels, StyleRefinement, Styled, Window, div,
+    hsla, px,
 };
 pub use gpui_base::{FocusableExt, RoleOverride, StyledExt, box_shadow, h_flex, v_flex};
 
@@ -15,61 +15,22 @@ const FOCUS_RING_OPACITY: f32 = 0.5;
 /// shadcn/ui spends at each elevation.
 const SURFACE_SHADOW_INK: f32 = 0.1;
 
-/// Ink of the hairline ring standing in for a popover's border.
-///
-/// shadcn/ui draws no border on a popup surface at all: its edge is a 1px
-/// `rgb(0 0 0 / 0.1)` ring spent as a shadow layer. Because the ring is
-/// translucent the shadow shows *through* it, which is what makes the edge read
-/// as part of one grounded surface rather than as an outline with a separate
-/// shadow below it. An opaque border cannot reproduce that — a border composites
-/// over the element's own background, not over the shadow.
-const POPOVER_RING_INK: f32 = 0.1;
-
-/// The colour of a popup surface's hairline ring in this theme.
-///
-/// shadcn spends black on it in light mode and white in dark
-/// (`oklch(1 0 0 / 10%)`), so it follows the foreground rather than the border
-/// token: a fixed black ring would all but vanish on a dark surface.
-///
-#[allow(dead_code)]
-pub(crate) fn popover_ring(cx: &App) -> Hsla {
-    cx.theme().text.alpha(POPOVER_RING_INK)
-}
-
-/// shadcn/ui's popup surface shadow — a hairline `ring` plus `shadow-md` — at
-/// `strength` of its full ink.
+/// GPUI's native `shadow-md` at `strength` of its full ink.
 ///
 /// Callers animating a surface in pass a rising `strength`; a resting surface
 /// passes `1.0`.
 ///
-/// The two blurred layers use Tailwind's radii **halved**, which is the
-/// conversion CSS requires and not a taste adjustment. CSS defines a box
-/// shadow's blur radius as twice the gaussian's standard deviation, while GPUI's
-/// shader takes the field as the deviation itself (`gaussian(y, sigma)`).
-/// Copying Tailwind's `6px` and `4px` across therefore spreads the shadow over
-/// twice the distance, which is why [`Styled::shadow_md`] reads as a wide grey
-/// haze next to a browser's compact one.
-///
-/// Measured against shadcn's own render, this lands within a luminance step of
-/// it the whole way down the falloff.
-///
-/// The ring is taken as a colour rather than read from the theme here so that an
-/// animation can hold it across frames, where no `App` is in hand.
-#[allow(dead_code)]
-pub(crate) fn popover_shadow(ring: Hsla, strength: f32) -> Vec<BoxShadow> {
+/// This duplicates the native method's two values only because an animation
+/// needs to vary their alpha after the styling context is gone.
+pub(crate) fn popover_shadow(strength: f32) -> Vec<BoxShadow> {
     let strength = strength.clamp(0., 1.);
     let ink = hsla(0., 0., 0., SURFACE_SHADOW_INK * strength);
     vec![
-        // The ring, sitting in the 1px band outside the surface. No blur, so it
-        // takes the shader's crisp path rather than the gaussian one.
-        BoxShadow::new(px(0.), px(0.), ring.alpha(ring.a * strength))
-            .blur_radius(px(0.))
-            .spread_radius(px(1.)),
         BoxShadow::new(px(0.), px(4.), ink)
-            .blur_radius(px(3.))
+            .blur_radius(px(6.))
             .spread_radius(px(-1.)),
         BoxShadow::new(px(0.), px(2.), ink)
-            .blur_radius(px(2.))
+            .blur_radius(px(4.))
             .spread_radius(px(-2.)),
     ]
 }
@@ -81,7 +42,7 @@ pub(crate) fn popover_shadow(ring: Hsla, strength: f32) -> Vec<BoxShadow> {
 /// a real 1px border rather than the translucent ring it puts on a popup, so
 /// there is no ring layer here. Its corner radius is left to the caller.
 ///
-/// The radii are Tailwind's halved, for the reason [`popover_shadow`] explains.
+/// The radii retain the existing toast tuning independently of popovers.
 pub(crate) fn toast_shadow(strength: f32) -> Vec<BoxShadow> {
     let ink = hsla(0., 0., 0., SURFACE_SHADOW_INK * strength.clamp(0., 1.));
     vec![
@@ -155,7 +116,7 @@ impl<T: Styled + Sized> ThemeStyled for T {
         // it off. An application whose layout clips heavily turns it off in the
         // theme and keeps the tinted border, which takes no space.
         if !cx.theme().focus_ring {
-            return self.border_color(cx.theme().focus);
+            return self.border_color(cx.theme().ring);
         }
 
         let rem_size = window.rem_size();
@@ -212,7 +173,7 @@ impl<T: Styled + Sized> ThemeStyled for T {
         ring_style.corner_radii.bottom_right = Some(radius.bottom_right.into());
         let inset = FOCUS_RING_WIDTH;
 
-        self.border_color(cx.theme().focus).child(
+        self.border_color(cx.theme().ring).child(
             div()
                 .flex_none()
                 .absolute()
@@ -221,21 +182,19 @@ impl<T: Styled + Sized> ThemeStyled for T {
                 .right(-(inset + border_widths.right))
                 .bottom(-(inset + border_widths.bottom))
                 .border(FOCUS_RING_WIDTH)
-                .border_color(cx.theme().focus.alpha(FOCUS_RING_OPACITY))
+                .border_color(cx.theme().ring.alpha(FOCUS_RING_OPACITY))
                 .refine_style(&ring_style),
         )
     }
 
     fn popover_style(self, cx: &App) -> Self {
         let theme = cx.theme();
-        // Opaque hairline + measured menu shadow. The shadcn "ring-as-shadow"
-        // edge reads as a web overlay and dropped the elevated border this
-        // crate's popups used (user ruling 2026-08-20).
-        self.bg(theme.surface_overlay)
-            .text_color(theme.text)
+        // Opaque strong edge plus GPUI's native medium elevation.
+        self.bg(theme.tokens.popover)
+            .text_color(theme.popover_foreground)
             .border_1()
             .border_color(theme.border_strong)
-            .shadow(theme.shadow_2().into_vec())
+            .shadow_md()
             .rounded(theme.radius)
     }
 }

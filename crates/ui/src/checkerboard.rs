@@ -32,7 +32,7 @@ const CELL: Pixels = px(12.);
 
 fn palette(is_dark: bool) -> (Hsla, Hsla) {
     if is_dark {
-        (hsla(0., 0., 0.10, 1.), hsla(0., 0., 0.13, 1.))
+        (hsla(0., 0., 0.14, 1.), hsla(0., 0., 0.20, 1.))
     } else {
         (hsla(0., 0., 1.00, 1.), hsla(0., 0., 0.95, 1.))
     }
@@ -89,7 +89,7 @@ impl RenderOnce for Checkerboard {
 fn palette_matches_the_accepted_neutral_pairs() {
     assert_eq!(
         palette(true),
-        (hsla(0., 0., 0.10, 1.), hsla(0., 0., 0.13, 1.))
+        (hsla(0., 0., 0.14, 1.), hsla(0., 0., 0.20, 1.))
     );
     assert_eq!(
         palette(false),

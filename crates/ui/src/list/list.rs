@@ -702,7 +702,8 @@ where
                             Input::new(&input)
                                 .with_size(self.options.size)
                                 .prefix(
-                                    Icon::new(IconName::Search).text_color(cx.theme().text_muted),
+                                    Icon::new(IconName::Search)
+                                        .text_color(cx.theme().muted_foreground),
                                 )
                                 .cleanable(true)
                                 .p_0()

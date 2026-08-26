@@ -437,10 +437,10 @@ impl RenderOnce for DatePicker {
                             .text_color(fg)
                             .when(self.disabled, |this| this.opacity(0.5))
                             .border_1()
-                            .border_color(cx.theme().border_strong)
+                            .border_color(cx.theme().input)
                             .rounded(cx.theme().radius)
                             .when(is_focused, |this| {
-                                this.border_1().border_color(cx.theme().focus)
+                                this.border_1().border_color(cx.theme().ring)
                             })
                     })
                     .when(
@@ -471,7 +471,7 @@ impl RenderOnce for DatePicker {
                                     .whitespace_nowrap()
                                     .truncate()
                                     .when(!state.date.is_some(), |this| {
-                                        this.text_color(cx.theme().text_muted)
+                                        this.text_color(cx.theme().muted_foreground)
                                     })
                                     .child(display_title),
                             )
@@ -485,7 +485,7 @@ impl RenderOnce for DatePicker {
                                     this.child(
                                         Icon::new(IconName::Calendar)
                                             .xsmall()
-                                            .text_color(cx.theme().text_muted),
+                                            .text_color(cx.theme().muted_foreground),
                                     )
                                 })
                             }),

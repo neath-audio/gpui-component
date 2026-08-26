@@ -36,7 +36,7 @@ pub(crate) struct SearchableListAdapter<D: SearchableListDelegate + 'static> {
     /// Override the trailing check icon; defaults to `IconName::Check`.
     pub(crate) check_icon: Option<Icon>,
     /// Optional tint for the selected/hover row highlight; `None` keeps the
-    /// theme wash overlays. Set by the parent state from its `menu_accent` option.
+    /// theme `accent`. Set by the parent state from its `menu_accent` option.
     pub(crate) accent: Option<Hsla>,
 }
 
@@ -98,7 +98,7 @@ impl<D: SearchableListDelegate + 'static> ListDelegate for SearchableListAdapter
                 .px_2()
                 .list_size(self.size)
                 .text_sm()
-                .text_color(cx.theme().text_muted)
+                .text_color(cx.theme().muted_foreground)
                 .child(item)
                 .into_any_element(),
         )

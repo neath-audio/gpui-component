@@ -201,7 +201,7 @@ impl TilesRenderer for TilesSkin {
             .id("tiles")
             .relative()
             .size_full()
-            .bg(cx.theme().surface)
+            .bg(cx.theme().tokens.tiles)
             .track_scroll(&self.scroll_handle)
             .overflow_scroll()
     }
@@ -211,7 +211,7 @@ impl TilesRenderer for TilesSkin {
             .id(("tile", tile.panel_id().as_u64()))
             .occlude()
             .overflow_hidden()
-            .bg(cx.theme().bg)
+            .bg(cx.theme().tokens.background)
             .border_1()
             .border_color(cx.theme().border)
             .rounded(cx.theme().tile_radius)
@@ -362,7 +362,7 @@ impl TilesRenderer for TilesSkin {
                     .absolute()
                     .right(px(1.))
                     .bottom(px(1.))
-                    .text_color(cx.theme().text_muted.opacity(0.5)),
+                    .text_color(cx.theme().muted_foreground.opacity(0.5)),
             )
             .child(self.resize_handle(
                 tile,

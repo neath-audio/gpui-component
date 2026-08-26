@@ -262,14 +262,14 @@ impl TabBar {
                     div()
                         .w_full()
                         .h(inner_height)
-                        .bg(cx.theme().bg)
+                        .bg(cx.theme().tokens.background)
                         .rounded(inner_radius)
                         .shadow_sm(),
                 ),
                 TabVariant::Pill => el.flex().items_center().child(
                     div()
                         .size_full()
-                        .bg(cx.theme().accent_strong)
+                        .bg(cx.theme().tokens.primary)
                         .rounded(cx.theme().radius_full()),
                 ),
                 TabVariant::Underline => el.child(
@@ -279,7 +279,7 @@ impl TabBar {
                         .right_0()
                         .bottom_0()
                         .h(px(2.))
-                        .bg(cx.theme().accent),
+                        .bg(cx.theme().tokens.primary),
                 ),
                 _ => el,
             });
@@ -365,7 +365,7 @@ impl RenderOnce for TabBar {
         let (bg, paddings, gap): (Background, _, _) = match self.variant {
             TabVariant::Tab => {
                 let padding = Edges::all(px(0.));
-                (cx.theme().surface.into(), padding, px(0.))
+                (cx.theme().tokens.tab_bar.into(), padding, px(0.))
             }
             TabVariant::Outline => {
                 let padding = Edges::all(px(0.));
@@ -387,7 +387,7 @@ impl RenderOnce for TabBar {
                     ..Default::default()
                 };
 
-                (cx.theme().surface_raised.into(), padding, px(2.))
+                (cx.theme().tokens.tab_bar_segmented.into(), padding, px(2.))
             }
             TabVariant::Underline => {
                 // This gap is same as the tab inner_paddings
@@ -477,7 +477,7 @@ impl RenderOnce for TabBar {
             .flex()
             .items_center()
             .bg(bg)
-            .text_color(cx.theme().text_muted)
+            .text_color(cx.theme().tab_foreground)
             .when(
                 self.variant == TabVariant::Underline || self.variant == TabVariant::Tab,
                 |this| {

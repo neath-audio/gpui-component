@@ -87,12 +87,12 @@ impl SettingGroup {
             .with_variant(options.group_variant())
             .when_some(self.title.clone(), |this, title| {
                 // Promote the group title to a real section heading: the
-                // `GroupBox` wraps its title in `text_muted`, so override
-                // it back to `text` here. Settings-size text, regular
+                // `GroupBox` wraps its title in `muted_foreground`, so override
+                // it back to the default foreground here. Settings-size text, regular
                 // weight — one tier below the (semibold, size-inherited) page
                 // title above; against the same-size item labels the heading
-                // role is carried by position and the muted description,
-                // not by typography.
+                // role is carried by position and the foreground-over-muted
+                // description, not by typography.
                 this.title(
                     v_flex()
                         // `gap_2` (not `gap_1`): the `GroupBox` title wrapper
@@ -103,14 +103,14 @@ impl SettingGroup {
                         .child(
                             div()
                                 .text_size(text_size)
-                                .text_color(cx.theme().text)
+                                .text_color(cx.theme().foreground)
                                 .child(title),
                         )
                         .when_some(self.description.clone(), |this, description| {
                             this.child(
                                 Label::new(description)
                                     .text_size(text_size)
-                                    .text_color(cx.theme().text_muted),
+                                    .text_color(cx.theme().muted_foreground),
                             )
                         }),
                 )

@@ -28,10 +28,10 @@ pub struct SearchableListItemElement {
     /// The icon drawn at the trailing edge when `checked` is `true`.
     check_icon: Option<Icon>,
     /// Optional override for the selected/hover highlight background. `None`
-    /// keeps the authored row defaults for selected and hover. `Some` tints
-    /// both with the given
-    /// solid color (selected at full strength, hover dimmed) so a caller can
-    /// color the menu cursor to match.
+    /// keeps the theme defaults — the gradient-capable `accent` token for the
+    /// selected row and a dimmed flat `accent` for hover. `Some` tints both
+    /// with the given solid color (selected at full strength, hover dimmed) so
+    /// a caller can color the menu cursor to match.
     highlight: Option<Hsla>,
 }
 
@@ -57,8 +57,8 @@ impl SearchableListItemElement {
     }
 
     /// Override the selected/hover highlight background. `None` (default)
-    /// keeps the theme wash overlays; `Some` tints the cursor highlight with
-    /// the given solid color.
+    /// keeps the gradient-capable theme `accent` token; `Some` tints the cursor
+    /// highlight with the given solid color.
     pub fn highlight(mut self, highlight: impl Into<Option<Hsla>>) -> Self {
         self.highlight = highlight.into();
         self
@@ -112,16 +112,18 @@ impl Styled for SearchableListItemElement {
 impl RenderOnce for SearchableListItemElement {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         // Selected and hover are styled independently so each keeps its full
-        // theme capacity. Defaults are wash overlays over the menu plane;
-        // `highlight`, when set, tints both with the caller's solid color
-        // (selected at full strength, hover dimmed).
+        // theme capacity. Selected is a `Background` — the default uses the
+        // gradient-capable `accent` token (matching upstream); hover is an
+        // `Hsla` because dimming via `.opacity()` only applies to a flat color
+        // (also matching upstream). `highlight`, when set, tints both with the
+        // caller's solid color.
         let selected_bg: Background = match self.highlight {
             Some(c) => c.into(),
-            None => cx.theme().row_selected.into(),
+            None => cx.theme().tokens.accent.into(),
         };
         let hover_bg: Hsla = match self.highlight {
             Some(c) => c.opacity(0.6),
-            None => cx.theme().row_hover,
+            None => cx.theme().accent.opacity(0.7),
         };
         h_flex()
             .id(self.id)
@@ -129,7 +131,7 @@ impl RenderOnce for SearchableListItemElement {
             .gap_x_1()
             .rounded(cx.theme().radius)
             .text_base()
-            .text_color(cx.theme().text)
+            .text_color(cx.theme().foreground)
             .items_center()
             .justify_between()
             .input_text_size(self.size)
@@ -140,7 +142,8 @@ impl RenderOnce for SearchableListItemElement {
             })
             .when(self.selected, |this| this.bg(selected_bg))
             .when(self.disabled, |this| {
-                this.cursor_not_allowed().text_color(cx.theme().text_muted)
+                this.cursor_not_allowed()
+                    .text_color(cx.theme().muted_foreground)
             })
             .child(
                 h_flex()
@@ -152,7 +155,7 @@ impl RenderOnce for SearchableListItemElement {
                     .when_some(self.check_icon, |this, icon| {
                         this.child(
                             icon.xsmall()
-                                .text_color(cx.theme().text)
+                                .text_color(cx.theme().foreground)
                                 .when(!self.checked, |this| this.invisible()),
                         )
                     }),

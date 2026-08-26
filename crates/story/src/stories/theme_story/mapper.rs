@@ -1,5 +1,29 @@
-/// A compatibility bridge for mapping theme color keys into categories for
-/// the Color Theme Viewer.
+/// A compatibility bridge for mapping theme color keys.
+///
+/// This module provides a way to translate between the legacy snake_case keys
+/// used in `ThemeColor` and the logical categories/names expected by the
+/// Color Theme Viewer.
+///
+/// ### How to eliminate this mapper
+///
+/// If the project decides to unify the theme schema project-wide (using dot-notation),
+/// follow these steps to remove this "temporary bridge":
+///
+/// 1. **Update `ThemeColor`**:
+///    In `crates/ui/src/theme/theme_color.rs`, add `#[serde(rename = "...")]` attributes
+///    to all fields of the `ThemeColor` struct to match their canonical dot-notation
+///    names (e.g., `accent_foreground` -> `#[serde(rename = "accent.foreground")]`).
+///
+/// 2. **Update JSON Themes**:
+///    Ensure `crates/ui/src/theme/default-theme.json` and any files in `themes/`
+///    strictly use the dot-notation keys.
+///
+/// 3. **Refactor the Viewer**:
+///    In `crates/story/src/stories/theme_story/color_theme_story.rs`, remove the call
+///    to `super::mapper::parse_theme_key` and replace it with a simple split on the '.' character.
+///
+/// 4. **Delete this file**:
+///    Remove `mapper.rs` and its module declaration in `mod.rs`.
 ///
 /// Represents a parsed theme key with a category, a display name, and a canonical dot-notation key.
 pub struct ParsedKey {
@@ -20,7 +44,8 @@ pub fn parse_theme_key(key: &str) -> ParsedKey {
         };
     }
 
-    // 2. Handle snake_case remapping (e.g., "accent_foreground" -> "Accent" / "Foreground").
+    // 2. Handle legacy snake_case remapping (e.g., "accent_foreground" -> "Accent" / "Foreground")
+    // This list attempts to reconstruct the hierarchy from the flat ThemeColor struct.
     let (category, name, canonical) = match key {
         // Accent
         "accent" => ("Accent", "Background", "accent.background"),

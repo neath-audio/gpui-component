@@ -26,12 +26,12 @@ pub enum TagVariant {
 impl TagVariant {
     fn bg(&self, cx: &App) -> Hsla {
         match self {
-            Self::Primary => cx.theme().accent_strong,
-            Self::Secondary => cx.theme().surface_raised,
-            Self::Danger => cx.theme().danger_strong,
+            Self::Primary => cx.theme().primary,
+            Self::Secondary => cx.theme().secondary,
+            Self::Danger => cx.theme().danger,
             Self::Success => cx.theme().success,
             Self::Warning => cx.theme().warning,
-            Self::Info => cx.theme().busy,
+            Self::Info => cx.theme().info,
             Self::Color(color) => {
                 if cx.theme().is_dark() {
                     color.scale(950).opacity(0.5)
@@ -45,12 +45,12 @@ impl TagVariant {
 
     fn border(&self, cx: &App) -> Hsla {
         match self {
-            Self::Primary => cx.theme().accent_strong,
+            Self::Primary => cx.theme().primary,
             Self::Secondary => cx.theme().border,
             Self::Danger => cx.theme().danger,
             Self::Success => cx.theme().success,
             Self::Warning => cx.theme().warning,
-            Self::Info => cx.theme().busy,
+            Self::Info => cx.theme().info,
             Self::Color(color) => {
                 if cx.theme().is_dark() {
                     color.scale(800).opacity(0.5)
@@ -66,44 +66,44 @@ impl TagVariant {
         match self {
             Self::Primary => {
                 if outline {
-                    cx.theme().accent
+                    cx.theme().primary
                 } else {
-                    cx.theme().on_accent
+                    cx.theme().primary_foreground
                 }
             }
             Self::Secondary => {
                 if outline {
-                    cx.theme().text_muted
+                    cx.theme().muted_foreground
                 } else {
-                    cx.theme().text
+                    cx.theme().secondary_foreground
                 }
             }
             Self::Danger => {
                 if outline {
                     cx.theme().danger
                 } else {
-                    cx.theme().on_accent
+                    cx.theme().danger_foreground
                 }
             }
             Self::Success => {
                 if outline {
                     cx.theme().success
                 } else {
-                    cx.theme().on_accent
+                    cx.theme().success_foreground
                 }
             }
             Self::Warning => {
                 if outline {
                     cx.theme().warning
                 } else {
-                    cx.theme().on_accent
+                    cx.theme().warning_foreground
                 }
             }
             Self::Info => {
                 if outline {
-                    cx.theme().busy
+                    cx.theme().info
                 } else {
-                    cx.theme().on_accent
+                    cx.theme().info_foreground
                 }
             }
             Self::Color(color) => {

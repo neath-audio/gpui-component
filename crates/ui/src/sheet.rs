@@ -142,9 +142,6 @@ impl RenderOnce for Sheet {
                 window_paddings.top + window_paddings.bottom,
             );
         let top = cx.theme().sheet.margin_top;
-        let surface_color = cx.theme().surface_overlay;
-        let edge = cx.theme().border_strong;
-        let shadow = cx.theme().shadow_4();
         let base_size = window.text_style().font_size;
         let rem_size = window.rem_size();
         let mut paddings = Edges::all(px(16.));
@@ -171,9 +168,9 @@ impl RenderOnce for Sheet {
             .id("sheet")
             .absolute()
             .occlude()
-            .bg(surface_color)
-            .border_color(edge)
-            .shadow(shadow.into_vec())
+            .bg(cx.theme().tokens.background)
+            .border_color(cx.theme().border_strong)
+            .shadow_xl()
             .refine_style(&self.style)
             .map(|this| {
                 // Set the size of the sheet.

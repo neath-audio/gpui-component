@@ -178,9 +178,9 @@ pub(crate) fn checkbox_check_icon(
         cx,
     );
     let color = if disabled {
-        cx.theme().on_accent.opacity(0.5)
+        cx.theme().primary_foreground.opacity(0.5)
     } else {
-        cx.theme().on_accent
+        cx.theme().primary_foreground
     };
 
     svg()
@@ -214,18 +214,15 @@ impl RenderOnce for Checkbox {
             .clone();
         let is_focused = focus_handle.is_focused(window);
 
-        // Bezel's resting control recipe: a faint plate with a deliberate
-        // neutral ring. Generic structural borders are too quiet at 12–16px.
-        let unchecked_border = cx.theme().ink(0.25);
-        let unchecked_bg = cx.theme().ink(0.03);
-        let checked_color = cx.theme().accent_strong;
+        let unchecked_border = cx.theme().input;
+        let checked_color = cx.theme().primary;
         let disabled_indicator_color = if checked {
             checked_color.opacity(0.5)
         } else {
             unchecked_border.opacity(0.5)
         };
         let radius = cx.theme().radius.min(px(4.));
-        let disabled_text_color = cx.theme().text_muted;
+        let disabled_text_color = cx.theme().muted_foreground;
         let instance_style = self.style.clone();
         base.role(self.role)
             .checked(checked)
@@ -253,7 +250,7 @@ impl RenderOnce for Checkbox {
             .gap_2()
             .items_start()
             .line_height(relative(1.))
-            .text_color(cx.theme().text)
+            .text_color(cx.theme().foreground)
             .map(|this| match self.size {
                 Size::XSmall => this.text_xs(),
                 Size::Small => this.text_sm(),
@@ -282,7 +279,7 @@ impl RenderOnce for Checkbox {
                     .border_1()
                     .rounded(radius)
                     .when(!checked, |this| {
-                        this.bg(unchecked_bg)
+                        this.bg(cx.theme().input_background())
                             .when(!self.disabled, |this| this.border_color(unchecked_border))
                     })
                     .styles(|styles| {
@@ -290,7 +287,7 @@ impl RenderOnce for Checkbox {
                             .checked(|style| {
                                 style
                                     .border_color(checked_color)
-                                    .bg(cx.theme().accent_strong)
+                                    .bg(cx.theme().tokens.primary)
                             })
                             .disabled(|style| {
                                 style
@@ -319,9 +316,9 @@ impl RenderOnce for Checkbox {
                                 this.child(
                                     div()
                                         .size_full()
-                                        .text_color(cx.theme().text)
+                                        .text_color(cx.theme().foreground)
                                         .when(self.disabled, |this| {
-                                            this.text_color(cx.theme().text_muted)
+                                            this.text_color(cx.theme().muted_foreground)
                                         })
                                         .line_height(relative(1.))
                                         .child(label),

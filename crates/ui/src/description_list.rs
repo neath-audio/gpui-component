@@ -313,7 +313,9 @@ impl RenderOnce for DescriptionList {
                                                 .when(self.layout.is_horizontal(), |this| {
                                                     this.h_full()
                                                 })
-                                                .text_color(cx.theme().text_muted)
+                                                .text_color(
+                                                    cx.theme().description_list_label_foreground,
+                                                )
                                                 .text_sm()
                                                 .px(padding_x)
                                                 .py(padding_y)
@@ -328,7 +330,7 @@ impl RenderOnce for DescriptionList {
                                                         this.border_b_1()
                                                     })
                                                     .border_color(cx.theme().border)
-                                                    .bg(cx.theme().surface)
+                                                    .bg(cx.theme().tokens.description_list_label)
                                                 })
                                                 .map(|this| match label_width {
                                                     Some(label_width) => {
@@ -347,10 +349,9 @@ impl RenderOnce for DescriptionList {
                                                 .child(value),
                                         )
                                 }
-                                _ => div()
-                                    .h_2()
-                                    .w_full()
-                                    .when(self.bordered, |this| this.bg(cx.theme().surface)),
+                                _ => div().h_2().w_full().when(self.bordered, |this| {
+                                    this.bg(cx.theme().tokens.description_list_label)
+                                }),
                             }
                         })
                     })

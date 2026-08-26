@@ -38,7 +38,7 @@ pub struct TextViewStyle {
     /// The highlight style for inline code.
     ///
     /// Default is [`HighlightStyle::default()`], the `background_color` will
-    /// fallback to `cx.theme().surface_raised`, if it is `None`.
+    /// fallback to `cx.theme().accent`, if it is `None`.
     pub inline_code: HighlightStyle,
     pub is_dark: bool,
 }
@@ -128,11 +128,11 @@ impl TextViewStyle {
     }
 
     /// Returns the [`HighlightStyle`] to use for inline code,
-    /// fallback `background_color` to `cx.theme().surface_raised`, if it is `None`.
+    /// fallback `background_color` to `cx.theme().accent`, if it is `None`.
     pub(crate) fn inline_code_highlight(&self, cx: &App) -> HighlightStyle {
         let mut style = self.inline_code;
         if style.background_color.is_none() {
-            style.background_color = Some(cx.theme().surface_raised);
+            style.background_color = Some(cx.theme().accent);
         }
         style
     }

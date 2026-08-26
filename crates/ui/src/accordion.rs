@@ -437,7 +437,7 @@ impl RenderOnce for AccordionItem {
                 Size::Large => this.py_3().px_4(),
                 _ => this.py_2().px_3(),
             })
-            .when(self.open, |this| this.text_color(cx.theme().text))
+            .when(self.open, |this| this.text_color(cx.theme().foreground))
             .refine_style(&self.title_style)
             .child(
                 h_flex()
@@ -461,7 +461,7 @@ impl RenderOnce for AccordionItem {
                     Icon::new(IconName::ChevronDown)
                         .xsmall()
                         .flex_none()
-                        .text_color(cx.theme().text_muted)
+                        .text_color(cx.theme().muted_foreground)
                         .rotate(percentage(if self.open { 0.5 } else { 0. })),
                 )
                 .when_some(self.on_toggle_click, |this, on_toggle_click| {
@@ -503,7 +503,7 @@ impl RenderOnce for AccordionItem {
                 )
                 .v_flex()
                 .w_full()
-                .bg(cx.theme().bg)
+                .bg(cx.theme().tokens.accordion)
                 .overflow_hidden()
                 .when(!self.last, |this| {
                     this.border_b_1().border_color(cx.theme().border)

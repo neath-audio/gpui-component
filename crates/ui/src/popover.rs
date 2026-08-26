@@ -6,7 +6,9 @@ use gpui::{
 use std::{rc::Rc, time::Duration};
 
 use crate::ThemeStyled as _;
-use crate::{ActiveTheme as _, Selectable, StyledExt as _, animation::ease_out_cubic, v_flex};
+use crate::{
+    Selectable, StyledExt as _, animation::ease_out_cubic, styled::popover_shadow, v_flex,
+};
 use gpui_base::Popover as BasePopover;
 pub use gpui_base::PopoverState;
 
@@ -52,8 +54,8 @@ fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
 /// element out of `inset` shadows — so a translucent panel does not hide its own
 /// shadow, and mid-fade the shadow shows straight through the panel as a dark
 /// slab. Ramping the ink by the cube of the fade keeps it out of sight until the
-/// panel is opaque enough to cover it, and still lands on the resting
-/// [`Theme::shadow_2`] every other popup uses.
+/// panel is opaque enough to cover it, and still lands on the resting native
+/// `shadow-md` every other popup uses.
 ///
 /// # Departures from shadcn
 ///
@@ -77,25 +79,18 @@ pub(crate) fn dropdown_popup(
     id: impl Into<ElementId>,
     bounds: Bounds<Pixels>,
     surface: impl IntoElement + Styled + 'static,
-    cx: &App,
+    _cx: &App,
 ) -> gpui_base::Positioner {
     let travel: f32 = DROPDOWN_ENTER_OFFSET.into();
-    // Read out here: the animation runs long after `cx` is gone.
-    let rest_shadow = cx.theme().shadow_2();
 
     dropdown_positioner(bounds).child(surface.with_animation(
         id,
         Animation::new(DROPDOWN_ENTER_DURATION).with_easing(ease_out_cubic),
         move |surface, delta| {
-            let ink = delta * delta * delta;
-            let mut shadow = rest_shadow.clone();
-            for layer in &mut shadow {
-                layer.color.a *= ink;
-            }
             surface
                 .top(px(travel * (1. - delta)))
                 .opacity(delta)
-                .shadow(shadow.into_vec())
+                .shadow(popover_shadow(delta * delta * delta))
         },
     ))
 }

@@ -47,7 +47,7 @@ impl RenderOnce for DialogDescription {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         self.base
             .text_sm()
-            .text_color(cx.theme().text_muted)
+            .text_color(cx.theme().muted_foreground)
             .refine_style(&self.style)
             .children(self.children)
     }

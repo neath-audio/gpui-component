@@ -111,9 +111,11 @@ impl RenderOnce for BreadcrumbItem {
                 Role::ListItem
             })
             .child(self.label)
-            .text_color(cx.theme().text_muted)
-            .when(self.is_last, |this| this.text_color(cx.theme().text))
-            .when(self.disabled, |this| this.text_color(cx.theme().text_muted))
+            .text_color(cx.theme().muted_foreground)
+            .when(self.is_last, |this| this.text_color(cx.theme().foreground))
+            .when(self.disabled, |this| {
+                this.text_color(cx.theme().muted_foreground)
+            })
             .refine_style(&self.style)
             .when(!self.disabled, |this| {
                 this.when_some(self.on_click, |this, on_click| {
@@ -123,7 +125,7 @@ impl RenderOnce for BreadcrumbItem {
                     // after `refine_style`, so a call site can still override
                     // the REST color without losing the hover.
                     this.cursor_pointer()
-                        .hover(|s| s.text_color(cx.theme().text).underline())
+                        .hover(|s| s.text_color(cx.theme().foreground).underline())
                         .on_click(move |event, window, cx| {
                             on_click(event, window, cx);
                         })
@@ -166,7 +168,7 @@ struct BreadcrumbSeparator;
 impl RenderOnce for BreadcrumbSeparator {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         Icon::new(IconName::ChevronRight)
-            .text_color(cx.theme().text_muted)
+            .text_color(cx.theme().muted_foreground)
             .size_3p5()
             .into_any_element()
     }
@@ -196,7 +198,7 @@ impl RenderOnce for Breadcrumb {
         h_flex()
             .gap_1p5()
             .text_sm()
-            .text_color(cx.theme().text_muted)
+            .text_color(cx.theme().muted_foreground)
             .refine_style(&self.style)
             .children(children)
     }

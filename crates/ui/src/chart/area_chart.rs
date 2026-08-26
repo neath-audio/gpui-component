@@ -184,7 +184,7 @@ where
                 x_fn.as_ref(),
                 &x,
                 self.tick_margin,
-                cx.theme().text_muted,
+                cx.theme().muted_foreground,
             );
             axis = axis.x(height).x_label(labels);
         }
@@ -209,9 +209,9 @@ where
             let fill = *self
                 .fills
                 .get(i)
-                .unwrap_or(&cx.theme().success.opacity(0.4).into());
+                .unwrap_or(&cx.theme().chart_2.opacity(0.4).into());
 
-            let stroke = *self.strokes.get(i).unwrap_or(&cx.theme().success);
+            let stroke = *self.strokes.get(i).unwrap_or(&cx.theme().chart_2);
 
             let stroke_style = *self
                 .stroke_styles
@@ -279,8 +279,8 @@ where
         let d = self.data.get(state.index)?;
         let title: SharedString = x_fn(d).into();
 
-        let default_color = cx.theme().success;
-        let dot_stroke = cx.theme().bg;
+        let default_color = cx.theme().chart_2;
+        let dot_stroke = cx.theme().background;
         let color = |i: usize| *self.strokes.get(i).unwrap_or(&default_color);
 
         // Follow the cursor; the crosshair and dots stay snapped to the data point.
