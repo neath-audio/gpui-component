@@ -6,7 +6,7 @@ use std::{ops::Deref as _, rc::Rc, sync::Arc};
 use gpui::{
     AnyElement, App, AppContext as _, Axis, Context, Div, Element, Empty, InteractiveElement as _,
     IntoElement, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Render, Stateful, Style,
-    Styled as _, Window, div, prelude::FluentBuilder as _,
+    Styled as _, Window, div, prelude::FluentBuilder as _, px,
 };
 use gpui_base::dock::{
     DockAreaRenderer, DockContext, DockEvent, DockPlacement, NodeId, PanelState, PanelView,
@@ -21,6 +21,12 @@ use crate::{
     },
     resize_handle,
 };
+
+/// Compatibility height of the stock skin's collapsed Bottom tab strip.
+///
+/// This is presentation owned by `DockSkin`, not structural dock geometry:
+/// custom renderers that paint different chrome can request their own extent.
+const COLLAPSED_BOTTOM_EXTENT: Pixels = px(29.);
 
 /// The payload a dock's resize handle drags. It draws nothing: the handle
 /// itself is the affordance.
@@ -51,6 +57,13 @@ impl DockAreaRenderer for DockSkin {
         div()
             .id(("dock-split-frame", node.as_u64()))
             .bg(cx.theme().tokens.tab_bar)
+    }
+
+    fn collapsed_dock_extent(&self, dock: &DockContext, _: &mut Window, _: &mut App) -> Pixels {
+        match dock.placement() {
+            DockPlacement::Bottom => COLLAPSED_BOTTOM_EXTENT,
+            _ => px(0.),
+        }
     }
 
     fn render_dock(
@@ -243,13 +256,13 @@ mod tests {
     use std::rc::Rc;
 
     use gpui::{
-        App, Entity, IntoElement as _, Modifiers, MouseButton, TestAppContext, VisualTestContext,
-        Window, point, px, size,
+        App, Entity, IntoElement as _, Modifiers, MouseButton, ParentElement as _, Pixels,
+        Styled as _, TestAppContext, VisualTestContext, Window, point, px, size,
     };
 
     use std::cell::Cell;
 
-    use gpui_base::dock::DockAreaRenderer;
+    use gpui_base::{ElementExt as _, dock::DockAreaRenderer};
 
     use crate::dock::{
         DockArea, DockLayout, DockPlacement, DockSkin,
@@ -297,6 +310,46 @@ mod tests {
             _: &mut App,
         ) -> gpui::AnyElement {
             gpui::Empty.into_any_element()
+        }
+    }
+
+    struct MeasuringStockSkin {
+        inner: Rc<DockSkin>,
+        measured: Rc<Cell<gpui::Size<Pixels>>>,
+    }
+
+    impl DockAreaRenderer for MeasuringStockSkin {
+        fn collapsed_dock_extent(
+            &self,
+            dock: &gpui_base::dock::DockContext,
+            window: &mut Window,
+            cx: &mut App,
+        ) -> Pixels {
+            self.inner.collapsed_dock_extent(dock, window, cx)
+        }
+
+        fn render_dock(
+            &self,
+            dock: &gpui_base::dock::DockContext,
+            content: gpui::AnyElement,
+            window: &mut Window,
+            cx: &mut App,
+        ) -> gpui::AnyElement {
+            let content = self.inner.render_dock(dock, content, window, cx);
+            let measured = self.measured.clone();
+            gpui::div()
+                .size_full()
+                .on_prepaint(move |bounds, _, _| measured.set(bounds.size))
+                .child(content)
+                .into_any_element()
+        }
+
+        fn tab_group_renderer(&self) -> Rc<dyn gpui_base::dock::TabGroupRenderer> {
+            self.inner.tab_group_renderer()
+        }
+
+        fn tiles_renderer(&self) -> Rc<dyn gpui_base::dock::TilesRenderer> {
+            self.inner.tiles_renderer()
         }
     }
 
@@ -403,6 +456,40 @@ mod tests {
         });
         cx.run_until_parked();
         (area, cx)
+    }
+
+    #[gpui::test]
+    fn stock_closed_bottom_keeps_its_tab_strip(cx: &mut TestAppContext) {
+        cx.update(|cx| crate::init(cx));
+        let measured = Rc::new(Cell::new(gpui::Size::default()));
+        let probe = measured.clone();
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            let inner = DockSkin::new(cx);
+            DockArea::new("closed-bottom", None, window, cx).with_renderer(Rc::new(
+                MeasuringStockSkin {
+                    inner,
+                    measured: probe,
+                },
+            ))
+        });
+        cx.simulate_resize(size(px(800.), px(600.)));
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.set_dock(
+                    DockPlacement::Bottom,
+                    DockLayout::tabs().panel(MeasuredProbe::new(Rc::default(), cx)),
+                    window,
+                    cx,
+                );
+                if area.is_dock_open(DockPlacement::Bottom) {
+                    area.toggle_dock(DockPlacement::Bottom, window, cx);
+                }
+            });
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        assert_eq!(measured.get().height, px(29.));
     }
 
     /// Every dock's handle once shared the literal element id

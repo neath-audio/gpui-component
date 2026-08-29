@@ -212,6 +212,18 @@ impl DockAreaRenderer for ShowcaseDockSkin {
             .overflow_hidden()
     }
 
+    fn collapsed_dock_extent(
+        &self,
+        dock: &gpui_base::dock::DockContext,
+        _: &mut Window,
+        _: &mut App,
+    ) -> gpui::Pixels {
+        match dock.placement() {
+            DockPlacement::Bottom => TAB_BAR_HEIGHT,
+            _ => px(0.),
+        }
+    }
+
     /// Only the paint: base keeps the hit area, the cursor and the drag.
     fn render_split_handle(
         &self,
