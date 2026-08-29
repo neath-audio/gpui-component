@@ -328,13 +328,25 @@ impl DockArea {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let open = {
+            let Some(pane) = self.docks.get(&placement) else {
+                return;
+            };
+            if !pane.dock.is_collapsible() && pane.dock.is_open() {
+                return;
+            }
+            pane.dock.is_open()
+        };
+        // Reconcile reapplies the tree's sizes to every live ResizableState.
+        // Capture the on-screen measurements before closing, while they are
+        // still valid, so reopening restores the geometry the user saw rather
+        // than the insertion- or load-time values still stored in the tree.
+        if open {
+            self.adopt_measured_sizes(placement, cx);
+        }
         let Some(pane) = self.docks.get_mut(&placement) else {
             return;
         };
-        if !pane.dock.is_collapsible() && pane.dock.is_open() {
-            return;
-        }
-        let open = pane.dock.is_open();
         pane.dock.set_open(!open);
         // A closed dock takes its displayed panel off screen, which the
         // active-state contract counts as no panel being displayed — that is
@@ -1536,11 +1548,13 @@ impl DockArea {
         let dock = self.dock_context(placement, &pane.dock);
 
         // A closed left or right dock takes no space at all; a closed bottom
-        // dock keeps a strip so its tab bar stays clickable. The renderer is
-        // still called at zero extent: a skin may need to observe the closed
-        // state to retire frame-local geometry even though the structural
-        // wrapper clips everything it returns.
+        // dock keeps a strip so its tab bar stays clickable. Nothing is drawn
+        // for a dock with no extent, and the renderer is not asked for chrome
+        // nobody can see.
         let size = dock_extent(&dock);
+        if size <= px(0.) {
+            return Some(div().into_any_element());
+        }
 
         let content = self.render_node(pane.tree.root(), window, cx);
         // The box is applied here rather than left to the renderer, and that is
@@ -1552,11 +1566,7 @@ impl DockArea {
         // chrome hook, so a renderer that draws nothing at all still gets a
         // dock that is the right shape.
         let chrome = self.renderer.render_dock(&dock, content, window, cx);
-        Some(
-            dock_frame(&dock, size)
-                .child(div().size_full().child(chrome))
-                .into_any_element(),
-        )
+        Some(dock_frame(&dock, size).child(chrome).into_any_element())
     }
 
     fn dock_context(&self, placement: DockPlacement, dock: &Dock) -> DockContext {
@@ -2000,9 +2010,8 @@ pub trait DockAreaRenderer: 'static {
     /// Chrome only. The dock's own box -- its extent along its own axis, and
     /// the `flex_none` that holds it there -- is applied by
     /// [`DockArea::render_dock`] around whatever this returns, so a renderer
-    /// cannot misplace a dock by not knowing to size it. This hook also runs
-    /// for a zero-extent closed side dock so a skin can retire frame-local
-    /// state; base's outer frame clips anything it returns there.
+    /// cannot misplace a dock by not knowing to size it, and the default here
+    /// can be what it is: the content, undecorated.
     fn render_dock(
         &self,
         dock: &DockContext,
@@ -2590,6 +2599,69 @@ mod tests {
             sizes, &measured,
             "the written sizes are the ones on screen, not the ones the tree \
              was built from"
+        );
+    }
+
+    #[gpui::test]
+    fn toggling_a_dock_preserves_its_measured_split_sizes(cx: &mut TestAppContext) {
+        let (area, cx) = setup(cx);
+        cx.update(|window, cx| {
+            let center = TestPanel::new("Center", cx);
+            let alpha = TestPanel::new("Alpha", cx);
+            let beta = TestPanel::new("Beta", cx);
+            area.update(cx, |area, cx| {
+                area.set_center(DockLayout::tabs().panel(center), window, cx);
+                area.set_dock(
+                    DockPlacement::Left,
+                    DockLayout::h_split()
+                        .child(DockLayout::tabs().panel(alpha), Some(px(300.)))
+                        .child(DockLayout::tabs().panel(beta), Some(px(300.))),
+                    window,
+                    cx,
+                );
+                area.set_dock_size(DockPlacement::Left, px(420.), window, cx);
+            });
+        });
+        cx.run_until_parked();
+
+        let root = cx.read(|cx| {
+            area.read(cx)
+                .layout(DockPlacement::Left)
+                .expect("left dock")
+                .root()
+                .id()
+        });
+        let split = cx.read(|cx| area.read(cx).splits[&root].entity.clone());
+        let before = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_ne!(
+            before,
+            vec![px(300.), px(300.)],
+            "the fixture must produce live measurements different from the tree"
+        );
+
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.toggle_dock(DockPlacement::Left, window, cx);
+            });
+        });
+
+        let after_close = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_eq!(
+            after_close, before,
+            "closing a dock must not replace its live split sizes with stale tree values"
+        );
+
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.toggle_dock(DockPlacement::Left, window, cx);
+            });
+        });
+        cx.run_until_parked();
+
+        let after_reopen = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_eq!(
+            after_reopen, before,
+            "reopening a dock must restore the split sizes captured before closing"
         );
     }
 
@@ -4563,62 +4635,6 @@ mod tests {
         full_width: bool,
     }
 
-    struct DockRenderCallSkin {
-        left_calls: Rc<Cell<usize>>,
-    }
-
-    impl DockAreaRenderer for DockRenderCallSkin {
-        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
-            Rc::new(BareTabGroup)
-        }
-
-        fn tiles_renderer(&self) -> Rc<dyn TilesRenderer> {
-            Rc::new(BareTiles)
-        }
-
-        fn render_dock(
-            &self,
-            dock: &DockContext,
-            content: AnyElement,
-            _: &mut Window,
-            _: &mut App,
-        ) -> AnyElement {
-            if dock.placement() == DockPlacement::Left {
-                self.left_calls.set(self.left_calls.get() + 1);
-            }
-            content
-        }
-    }
-
-    #[gpui::test]
-    fn a_closed_side_dock_still_reaches_the_renderer(cx: &mut TestAppContext) {
-        let left_calls = Rc::new(Cell::new(0));
-        let calls = left_calls.clone();
-        let (area, cx) = cx.add_window_view(|window, cx| {
-            DockArea::new("closed-render", None, window, cx)
-                .with_renderer(Rc::new(DockRenderCallSkin { left_calls }))
-        });
-        cx.update(|window, cx| {
-            area.update(cx, |area, cx| {
-                area.set_dock(
-                    DockPlacement::Left,
-                    DockLayout::tabs().panel(TestPanel::new("Left", cx)),
-                    window,
-                    cx,
-                );
-                area.toggle_dock(DockPlacement::Left, window, cx);
-            });
-        });
-        calls.set(0);
-
-        draw_area(cx);
-
-        assert!(
-            calls.get() > 0,
-            "a skin must observe the closed state even though base clips it to zero"
-        );
-    }
-
     impl DockAreaRenderer for BoundsSkin {
         fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
             Rc::new(BareTabGroup)
@@ -4633,20 +4649,13 @@ mod tests {
             _: &mut Window,
             _: &mut App,
         ) -> AnyElement {
-            let content = match dock.placement() {
-                DockPlacement::Left | DockPlacement::Right => div()
-                    .w(dock.size())
-                    .h_full()
-                    .child(content)
-                    .into_any_element(),
-                _ => content,
-            };
             if dock.placement() != DockPlacement::Bottom {
-                return content;
+                return div().size_full().child(content).into_any_element();
             }
             let bottom_cell = self.bottom.clone();
             div()
                 .id("measured-bottom")
+                .size_full()
                 .on_prepaint(move |bounds, _, _| bottom_cell.set(Some(bounds)))
                 .child(content)
                 .into_any_element()
