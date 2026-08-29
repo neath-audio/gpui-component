@@ -1,7 +1,7 @@
 use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
-    Action, AnyElement, AnyView, App, AppContext, Bounds, Context, ElementId, IntoElement,
+    Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Corners, ElementId, IntoElement,
     MouseButton, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement,
     StyleRefinement, Styled, Window, div, prelude::FluentBuilder, px,
 };
@@ -11,7 +11,7 @@ use gpui_base::{
 };
 
 use crate::{
-    ActiveTheme, Placement, StyledExt, ThemeStyled as _,
+    ActiveTheme, Material, MaterialDepth, Placement, StyledExt, ThemeStyled as _,
     animation::{EffectTransition, ease_in_out_cubic, ease_out_cubic},
     kbd::Kbd,
     root::Root,
@@ -114,7 +114,7 @@ impl Render for Tooltip {
             }
         };
 
-        div().child(
+        let surface =
             // Wrap in a child, to ensure the left margin is applied to the tooltip
             BaseTooltip::new("tooltip-popup")
                 .h_flex()
@@ -141,7 +141,15 @@ impl Render for Tooltip {
                             .text_color(cx.theme().muted_foreground)
                             .child(kbd.appearance(false)),
                     )
-                }),
+                });
+
+        div().child(
+            Material::new(
+                ("tooltip-material", cx.entity_id()),
+                MaterialDepth::Overlay,
+                surface,
+            )
+            .corner_radii(Corners::all(cx.theme().radius)),
         )
     }
 }

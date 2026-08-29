@@ -372,10 +372,12 @@ mod tests {
     use super::*;
     use crate::Root;
     use gpui::{
-        AppContext as _, Context, Modifiers, Render, TestAppContext, VisualTestContext, div, point,
-        px,
+        AppContext as _, Context, InteractiveElement as _, Modifiers, Render, TestAppContext,
+        VisualTestContext, div, point, px,
     };
     use std::{cell::Cell, rc::Rc};
+
+    use crate::material::{MaterialDepth, clear_painted_materials, take_painted_materials};
 
     struct AlertDialogLayerHarness;
 
@@ -403,10 +405,16 @@ mod tests {
         cx.update(|window, cx| {
             window.open_alert_dialog(cx, move |alert, _, _| {
                 let canceled = canceled_for_builder.clone();
-                let alert = alert.on_cancel(move |_, _, _| {
-                    canceled.set(true);
-                    true
-                });
+                let alert = alert
+                    .on_cancel(move |_, _, _| {
+                        canceled.set(true);
+                        true
+                    })
+                    .child(
+                        div()
+                            .debug_selector(|| "alert-dialog-surface-content".into())
+                            .size(px(12.)),
+                    );
                 match overlay_closable {
                     Some(value) => alert.overlay_closable(value),
                     None => alert,
@@ -414,6 +422,7 @@ mod tests {
             });
         });
         cx.run_until_parked();
+        clear_painted_materials();
         cx.update(|window, cx| window.draw(cx).clear(cx));
         canceled
     }
@@ -427,6 +436,18 @@ mod tests {
         let cx = harness(cx);
         let canceled = open_alert(cx, Some(true));
         assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+        assert!(cx.debug_bounds("alert-dialog-surface-content").is_some());
+        let materials = take_painted_materials();
+        let material = materials
+            .iter()
+            .filter(|material| material.id.to_string() == "dialog-material-0")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            material.len(),
+            1,
+            "AlertDialog delegates to Dialog's one popup Material",
+        );
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
 
         press_safe_backdrop(cx);
 

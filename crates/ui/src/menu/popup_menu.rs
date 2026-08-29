@@ -4,11 +4,13 @@ use crate::actions::{SelectLeft, SelectRight};
 use crate::menu::menu_item::MenuItemElement;
 use crate::scroll::ScrollableElement;
 use crate::{ActiveTheme, ElementExt, Icon, IconName, Sizable as _, h_flex, v_flex};
-use crate::{Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd};
+use crate::{
+    Material, MaterialDepth, Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd,
+};
 use gpui::{
-    Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
-    EventEmitter, FocusHandle, Focusable, FontWeight, Hsla, InteractiveElement, IntoElement,
-    KeyBinding, ParentElement, Pixels, Rems, Render, Role, ScrollHandle, SharedString,
+    Action, Anchor, AnyElement, App, AppContext, Bounds, Context, Corners, DismissEvent, Edges,
+    Entity, EventEmitter, FocusHandle, Focusable, FontWeight, Hsla, InteractiveElement,
+    IntoElement, KeyBinding, ParentElement, Pixels, Rems, Render, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement, Styled, WeakEntity, Window, anchored, deferred, div,
     prelude::FluentBuilder, px, rems,
 };
@@ -1514,7 +1516,7 @@ impl Render for PopupMenu {
             radius: (cx.theme().radius - px(2.)).max(px(0.)),
         };
 
-        v_flex()
+        let surface = v_flex()
             .id("popup-menu")
             .role(Role::Menu)
             .key_context(CONTEXT)
@@ -1569,13 +1571,73 @@ impl Render for PopupMenu {
             .when(self.scrollable, |this| {
                 // TODO: When the menu is limited by `overflow_y_scroll`, the sub-menu will cannot be displayed.
                 this.vertical_scrollbar(&self.scroll_handle)
-            })
+            });
+
+        Material::new(
+            ("popup-menu-material", cx.entity_id()),
+            MaterialDepth::Overlay,
+            surface,
+        )
+        .corner_radii(Corners::all(cx.theme().radius))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui::{ElementId, point};
+
+    use crate::material::{clear_painted_materials, take_painted_materials};
+
+    struct PopupMenuHarness {
+        menu: Entity<PopupMenu>,
+    }
+
+    impl Render for PopupMenuHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().size_full().child(self.menu.clone())
+        }
+    }
+
+    #[gpui::test]
+    fn material_wrapper_keeps_menu_bounds_and_outside_dismissal_on_the_surface(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|window, cx| PopupMenuHarness {
+            menu: PopupMenu::build(window, cx, |menu, _, _| {
+                menu.item(PopupMenuItem::new("Open"))
+            }),
+        });
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        let menu = view.read_with(cx, |view, _| view.menu.clone());
+        let materials = take_painted_materials();
+        let material_id = ElementId::from(("popup-menu-material", menu.entity_id()));
+        let material = materials
+            .iter()
+            .filter(|material| material.id == material_id)
+            .collect::<Vec<_>>();
+        assert_eq!(material.len(), 1, "PopupMenu mounts one surface Material");
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        let bounds = menu.read_with(cx, |menu, _| menu.bounds);
+        assert!(bounds.size.width > Pixels::ZERO);
+        assert!(bounds.size.height > Pixels::ZERO);
+        assert!(
+            cx.update(|_, cx| {
+                UiGlobalState::global(cx).position_in_open_menu(&bounds.center())
+            })
+        );
+
+        cx.simulate_click(point(px(500.), px(500.)), Default::default());
+        assert!(
+            !cx.update(|_, cx| {
+                UiGlobalState::global(cx).position_in_open_menu(&bounds.center())
+            }),
+            "outside dismissal must remain owned by PopupMenu, not its Material wrapper",
+        );
+    }
 
     #[gpui::test]
     fn popup_menu_supports_xsmall_density_and_translucent_background(

@@ -1,16 +1,17 @@
 use std::{rc::Rc, sync::LazyLock, time::Duration};
 
 use gpui::{
-    Animation, AnimationExt as _, AnyElement, App, BoxShadow, ClickEvent, Edges, FocusHandle, Hsla,
-    InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, SharedString,
-    StyleRefinement, Styled, Window, WindowControlArea, anchored, div, hsla, point,
+    Animation, AnimationExt as _, AnyElement, App, BoxShadow, ClickEvent, Corners, Edges,
+    FocusHandle, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
+    SharedString, StyleRefinement, Styled, Window, WindowControlArea, anchored, div, hsla, point,
     prelude::FluentBuilder, px,
 };
 use gpui_base::{ElementExt as _, TextSelectionScopeId};
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme as _, IconName, Root, Sizable as _, StyledExt, TITLE_BAR_HEIGHT, WindowExt as _,
+    ActiveTheme as _, IconName, Material, MaterialDepth, Root, Sizable as _, StyledExt,
+    TITLE_BAR_HEIGHT, WindowExt as _,
     animation::cubic_bezier,
     button::{Button, ButtonVariant, ButtonVariants as _},
     dialog::{DialogContent, DialogTitle},
@@ -678,7 +679,15 @@ impl RenderOnce for Dialog {
                                             this.top(y * delta).shadow(shadow)
                                         },
                                     )
-                                    .text_selection_scope(selection_scope),
+                                    .text_selection_scope(selection_scope)
+                                    .map(|surface| {
+                                        Material::new(
+                                            ("dialog-material", layer_ix),
+                                            MaterialDepth::Overlay,
+                                            surface,
+                                        )
+                                        .corner_radii(Corners::all(cx.theme().radius_lg))
+                                    }),
                             ),
                     )
                     .with_animation("fade-in", animation, move |this, delta| this.opacity(delta)),

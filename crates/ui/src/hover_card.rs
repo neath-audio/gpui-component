@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    Anchor, AnyElement, App, Context, ElementId, InteractiveElement as _, IntoElement,
+    Anchor, AnyElement, App, Context, Corners, ElementId, InteractiveElement as _, IntoElement,
     ParentElement, RenderOnce, StyleRefinement, Styled, Window, div, prelude::FluentBuilder as _,
 };
 use gpui_base::HoverCard as BaseHoverCard;
 pub use gpui_base::HoverCardState;
 use instant::Duration;
 
-use crate::{StyledExt as _, popover::Popover};
+use crate::{ActiveTheme as _, Material, MaterialDepth, StyledExt as _, popover::Popover};
 
 /// A hover card element that displays content when hovering over a trigger element.
 ///
@@ -128,6 +128,8 @@ impl RenderOnce for HoverCard {
         let content = self.content;
         let children = self.children;
         let style = self.style;
+        let material_id = (self.id.clone(), "material");
+        let material_host_id = (self.id.clone(), "material-host");
 
         BaseHoverCard::new(self.id)
             .anchor(anchor)
@@ -135,17 +137,86 @@ impl RenderOnce for HoverCard {
             .close_delay(self.close_delay)
             .trigger((trigger)(window, cx))
             .content(move |state, window, cx| {
-                Popover::render_popover_content(anchor, appearance, window, cx)
+                let surface = Popover::render_popover_content(anchor, appearance, window, cx)
                     .overflow_hidden()
                     .when_some(content, |this, content| {
                         this.child((content)(state, window, cx))
                     })
                     .children(children)
-                    .refine_style(&style)
+                    .refine_style(&style);
+
+                div().id(material_host_id).child(if appearance {
+                    Material::new(material_id, MaterialDepth::Overlay, surface)
+                        .corner_radii(Corners::all(cx.theme().radius))
+                        .into_any_element()
+                } else {
+                    surface.into_any_element()
+                })
             })
             .when_some(self.on_open_change, |this, callback| {
                 this.on_open_change(move |open, window, cx| callback(open, window, cx))
             })
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui::{Context, Render, TestAppContext, point, px};
+
+    use super::*;
+    use crate::material::{MaterialDepth, clear_painted_materials, take_painted_materials};
+
+    struct HoverCardHarness;
+
+    impl Render for HoverCardHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let delay = Duration::from_millis(1);
+            HoverCard::new("hover-card")
+                .open_delay(delay)
+                .close_delay(delay)
+                .trigger(
+                    div()
+                        .debug_selector(|| "hover-card-trigger".into())
+                        .size(px(20.)),
+                )
+                .content(|_, _, _| {
+                    div()
+                        .debug_selector(|| "hover-card-surface-content".into())
+                        .size(px(10.))
+                })
+        }
+    }
+
+    #[gpui::test]
+    fn overlay_material_wraps_only_the_open_hover_card_surface(cx: &mut TestAppContext) {
+        let delay = Duration::from_millis(1);
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| HoverCardHarness);
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        assert!(cx.debug_bounds("hover-card-trigger").is_some());
+
+        cx.simulate_mouse_move(point(px(10.), px(10.)), None, gpui::Modifiers::default());
+        cx.executor().advance_clock(delay);
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        assert!(cx.debug_bounds("hover-card-surface-content").is_some());
+        assert!(cx.debug_bounds("hover-card-trigger").is_some());
+        let material = take_painted_materials()
+            .into_iter()
+            .filter(|material| material.id.to_string() == "hover-card-material")
+            .collect::<Vec<_>>();
+        assert_eq!(material.len(), 1, "HoverCard mounts one surface Material");
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
+
+        cx.simulate_mouse_move(point(px(100.), px(100.)), None, gpui::Modifiers::default());
+        cx.executor().advance_clock(delay);
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        assert!(cx.debug_bounds("hover-card-surface-content").is_none());
+        assert!(cx.debug_bounds("hover-card-trigger").is_some());
     }
 }

@@ -11,7 +11,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ActiveTheme, IconName, Placement, Sizable, StyledExt as _, WindowExt as _,
+    ActiveTheme, IconName, Material, MaterialDepth, Placement, Sizable, StyledExt as _,
+    WindowExt as _,
     button::{Button, ButtonVariants as _},
     dialog::overlay_color,
     h_flex,
@@ -256,7 +257,80 @@ impl RenderOnce for Sheet {
                     .request_close(|window, cx| window.close_sheet(cx))
                     .on_close(move |event, window, cx| (self.on_close)(event, window, cx))
                     .overlay(overlay)
-                    .surface(surface),
+                    .surface(Material::new(
+                        "sheet-material",
+                        MaterialDepth::Panel,
+                        surface,
+                    )),
             )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, rc::Rc};
+
+    use gpui::{
+        AppContext as _, Context, Modifiers, Render, TestAppContext, VisualTestContext, point,
+    };
+
+    use super::*;
+    use crate::Root;
+    use crate::material::{clear_painted_materials, take_painted_materials};
+
+    struct SheetLayerHarness;
+
+    impl Render for SheetLayerHarness {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .size_full()
+                .children(Root::render_sheet_layer(window, cx))
+        }
+    }
+
+    fn harness(cx: &mut TestAppContext) -> &mut VisualTestContext {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|window, cx| {
+            let view = cx.new(|_| SheetLayerHarness);
+            Root::new(view, window, cx).bordered(false)
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx
+    }
+
+    #[gpui::test]
+    fn panel_material_keeps_content_and_backdrop_dismissal_in_their_existing_hosts(
+        cx: &mut TestAppContext,
+    ) {
+        let cx = harness(cx);
+        let closed = Rc::new(Cell::new(false));
+        let closed_for_builder = closed.clone();
+        cx.update(|window, cx| {
+            window.open_sheet(cx, move |sheet, _, _| {
+                let closed = closed_for_builder.clone();
+                sheet.on_close(move |_, _, _| closed.set(true)).child(
+                    div()
+                        .debug_selector(|| "sheet-surface-content".into())
+                        .size(px(12.)),
+                )
+            });
+        });
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        assert!(cx.debug_bounds("sheet-surface-content").is_some());
+        assert!(cx.update(|window, cx| window.has_active_sheet(cx)));
+        let materials = take_painted_materials();
+        let material = materials
+            .iter()
+            .filter(|material| material.id.to_string() == "sheet-material")
+            .collect::<Vec<_>>();
+        assert_eq!(material.len(), 1, "Sheet mounts one panel Material");
+        assert_eq!(material[0].depth, MaterialDepth::Panel);
+
+        cx.simulate_click(point(px(20.), px(100.)), Modifiers::default());
+
+        assert!(closed.get());
+        assert!(!cx.update(|window, cx| window.has_active_sheet(cx)));
     }
 }

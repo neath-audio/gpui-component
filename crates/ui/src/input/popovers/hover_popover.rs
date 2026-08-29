@@ -1,14 +1,14 @@
 use std::{ops::Range, rc::Rc};
 
 use gpui::{
-    AnyElement, App, AppContext as _, AvailableSpace, Bounds, Element, ElementId, Entity,
+    AnyElement, App, AppContext as _, AvailableSpace, Bounds, Corners, Element, ElementId, Entity,
     InteractiveElement, IntoElement, MouseDownEvent, MouseMoveEvent, ParentElement as _, Pixels,
     Render, StatefulInteractiveElement as _, StyleRefinement, Styled, Window, deferred, div, point,
     px,
 };
 
 use crate::{
-    StyledExt, ThemeStyled as _,
+    ActiveTheme as _, Material, MaterialDepth, StyledExt, ThemeStyled as _,
     input::{EditorState, popovers::render_markdown},
 };
 
@@ -160,19 +160,24 @@ impl Element for Popover {
         let max_height = (window.bounds().size.height - SNAP_TO_EDGE * 2).min(px(320.));
 
         let mut popover = deferred(
-            div()
-                .id("hover-popover-content")
-                .flex_none()
-                .occlude()
-                .p_1()
-                .text_xs()
-                .popover_style(cx)
-                .shadow_md()
-                .max_w(max_width)
-                .max_h(max_height)
-                .overflow_y_scroll()
-                .refine_style(&self.style)
-                .child((self.content_builder)(window, cx)),
+            Material::new(
+                (self.id.clone(), "material"),
+                MaterialDepth::Overlay,
+                div()
+                    .id("hover-popover-content")
+                    .flex_none()
+                    .occlude()
+                    .p_1()
+                    .text_xs()
+                    .popover_style(cx)
+                    .shadow_md()
+                    .max_w(max_width)
+                    .max_h(max_height)
+                    .overflow_y_scroll()
+                    .refine_style(&self.style)
+                    .child((self.content_builder)(window, cx)),
+            )
+            .corner_radii(Corners::all(cx.theme().radius)),
         )
         .into_any_element();
 

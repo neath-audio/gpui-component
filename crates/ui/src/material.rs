@@ -18,6 +18,32 @@ pub struct Material {
     child: AnyElement,
 }
 
+#[cfg(test)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PaintedMaterial {
+    pub(crate) id: ElementId,
+    pub(crate) depth: MaterialDepth,
+    pub(crate) bounds: Bounds<Pixels>,
+    pub(crate) corner_radii: Corners<Pixels>,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static PAINTED_MATERIALS: std::cell::RefCell<Vec<PaintedMaterial>> = const {
+        std::cell::RefCell::new(Vec::new())
+    };
+}
+
+#[cfg(test)]
+pub(crate) fn clear_painted_materials() {
+    PAINTED_MATERIALS.with(|materials| materials.borrow_mut().clear());
+}
+
+#[cfg(test)]
+pub(crate) fn take_painted_materials() -> Vec<PaintedMaterial> {
+    PAINTED_MATERIALS.with(|materials| std::mem::take(&mut *materials.borrow_mut()))
+}
+
 impl Material {
     pub fn new(id: impl Into<ElementId>, depth: MaterialDepth, child: impl IntoElement) -> Self {
         Self {
@@ -150,6 +176,16 @@ impl Element for Material {
         window: &mut Window,
         cx: &mut App,
     ) {
+        #[cfg(test)]
+        PAINTED_MATERIALS.with(|materials| {
+            materials.borrow_mut().push(PaintedMaterial {
+                id: self.id.clone(),
+                depth: self.depth,
+                bounds,
+                corner_radii: self.corner_radii,
+            });
+        });
+
         let material = resolve_material(Theme::global(cx), self.depth);
         self.paint_resolved(bounds, material, window, cx);
     }
