@@ -115,6 +115,15 @@
           ],
           "default": null
         },
+        "translucency": {
+          "description": "Opt-in controls for whole-window and local translucent materials.",
+          "$ref": "#/$defs/ThemeTranslucencyConfig",
+          "default": {
+            "window": false,
+            "overlay_blur": 0.0,
+            "panel_blur": 0.0
+          }
+        },
         "colors": {
           "description": "The colors of the theme.",
           "$ref": "#/$defs/ThemeConfigColors",
@@ -123,6 +132,7 @@
             "accent.foreground": null,
             "accordion.background": null,
             "background": null,
+            "window.background": null,
             "border": null,
             "button.background": null,
             "button.active.background": null,
@@ -326,6 +336,30 @@
         "dark"
       ]
     },
+    "ThemeTranslucencyConfig": {
+      "description": "Theme-authored translucency settings.\n\nTransparency in a color never enables glass. Themes must explicitly set\n[`Self::window`] before the platform window or local materials become translucent.",
+      "type": "object",
+      "properties": {
+        "window": {
+          "type": "boolean",
+          "default": false
+        },
+        "overlay_blur": {
+          "type": "number",
+          "format": "float",
+          "minimum": 0.0,
+          "maximum": 64.0,
+          "default": 0.0
+        },
+        "panel_blur": {
+          "type": "number",
+          "format": "float",
+          "minimum": 0.0,
+          "maximum": 64.0,
+          "default": 0.0
+        }
+      }
+    },
     "ThemeConfigColors": {
       "type": "object",
       "properties": {
@@ -352,6 +386,13 @@
         },
         "background": {
           "description": "Default background color.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "window.background": {
+          "description": "Window background color.",
           "type": [
             "string",
             "null"

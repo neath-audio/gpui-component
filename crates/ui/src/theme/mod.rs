@@ -2,7 +2,10 @@ use crate::{
     highlighter::HighlightTheme, list::ListSettings, notification::NotificationSettings,
     scroll::ScrollbarMode, sheet::SheetSettings,
 };
-use gpui::{App, Global, Hsla, IsZero as _, Pixels, SharedString, Window, WindowAppearance, px};
+use gpui::{
+    App, Global, Hsla, IsZero as _, Pixels, SharedString, Window, WindowAppearance,
+    WindowBackgroundAppearance, px,
+};
 pub use gpui_base::{
     ColorTokens, RadiusTokens, SemanticThemeTokens, ShadowTokens, SpacingTokens, TextStyleToken,
     TypographyTokens,
@@ -51,6 +54,31 @@ fn default_true() -> bool {
     true
 }
 
+/// Resolved translucency policy for the active theme.
+///
+/// Theme configuration is intentionally reduced to this small value at apply
+/// time so switching to a sparse theme cannot retain a previous theme's glass.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ThemeTranslucency {
+    window: bool,
+    overlay_blur: Pixels,
+    panel_blur: Pixels,
+}
+
+impl ThemeTranslucency {
+    fn resolve(config: &ThemeTranslucencyConfig) -> Self {
+        if !config.window {
+            return Self::default();
+        }
+
+        Self {
+            window: true,
+            overlay_blur: px(config.overlay_blur.clamp(0., 64.)),
+            panel_blur: px(config.panel_blur.clamp(0., 64.)),
+        }
+    }
+}
+
 /// The radius that rounds a shape as far as its own size allows, giving a
 /// circle or a pill. Any value past half the shorter side is clamped by the
 /// renderer, so this is simply "as round as it goes".
@@ -92,6 +120,9 @@ pub struct Theme {
     /// rather than extending this legacy surface.
     #[serde(default)]
     pub tokens: ThemeTokens,
+    #[serde(skip)]
+    #[schemars(skip)]
+    translucency: ThemeTranslucency,
     pub highlight_theme: Arc<HighlightTheme>,
     pub light_theme: Rc<ThemeConfig>,
     pub dark_theme: Rc<ThemeConfig>,
@@ -329,6 +360,38 @@ impl Theme {
             self.input.mix_oklab(self.transparent, 0.3)
         } else {
             self.background
+        }
+    }
+
+    /// Whether the active theme explicitly enables glass.
+    pub fn glass_active(&self) -> bool {
+        self.translucency.window
+    }
+
+    /// How the platform should composite the window behind theme paint.
+    pub fn window_background_appearance(&self) -> WindowBackgroundAppearance {
+        if self.glass_active() {
+            WindowBackgroundAppearance::Blurred
+        } else {
+            WindowBackgroundAppearance::Opaque
+        }
+    }
+
+    /// The active overlay backdrop blur radius.
+    pub fn overlay_blur(&self) -> Pixels {
+        if self.glass_active() {
+            self.translucency.overlay_blur
+        } else {
+            px(0.)
+        }
+    }
+
+    /// The active panel backdrop blur radius.
+    pub fn panel_blur(&self) -> Pixels {
+        if self.glass_active() {
+            self.translucency.panel_blur
+        } else {
+            px(0.)
         }
     }
 
@@ -594,6 +657,7 @@ impl From<&ThemeColor> for Theme {
             list: ListSettings::default(),
             colors: *colors,
             tokens: ThemeTokens::from(colors),
+            translucency: ThemeTranslucency::default(),
             light_theme: Rc::new(ThemeConfig::default()),
             dark_theme: Rc::new(ThemeConfig::default()),
             highlight_theme: HighlightTheme::default_light(),

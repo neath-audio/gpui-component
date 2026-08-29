@@ -65,6 +65,8 @@ pub struct ThemeColor {
     pub accordion: Hsla,
     /// Default background color.
     pub background: Hsla,
+    /// Window background color.
+    pub window_background: Hsla,
     /// Default border color
     pub border: Hsla,
     /// Default Button background color.
@@ -467,6 +469,7 @@ define_theme_tokens! {
     accent_foreground,
     accordion,
     background,
+    window_background,
     border,
     button,
     button_active,

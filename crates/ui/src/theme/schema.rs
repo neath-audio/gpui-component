@@ -9,7 +9,10 @@ use crate::highlighter::{HighlightTheme, HighlightThemeStyle};
 use super::color::{
     try_parse_background, try_parse_background_clamped, try_parse_color, try_parse_theme_color,
 };
-use super::{Colorize, SemanticThemeTokens, Theme, ThemeColor, ThemeMode, ThemeToken, ThemeTokens};
+use super::{
+    Colorize, SemanticThemeTokens, Theme, ThemeColor, ThemeMode, ThemeToken, ThemeTokens,
+    ThemeTranslucency,
+};
 
 fn try_parse_theme_token(value: &str) -> anyhow::Result<ThemeToken> {
     Ok(ThemeToken::new(
@@ -69,12 +72,29 @@ pub struct ThemeConfig {
     #[serde(rename = "shadow")]
     pub shadow: Option<bool>,
 
+    /// Opt-in controls for whole-window and local translucent materials.
+    pub translucency: ThemeTranslucencyConfig,
+
     /// The colors of the theme.
     pub colors: ThemeConfigColors,
     /// The highlight theme, this part is combilbility with `style` section in Zed theme.
     ///
     /// https://github.com/zed-industries/zed/blob/f50041779dcfd7a76c8aec293361c60c53f02d51/assets/themes/ayu/ayu.json#L9
     pub highlight: Option<HighlightThemeStyle>,
+}
+
+/// Theme-authored translucency settings.
+///
+/// Transparency in a color never enables glass. Themes must explicitly set
+/// [`Self::window`] before the platform window or local materials become translucent.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct ThemeTranslucencyConfig {
+    pub window: bool,
+    #[schemars(range(min = 0.0, max = 64.0))]
+    pub overlay_blur: f32,
+    #[schemars(range(min = 0.0, max = 64.0))]
+    pub panel_blur: f32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -259,6 +279,9 @@ pub struct ThemeConfigColors {
     /// Default background color.
     #[serde(rename = "background")]
     pub background: Option<SharedString>,
+    /// Window background color.
+    #[serde(rename = "window.background")]
+    pub window_background: Option<SharedString>,
     /// Default border color
     #[serde(rename = "border")]
     pub border: Option<SharedString>,
@@ -919,6 +942,7 @@ impl ThemeColor {
         }
 
         apply_background_color!(background);
+        apply_background_color!(window_background, fallback = tokens.background);
 
         // Base colors for fallback
         apply_color!(red);
@@ -1415,6 +1439,7 @@ impl Theme {
             accent_foreground: color(self.accent_foreground),
             accordion: color(self.accordion),
             background: color(self.background),
+            window_background: color(self.window_background),
             border: color(self.border),
             button: color(self.button),
             button_active: color(self.button_active),
@@ -1683,6 +1708,7 @@ impl Theme {
             .map(|radius| px(radius as f32))
             .unwrap_or(defaults.radius_lg);
         self.shadow = config.shadow.unwrap_or(defaults.shadow);
+        self.translucency = ThemeTranslucency::resolve(&config.translucency);
 
         self.tokens = self.colors.apply_config(&config, &default_colors);
         self.mode = config.mode;
@@ -1691,7 +1717,7 @@ impl Theme {
 
 #[cfg(test)]
 mod tests {
-    use gpui::{linear_color_stop, linear_gradient, px};
+    use gpui::{WindowBackgroundAppearance, linear_color_stop, linear_gradient, px};
 
     use crate::{Theme, ThemeConfig, ThemeMode, ThemeSet, try_parse_color};
 
@@ -1769,6 +1795,149 @@ mod tests {
         assert_eq!(theme.primary, try_parse_color("#7c3aed").unwrap());
         assert_eq!(theme.radius, px(7.));
         assert_eq!(theme.semantic_tokens().spacing, Default::default());
+    }
+
+    #[test]
+    fn translucency_is_disabled_by_default_even_with_a_transparent_background() {
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Opaque by default",
+            "mode": "light",
+            "colors": { "background": "#ffffff80" }
+        }))
+        .unwrap();
+
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        assert!(!theme.glass_active());
+        assert_eq!(
+            theme.window_background_appearance(),
+            WindowBackgroundAppearance::Opaque
+        );
+        assert_eq!(theme.overlay_blur(), px(0.));
+        assert_eq!(theme.panel_blur(), px(0.));
+    }
+
+    #[test]
+    fn translucency_roundtrips_and_resolves_authored_blur_radii() {
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Glass",
+            "mode": "dark",
+            "translucency": {
+                "window": true,
+                "overlay_blur": 44,
+                "panel_blur": 12
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&config).unwrap()["translucency"],
+            serde_json::json!({ "window": true, "overlay_blur": 44.0, "panel_blur": 12.0 })
+        );
+
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        assert!(theme.glass_active());
+        assert_eq!(
+            theme.window_background_appearance(),
+            WindowBackgroundAppearance::Blurred
+        );
+        assert_eq!(theme.overlay_blur(), px(44.));
+        assert_eq!(theme.panel_blur(), px(12.));
+    }
+
+    #[test]
+    fn translucency_clamps_blur_and_disables_local_material_when_window_is_opaque() {
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Clamped",
+            "mode": "dark",
+            "translucency": {
+                "window": true,
+                "overlay_blur": -4,
+                "panel_blur": 128
+            }
+        }))
+        .unwrap();
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        assert_eq!(theme.overlay_blur(), px(0.));
+        assert_eq!(theme.panel_blur(), px(64.));
+
+        let opaque_config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Opaque",
+            "mode": "light",
+            "translucency": {
+                "window": false,
+                "overlay_blur": 44,
+                "panel_blur": 12
+            }
+        }))
+        .unwrap();
+        theme.apply_config(&std::rc::Rc::new(opaque_config));
+
+        assert!(!theme.glass_active());
+        assert_eq!(theme.overlay_blur(), px(0.));
+        assert_eq!(theme.panel_blur(), px(0.));
+    }
+
+    #[test]
+    fn window_background_token_falls_back_without_discarding_authored_alpha() {
+        let fallback_config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Window fallback",
+            "mode": "light",
+            "colors": { "background": "#11223380" }
+        }))
+        .unwrap();
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(fallback_config));
+        assert_eq!(theme.tokens.window_background, theme.tokens.background);
+
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Window background",
+            "mode": "light",
+            "colors": {
+                "background": "#112233",
+                "window.background": "#44556680"
+            }
+        }))
+        .unwrap();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        let window_background = try_parse_color("#44556680").unwrap();
+        assert_eq!(theme.window_background, window_background);
+        assert_eq!(theme.tokens.window_background.color, window_background);
+        assert_eq!(
+            theme.tokens.window_background.background,
+            window_background.into()
+        );
+    }
+
+    #[test]
+    fn translucency_and_window_background_are_in_the_generated_schema() {
+        let schema = serde_json::to_value(schemars::schema_for!(ThemeConfig)).unwrap();
+        let properties = schema["properties"].as_object().unwrap();
+        assert_eq!(
+            properties["translucency"]["$ref"],
+            "#/$defs/ThemeTranslucencyConfig"
+        );
+        let translucency_properties = schema["$defs"]["ThemeTranslucencyConfig"]["properties"]
+            .as_object()
+            .unwrap();
+        assert!(translucency_properties.contains_key("window"));
+        assert!(translucency_properties.contains_key("overlay_blur"));
+        assert!(translucency_properties.contains_key("panel_blur"));
+        assert_eq!(translucency_properties["overlay_blur"]["minimum"], 0.0);
+        assert_eq!(translucency_properties["overlay_blur"]["maximum"], 64.0);
+
+        assert_eq!(properties["colors"]["$ref"], "#/$defs/ThemeConfigColors");
+        assert!(
+            schema["$defs"]["ThemeConfigColors"]["properties"]
+                .get("window.background")
+                .is_some()
+        );
     }
 
     #[test]
