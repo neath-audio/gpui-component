@@ -1516,11 +1516,12 @@ impl DockArea {
         let pane = self.docks.get(&placement)?;
         let dock = self.dock_context(placement, &pane.dock);
 
-        // A closed left or right dock takes no space at all; a closed bottom
-        // dock keeps a strip so its tab bar stays clickable. Nothing is drawn
-        // for a dock with no extent, and the renderer is not asked for chrome
-        // nobody can see.
-        let size = dock_extent(&dock);
+        // An open dock always uses its stored size. A closed dock keeps only
+        // the chrome its renderer says remains interactive; base cannot infer
+        // that extent because it does not know whether the renderer draws a
+        // tab bar, a title row, or nothing at all.
+        let collapsed_extent = self.renderer.collapsed_dock_extent(&dock, window, cx);
+        let size = dock_extent(&dock, collapsed_extent);
         if size <= px(0.) {
             return Some(div().into_any_element());
         }
@@ -1887,17 +1888,11 @@ impl DockContext {
     }
 }
 
-/// A closed bottom dock keeps this much, so its tab bar stays clickable. A
-/// closed side dock keeps nothing: there is no tab bar left to click at zero
-/// width, and reopening it is the application's to offer.
-pub const CLOSED_BOTTOM_STRIP: Pixels = px(29.);
-
 /// How much room a dock asks for along its own axis.
-pub fn dock_extent(dock: &DockContext) -> Pixels {
-    match (dock.is_open(), dock.placement()) {
-        (true, _) => dock.size(),
-        (false, DockPlacement::Bottom) => CLOSED_BOTTOM_STRIP,
-        (false, _) => px(0.),
+fn dock_extent(dock: &DockContext, collapsed_extent: Pixels) -> Pixels {
+    match dock.is_open() {
+        true => dock.size(),
+        false => collapsed_extent,
     }
 }
 
@@ -2000,6 +1995,21 @@ pub trait DockAreaRenderer: 'static {
         content
     }
 
+    /// The chrome a closed dock keeps along its own axis.
+    ///
+    /// Base owns the structural frame around that chrome, but cannot derive
+    /// its extent from an element before layout. A renderer that leaves an
+    /// interactive tab or title strip supplies its height or width here; a
+    /// renderer with no closed-dock chrome keeps the zero default.
+    fn collapsed_dock_extent(
+        &self,
+        dock: &DockContext,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Pixels {
+        px(0.)
+    }
+
     /// The stand-in for a panel this build cannot construct — one whose
     /// `panel_name` no [`PanelRegistry`] builder answers to. `None` takes
     /// base's own placeholder, which draws nothing.
@@ -2088,6 +2098,82 @@ mod tests {
             let _ = crate::Theme::global_mut(cx);
         });
         cx.add_window_view(|window, cx| DockArea::new("test-dock", None, window, cx))
+    }
+
+    struct CollapsedExtentSkin {
+        requested: Pixels,
+        measured: Rc<Cell<Pixels>>,
+    }
+
+    impl DockAreaRenderer for CollapsedExtentSkin {
+        fn collapsed_dock_extent(&self, _: &DockContext, _: &mut Window, _: &mut App) -> Pixels {
+            self.requested
+        }
+
+        fn render_dock(
+            &self,
+            dock: &DockContext,
+            content: AnyElement,
+            _: &mut Window,
+            _: &mut App,
+        ) -> AnyElement {
+            if dock.placement() != DockPlacement::Bottom {
+                return content;
+            }
+            let measured = self.measured.clone();
+            div()
+                .size_full()
+                .on_prepaint(move |bounds, _, _| measured.set(bounds.size.height))
+                .child(content)
+                .into_any_element()
+        }
+
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+
+        fn tiles_renderer(&self) -> Rc<dyn TilesRenderer> {
+            Rc::new(BareTiles)
+        }
+    }
+
+    fn measure_closed_bottom(requested: Pixels, cx: &mut TestAppContext) -> Pixels {
+        cx.update(|cx| {
+            let _ = crate::Theme::global_mut(cx);
+        });
+        let measured = Rc::new(Cell::new(Pixels::ZERO));
+        let probe = measured.clone();
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("collapsed-extent", None, window, cx).with_renderer(Rc::new(
+                CollapsedExtentSkin {
+                    requested,
+                    measured: probe,
+                },
+            ))
+        });
+        cx.simulate_resize(gpui::size(px(800.), px(600.)));
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.set_dock(
+                    DockPlacement::Bottom,
+                    DockLayout::tabs().panel(TestPanel::new("Bottom", cx)),
+                    window,
+                    cx,
+                );
+                if area.is_dock_open(DockPlacement::Bottom) {
+                    area.toggle_dock(DockPlacement::Bottom, window, cx);
+                }
+            });
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        measured.get()
+    }
+
+    #[gpui::test]
+    fn closed_bottom_extent_comes_from_its_renderer(cx: &mut TestAppContext) {
+        assert_eq!(measure_closed_bottom(px(17.), cx), px(17.));
+        assert_eq!(measure_closed_bottom(px(43.), cx), px(43.));
     }
 
     #[gpui::test]
