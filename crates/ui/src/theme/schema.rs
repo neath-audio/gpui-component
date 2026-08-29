@@ -1719,7 +1719,9 @@ impl Theme {
 mod tests {
     use gpui::{WindowBackgroundAppearance, linear_color_stop, linear_gradient, px};
 
-    use crate::{Theme, ThemeConfig, ThemeMode, ThemeSet, try_parse_color};
+    use crate::{
+        Theme, ThemeConfig, ThemeMode, ThemeSet, ThemeTranslucencyConfig, try_parse_color,
+    };
 
     #[test]
     fn test_semantic_theme_config_parses_and_roundtrips() {
@@ -1881,6 +1883,31 @@ mod tests {
         assert!(!theme.glass_active());
         assert_eq!(theme.overlay_blur(), px(0.));
         assert_eq!(theme.panel_blur(), px(0.));
+    }
+
+    #[test]
+    fn translucency_normalizes_non_finite_blur_radii_to_zero() {
+        let mut theme = Theme::default();
+
+        for (overlay_blur, panel_blur) in [
+            (f32::NAN, f32::NAN),
+            (f32::INFINITY, f32::NEG_INFINITY),
+            (f32::NEG_INFINITY, f32::INFINITY),
+        ] {
+            let config = ThemeConfig {
+                translucency: ThemeTranslucencyConfig {
+                    window: true,
+                    overlay_blur,
+                    panel_blur,
+                },
+                ..ThemeConfig::default()
+            };
+            theme.apply_config(&std::rc::Rc::new(config));
+
+            assert!(theme.glass_active());
+            assert_eq!(theme.overlay_blur(), px(0.));
+            assert_eq!(theme.panel_blur(), px(0.));
+        }
     }
 
     #[test]

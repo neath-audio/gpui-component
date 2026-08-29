@@ -73,10 +73,18 @@ impl ThemeTranslucency {
 
         Self {
             window: true,
-            overlay_blur: px(config.overlay_blur.clamp(0., 64.)),
-            panel_blur: px(config.panel_blur.clamp(0., 64.)),
+            overlay_blur: bounded_blur(config.overlay_blur),
+            panel_blur: bounded_blur(config.panel_blur),
         }
     }
+}
+
+fn bounded_blur(value: f32) -> Pixels {
+    px(if value.is_finite() {
+        value.clamp(0., 64.)
+    } else {
+        0.
+    })
 }
 
 /// The radius that rounds a shape as far as its own size allows, giving a
