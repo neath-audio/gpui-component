@@ -48,6 +48,64 @@ fn resolve_material(theme: &Theme, depth: MaterialDepth) -> Option<ResolvedMater
     })
 }
 
+/// Private one-to-one adapter for the three paint operations Material owns.
+///
+/// GPUI's test-support API exposes painted quads but not backdrop-blur scene
+/// operations. Keeping the seam here lets tests record the exact orchestration
+/// that [`Element::paint`] delegates to, while the production implementation
+/// forwards each operation directly to the same `Window` method or child.
+trait MaterialPaintTarget {
+    fn paint_layer<R>(&mut self, bounds: Bounds<Pixels>, paint: impl FnOnce(&mut Self) -> R) -> R;
+
+    fn paint_backdrop_blur(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        corner_radii: Corners<Pixels>,
+        blur_radius: Pixels,
+    );
+
+    fn paint_child(&mut self, child: &mut AnyElement, cx: &mut App);
+}
+
+impl MaterialPaintTarget for Window {
+    fn paint_layer<R>(&mut self, bounds: Bounds<Pixels>, paint: impl FnOnce(&mut Self) -> R) -> R {
+        Window::paint_layer(self, bounds, paint)
+    }
+
+    fn paint_backdrop_blur(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        corner_radii: Corners<Pixels>,
+        blur_radius: Pixels,
+    ) {
+        Window::paint_backdrop_blur(self, bounds, corner_radii, blur_radius);
+    }
+
+    fn paint_child(&mut self, child: &mut AnyElement, cx: &mut App) {
+        child.paint(self, cx);
+    }
+}
+
+impl Material {
+    fn paint_resolved<T: MaterialPaintTarget>(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        material: Option<ResolvedMaterial>,
+        target: &mut T,
+        cx: &mut App,
+    ) {
+        target.paint_layer(bounds, |target| {
+            if let Some(material) = material
+                && material.blur_radius.as_f32().is_finite()
+                && material.blur_radius != Pixels::ZERO
+            {
+                target.paint_backdrop_blur(bounds, self.corner_radii, material.blur_radius);
+            }
+            target.paint_child(&mut self.child, cx);
+        });
+    }
+}
+
 impl Element for Material {
     type RequestLayoutState = ();
     type PrepaintState = ();
@@ -93,15 +151,7 @@ impl Element for Material {
         cx: &mut App,
     ) {
         let material = resolve_material(Theme::global(cx), self.depth);
-        window.paint_layer(bounds, |window| {
-            if let Some(material) = material
-                && material.blur_radius.as_f32().is_finite()
-                && material.blur_radius != Pixels::ZERO
-            {
-                window.paint_backdrop_blur(bounds, self.corner_radii, material.blur_radius);
-            }
-            self.child.paint(window, cx);
-        });
+        self.paint_resolved(bounds, material, window, cx);
     }
 }
 
@@ -118,13 +168,61 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     use gpui::{
-        Bounds, ParentElement as _, Styled as _, TestAppContext, canvas, div, point, px, size,
+        AnyElement, App, Bounds, Corners, ParentElement as _, Pixels, Styled as _, TestAppContext,
+        canvas, div, point, px, size,
     };
     use gpui_base::ElementExt as _;
 
     use crate::{Theme, ThemeConfig, ThemeTranslucencyConfig};
 
-    use super::{Material, MaterialDepth, resolve_material};
+    use super::{Material, MaterialDepth, MaterialPaintTarget, ResolvedMaterial, resolve_material};
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    enum PaintEvent {
+        LayerStarted(Bounds<Pixels>),
+        BackdropBlur {
+            bounds: Bounds<Pixels>,
+            corner_radii: Corners<Pixels>,
+            blur_radius: Pixels,
+        },
+        ChildPainted,
+        LayerFinished,
+    }
+
+    #[derive(Default)]
+    struct RecordingPaintTarget {
+        events: Vec<PaintEvent>,
+    }
+
+    impl MaterialPaintTarget for RecordingPaintTarget {
+        fn paint_layer<R>(
+            &mut self,
+            bounds: Bounds<Pixels>,
+            paint: impl FnOnce(&mut Self) -> R,
+        ) -> R {
+            self.events.push(PaintEvent::LayerStarted(bounds));
+            let result = paint(self);
+            self.events.push(PaintEvent::LayerFinished);
+            result
+        }
+
+        fn paint_backdrop_blur(
+            &mut self,
+            bounds: Bounds<Pixels>,
+            corner_radii: Corners<Pixels>,
+            blur_radius: Pixels,
+        ) {
+            self.events.push(PaintEvent::BackdropBlur {
+                bounds,
+                corner_radii,
+                blur_radius,
+            });
+        }
+
+        fn paint_child(&mut self, _: &mut AnyElement, _: &mut App) {
+            self.events.push(PaintEvent::ChildPainted);
+        }
+    }
 
     fn theme_with_translucency(window: bool, overlay_blur: f32, panel_blur: f32) -> Theme {
         let config = ThemeConfig {
@@ -169,6 +267,76 @@ mod tests {
         let material = resolve_material(&theme, MaterialDepth::Overlay)
             .expect("active glass must remain distinct from an opaque theme");
         assert_eq!(material.blur_radius, px(0.));
+    }
+
+    #[gpui::test]
+    fn nonzero_material_paints_expected_blur_before_child(cx: &mut TestAppContext) {
+        let bounds = Bounds::new(point(px(13.), px(17.)), size(px(123.), px(47.)));
+        let corner_radii = Corners {
+            top_left: px(3.),
+            top_right: px(5.),
+            bottom_right: px(7.),
+            bottom_left: px(11.),
+        };
+        let mut material = Material::new("recorded", MaterialDepth::Overlay, gpui::Empty)
+            .corner_radii(corner_radii);
+        let mut target = RecordingPaintTarget::default();
+
+        cx.update(|cx| {
+            material.paint_resolved(
+                bounds,
+                Some(ResolvedMaterial {
+                    blur_radius: px(44.),
+                }),
+                &mut target,
+                cx,
+            );
+        });
+
+        assert_eq!(
+            target.events,
+            vec![
+                PaintEvent::LayerStarted(bounds),
+                PaintEvent::BackdropBlur {
+                    bounds,
+                    corner_radii,
+                    blur_radius: px(44.),
+                },
+                PaintEvent::ChildPainted,
+                PaintEvent::LayerFinished,
+            ]
+        );
+    }
+
+    #[gpui::test]
+    fn opaque_zero_and_nonfinite_materials_paint_child_without_blur(cx: &mut TestAppContext) {
+        for resolved in [
+            None,
+            Some(ResolvedMaterial {
+                blur_radius: Pixels::ZERO,
+            }),
+            Some(ResolvedMaterial {
+                blur_radius: px(f32::NAN),
+            }),
+        ] {
+            let mut material = Material::new("recorded", MaterialDepth::Panel, gpui::Empty);
+            let mut target = RecordingPaintTarget::default();
+
+            cx.update(|cx| material.paint_resolved(bounds(), resolved, &mut target, cx));
+
+            assert_eq!(
+                target.events,
+                vec![
+                    PaintEvent::LayerStarted(bounds()),
+                    PaintEvent::ChildPainted,
+                    PaintEvent::LayerFinished,
+                ]
+            );
+        }
+    }
+
+    fn bounds() -> Bounds<Pixels> {
+        Bounds::new(point(px(2.), px(3.)), size(px(80.), px(50.)))
     }
 
     #[gpui::test]
