@@ -328,13 +328,25 @@ impl DockArea {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let open = {
+            let Some(pane) = self.docks.get(&placement) else {
+                return;
+            };
+            if !pane.dock.is_collapsible() && pane.dock.is_open() {
+                return;
+            }
+            pane.dock.is_open()
+        };
+        // Reconcile reapplies the tree's sizes to every live ResizableState.
+        // Capture the on-screen measurements before closing, while they are
+        // still valid, so reopening restores the geometry the user saw rather
+        // than the insertion- or load-time values still stored in the tree.
+        if open {
+            self.adopt_measured_sizes(placement, cx);
+        }
         let Some(pane) = self.docks.get_mut(&placement) else {
             return;
         };
-        if !pane.dock.is_collapsible() && pane.dock.is_open() {
-            return;
-        }
-        let open = pane.dock.is_open();
         pane.dock.set_open(!open);
         // A closed dock takes its displayed panel off screen, which the
         // active-state contract counts as no panel being displayed — that is
@@ -2525,6 +2537,69 @@ mod tests {
             sizes, &measured,
             "the written sizes are the ones on screen, not the ones the tree \
              was built from"
+        );
+    }
+
+    #[gpui::test]
+    fn toggling_a_dock_preserves_its_measured_split_sizes(cx: &mut TestAppContext) {
+        let (area, cx) = setup(cx);
+        cx.update(|window, cx| {
+            let center = TestPanel::new("Center", cx);
+            let alpha = TestPanel::new("Alpha", cx);
+            let beta = TestPanel::new("Beta", cx);
+            area.update(cx, |area, cx| {
+                area.set_center(DockLayout::tabs().panel(center), window, cx);
+                area.set_dock(
+                    DockPlacement::Left,
+                    DockLayout::h_split()
+                        .child(DockLayout::tabs().panel(alpha), Some(px(300.)))
+                        .child(DockLayout::tabs().panel(beta), Some(px(300.))),
+                    window,
+                    cx,
+                );
+                area.set_dock_size(DockPlacement::Left, px(420.), window, cx);
+            });
+        });
+        cx.run_until_parked();
+
+        let root = cx.read(|cx| {
+            area.read(cx)
+                .layout(DockPlacement::Left)
+                .expect("left dock")
+                .root()
+                .id()
+        });
+        let split = cx.read(|cx| area.read(cx).splits[&root].entity.clone());
+        let before = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_ne!(
+            before,
+            vec![px(300.), px(300.)],
+            "the fixture must produce live measurements different from the tree"
+        );
+
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.toggle_dock(DockPlacement::Left, window, cx);
+            });
+        });
+
+        let after_close = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_eq!(
+            after_close, before,
+            "closing a dock must not replace its live split sizes with stale tree values"
+        );
+
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.toggle_dock(DockPlacement::Left, window, cx);
+            });
+        });
+        cx.run_until_parked();
+
+        let after_reopen = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_eq!(
+            after_reopen, before,
+            "reopening a dock must restore the split sizes captured before closing"
         );
     }
 
