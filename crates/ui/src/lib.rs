@@ -50,6 +50,7 @@ pub mod kbd;
 pub mod label;
 pub mod link;
 pub mod list;
+pub mod material;
 pub mod menu;
 pub mod native_menu;
 pub mod notification;
@@ -102,6 +103,7 @@ pub use index_path::IndexPath;
 pub use input::{Rope, RopeExt, RopeLines};
 #[cfg(any(feature = "inspector", debug_assertions))]
 pub use inspector::*;
+pub use material::{Material, MaterialDepth};
 pub use root::Root;
 pub use styled::*;
 pub use theme::*;
