@@ -314,7 +314,11 @@ where
         } else {
             1.0
         };
-        let duration = policy.duration.mul_f32(reversing_factor);
+        let duration = if reversing_factor == 1.0 {
+            policy.duration
+        } else {
+            policy.duration.mul_f32(reversing_factor)
+        };
         state.update(cx, |state, _| {
             state.from = sampled.clone();
             state.target = target.clone();
