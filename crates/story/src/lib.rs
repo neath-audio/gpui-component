@@ -482,6 +482,7 @@ impl RenderOnce for StoryToolbarMenu {
 
         Popover::new(popover_id)
             .appearance(false)
+            .child_owns_material()
             .overlay_closable(false)
             .anchor(Anchor::TopRight)
             .trigger(self.button)

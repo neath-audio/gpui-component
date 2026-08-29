@@ -8,7 +8,10 @@ use gpui_base::HoverCard as BaseHoverCard;
 pub use gpui_base::HoverCardState;
 use instant::Duration;
 
-use crate::{ActiveTheme as _, Material, MaterialDepth, StyledExt as _, popover::Popover};
+use crate::{
+    ActiveTheme as _, Material, MaterialDepth, StyledExt as _, popover::Popover,
+    styled::resolved_corner_radii,
+};
 
 /// A hover card element that displays content when hovering over a trigger element.
 ///
@@ -137,21 +140,34 @@ impl RenderOnce for HoverCard {
             .close_delay(self.close_delay)
             .trigger((trigger)(window, cx))
             .content(move |state, window, cx| {
-                let surface = Popover::render_popover_content(anchor, appearance, window, cx)
+                let corner_radii = resolved_corner_radii(
+                    if appearance {
+                        Corners::all(cx.theme().radius)
+                    } else {
+                        Corners::default()
+                    },
+                    &style,
+                    window.rem_size(),
+                );
+                let surface = Popover::render_popover_surface(appearance, cx)
                     .overflow_hidden()
                     .when_some(content, |this, content| {
                         this.child((content)(state, window, cx))
                     })
                     .children(children)
                     .refine_style(&style);
+                let material_host = div().id(material_host_id).occlude();
+                #[cfg(test)]
+                let material_host =
+                    material_host.debug_selector(|| "hover-card-material-host".into());
 
-                div().id(material_host_id).child(if appearance {
-                    Material::new(material_id, MaterialDepth::Overlay, surface)
-                        .corner_radii(Corners::all(cx.theme().radius))
-                        .into_any_element()
-                } else {
-                    surface.into_any_element()
-                })
+                Popover::offset_popover_surface(
+                    material_host.child(
+                        Material::new(material_id, MaterialDepth::Overlay, surface)
+                            .corner_radii(corner_radii),
+                    ),
+                    anchor,
+                )
             })
             .when_some(self.on_open_change, |this, callback| {
                 this.on_open_change(move |open, window, cx| callback(open, window, cx))
@@ -170,9 +186,12 @@ mod tests {
     struct HoverCardHarness;
 
     impl Render for HoverCardHarness {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let delay = Duration::from_millis(1);
             HoverCard::new("hover-card")
+                .appearance(false)
+                .bg(cx.theme().popover)
+                .rounded(px(19.))
                 .open_delay(delay)
                 .close_delay(delay)
                 .trigger(
@@ -211,6 +230,25 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(material.len(), 1, "HoverCard mounts one surface Material");
         assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        assert_eq!(material[0].corner_radii, Corners::all(px(19.)));
+        assert_eq!(
+            cx.debug_bounds("hover-card-material-host"),
+            Some(material[0].bounds),
+            "the BaseHoverCard hover host must share the visible Material bounds",
+        );
+
+        let visible_edge = point(
+            material[0].bounds.center().x,
+            material[0].bounds.bottom() - px(1.),
+        );
+        cx.simulate_mouse_move(visible_edge, None, gpui::Modifiers::default());
+        cx.executor().advance_clock(delay);
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        assert!(
+            cx.debug_bounds("hover-card-surface-content").is_some(),
+            "hovering the visible offset edge must keep the card open",
+        );
 
         cx.simulate_mouse_move(point(px(100.), px(100.)), None, gpui::Modifiers::default());
         cx.executor().advance_clock(delay);

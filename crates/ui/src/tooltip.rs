@@ -15,6 +15,7 @@ use crate::{
     animation::{EffectTransition, ease_in_out_cubic, ease_out_cubic},
     kbd::Kbd,
     root::Root,
+    styled::resolved_corner_radii,
     text::Text,
 };
 
@@ -100,6 +101,11 @@ impl Styled for Tooltip {
 }
 impl Render for Tooltip {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let corner_radii = resolved_corner_radii(
+            Corners::all(cx.theme().radius),
+            &self.style,
+            window.rem_size(),
+        );
         let key_binding = if let Some(key_binding) = &self.key_binding {
             Some(key_binding.clone())
         } else {
@@ -149,7 +155,7 @@ impl Render for Tooltip {
                 MaterialDepth::Overlay,
                 surface,
             )
-            .corner_radii(Corners::all(cx.theme().radius)),
+            .corner_radii(corner_radii),
         )
     }
 }
@@ -302,3 +308,28 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
 }
 
 impl<E: StatefulInteractiveElement + crate::ElementExt> ManagedTooltipExt for E {}
+
+#[cfg(test)]
+mod tests {
+    use gpui::{Corners, TestAppContext, px};
+
+    use super::*;
+    use crate::material::{MaterialDepth, clear_painted_materials, take_painted_materials};
+
+    #[gpui::test]
+    fn material_uses_the_tooltip_surface_custom_corner_radii(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| Tooltip::new("Custom").rounded(px(23.)));
+
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        let material = take_painted_materials()
+            .into_iter()
+            .filter(|material| material.id.to_string().starts_with("tooltip-material"))
+            .collect::<Vec<_>>();
+        assert_eq!(material.len(), 1, "Tooltip mounts one surface Material");
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        assert_eq!(material[0].corner_radii, Corners::all(px(23.)));
+    }
+}

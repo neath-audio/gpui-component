@@ -372,8 +372,8 @@ mod tests {
     use super::*;
     use crate::Root;
     use gpui::{
-        AppContext as _, Context, InteractiveElement as _, Modifiers, Render, TestAppContext,
-        VisualTestContext, div, point, px,
+        AppContext as _, Context, Corners, InteractiveElement as _, Modifiers, Render,
+        TestAppContext, VisualTestContext, div, point, px,
     };
     use std::{cell::Cell, rc::Rc};
 
@@ -406,6 +406,7 @@ mod tests {
             window.open_alert_dialog(cx, move |alert, _, _| {
                 let canceled = canceled_for_builder.clone();
                 let alert = alert
+                    .rounded(px(29.))
                     .on_cancel(move |_, _, _| {
                         canceled.set(true);
                         true
@@ -448,6 +449,7 @@ mod tests {
             "AlertDialog delegates to Dialog's one popup Material",
         );
         assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        assert_eq!(material[0].corner_radii, Corners::all(px(29.)));
 
         press_safe_backdrop(cx);
 

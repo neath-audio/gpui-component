@@ -8,7 +8,9 @@ use std::{rc::Rc, time::Duration};
 use crate::ThemeStyled as _;
 use crate::{
     ActiveTheme as _, Material, MaterialDepth, Selectable, StyledExt as _,
-    animation::ease_out_cubic, styled::popover_shadow, v_flex,
+    animation::ease_out_cubic,
+    styled::{popover_shadow, resolved_corner_radii},
+    v_flex,
 };
 use gpui_base::Popover as BasePopover;
 pub use gpui_base::PopoverState;
@@ -126,6 +128,7 @@ pub struct Popover {
     trigger_style: Option<StyleRefinement>,
     mouse_button: MouseButton,
     appearance: bool,
+    child_owns_material: bool,
     overlay_closable: bool,
     on_open_change: Option<Rc<dyn Fn(&bool, &mut Window, &mut App)>>,
 }
@@ -144,6 +147,7 @@ impl Popover {
             children: vec![],
             mouse_button: MouseButton::Left,
             appearance: true,
+            child_owns_material: false,
             overlay_closable: true,
             default_open: false,
             open: None,
@@ -251,6 +255,16 @@ impl Popover {
         self
     }
 
+    /// Skip Popover's material when the content is itself the adopted floating surface.
+    ///
+    /// This is distinct from [`Self::appearance`]: a custom-styled Popover still owns a real
+    /// surface and keeps its material. Use this only for content such as [`crate::PopupMenu`]
+    /// that already paints its own material.
+    pub fn child_owns_material(mut self) -> Self {
+        self.child_owns_material = true;
+        self
+    }
+
     /// Bind the focus handle to receive focus when the popover is opened.
     /// If you not set this, a new focus handle will be created for the popover to
     ///
@@ -274,22 +288,31 @@ impl Styled for Popover {
 }
 
 impl Popover {
+    pub(crate) fn render_popover_surface(appearance: bool, cx: &mut App) -> Stateful<Div> {
+        v_flex()
+            .id("content")
+            .tab_group()
+            .when(appearance, |this| this.popover_style(cx).p_3())
+    }
+
+    pub(crate) fn offset_popover_surface(surface: Stateful<Div>, anchor: Anchor) -> Stateful<Div> {
+        surface.map(|this| match anchor {
+            Anchor::TopLeft | Anchor::TopCenter | Anchor::TopRight => this.top_1(),
+            Anchor::BottomLeft | Anchor::BottomCenter | Anchor::BottomRight => this.bottom_1(),
+            Anchor::LeftCenter | Anchor::RightCenter => this.top_1(), // Fallback for centered
+        })
+    }
+
     pub(crate) fn render_popover_content(
         anchor: Anchor,
         appearance: bool,
         _: &mut Window,
         cx: &mut App,
     ) -> Stateful<Div> {
-        v_flex()
-            .id("content")
-            .occlude()
-            .tab_group()
-            .when(appearance, |this| this.popover_style(cx).p_3())
-            .map(|this| match anchor {
-                Anchor::TopLeft | Anchor::TopCenter | Anchor::TopRight => this.top_1(),
-                Anchor::BottomLeft | Anchor::BottomCenter | Anchor::BottomRight => this.bottom_1(),
-                Anchor::LeftCenter | Anchor::RightCenter => this.top_1(), // Fallback for centered
-            })
+        Self::offset_popover_surface(
+            Self::render_popover_surface(appearance, cx).occlude(),
+            anchor,
+        )
     }
 }
 
@@ -297,6 +320,7 @@ impl RenderOnce for Popover {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
         let anchor = self.anchor;
         let appearance = self.appearance;
+        let child_owns_material = self.child_owns_material;
         let material_id = (self.id.clone(), "material");
         let style = self.style;
         let children = self.children;
@@ -308,6 +332,15 @@ impl RenderOnce for Popover {
             .default_open(self.default_open)
             .overlay_closable(self.overlay_closable)
             .content(move |state, window, cx| {
+                let corner_radii = resolved_corner_radii(
+                    if appearance {
+                        Corners::all(cx.theme().radius)
+                    } else {
+                        Corners::default()
+                    },
+                    &style,
+                    window.rem_size(),
+                );
                 let surface = Self::render_popover_content(anchor, appearance, window, cx)
                     .when_some(content, |this, content| {
                         this.child((content)(state, window, cx))
@@ -315,9 +348,9 @@ impl RenderOnce for Popover {
                     .children(children)
                     .refine_style(&style);
 
-                if appearance {
+                if !child_owns_material {
                     Material::new(material_id, MaterialDepth::Overlay, surface)
-                        .corner_radii(Corners::all(cx.theme().radius))
+                        .corner_radii(corner_radii)
                         .into_any_element()
                 } else {
                     surface.into_any_element()
@@ -406,9 +439,12 @@ mod tests {
     }
 
     impl Render for PopoverHarness {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let changes = self.changes.clone();
             Popover::new("runtime-popover")
+                .appearance(false)
+                .bg(cx.theme().popover)
+                .rounded(px(17.))
                 .trigger(Button::new("runtime-trigger").label("Open").size(px(100.)))
                 .content(|_, _, _| {
                     div()
@@ -445,6 +481,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(material.len(), 1, "the styled Popover surface mounts once");
         assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        assert_eq!(material[0].corner_radii, Corners::all(px(17.)));
 
         cx.simulate_click(point(px(300.), px(300.)), Default::default());
         cx.update(|window, cx| window.draw(cx).clear(cx));
@@ -480,6 +517,52 @@ mod tests {
         cx.update(|window, cx| window.draw(cx).clear(cx));
         cx.update(|window, cx| window.draw(cx).clear(cx));
         assert!(cx.debug_bounds("default-open-content").is_some());
+    }
+
+    struct ChildOwnedSurfaceHarness;
+
+    impl Render for ChildOwnedSurfaceHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            Popover::new("child-owned-popover")
+                .default_open(true)
+                .appearance(false)
+                .child_owns_material()
+                .trigger(Button::new("child-owned-trigger").label("Open"))
+                .child(Material::new(
+                    "owned-child-material",
+                    MaterialDepth::Overlay,
+                    div()
+                        .debug_selector(|| "owned-child-surface".into())
+                        .size(px(24.)),
+                ))
+        }
+    }
+
+    #[gpui::test]
+    fn explicit_child_ownership_skips_only_the_popover_material(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| ChildOwnedSurfaceHarness);
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        assert!(cx.debug_bounds("owned-child-surface").is_some());
+        let materials = take_painted_materials();
+        assert_eq!(
+            materials
+                .iter()
+                .filter(|material| material.id.to_string() == "owned-child-material")
+                .count(),
+            1,
+        );
+        assert_eq!(
+            materials
+                .iter()
+                .filter(|material| material.id.to_string() == "child-owned-popover-material")
+                .count(),
+            0,
+            "the child-owned opt-out must skip only the redundant Popover material",
+        );
     }
 
     struct Harness {

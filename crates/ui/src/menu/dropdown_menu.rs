@@ -97,6 +97,7 @@ where
 
         Popover::new(SharedString::from(format!("popover:{}", self.id)))
             .appearance(false)
+            .child_owns_material()
             .overlay_closable(false)
             .trigger(self.trigger)
             .trigger_style(self.style)

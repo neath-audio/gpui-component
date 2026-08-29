@@ -16,6 +16,7 @@ use crate::{
     button::{Button, ButtonVariant, ButtonVariants as _},
     dialog::{DialogContent, DialogTitle},
     scroll::ScrollableElement as _,
+    styled::resolved_corner_radii,
     v_flex,
 };
 
@@ -523,6 +524,11 @@ impl RenderOnce for Dialog {
             2. / 3.,
             1.,
         ));
+        let corner_radii = resolved_corner_radii(
+            Corners::all(cx.theme().radius_lg),
+            &self.style,
+            window.rem_size(),
+        );
 
         anchored()
             .position(point(window_paddings.left, window_paddings.top))
@@ -686,7 +692,7 @@ impl RenderOnce for Dialog {
                                             MaterialDepth::Overlay,
                                             surface,
                                         )
-                                        .corner_radii(Corners::all(cx.theme().radius_lg))
+                                        .corner_radii(corner_radii)
                                     }),
                             ),
                     )

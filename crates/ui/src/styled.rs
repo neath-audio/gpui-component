@@ -1,8 +1,8 @@
 pub use crate::component_traits::{Collapsible, Disableable, Selectable};
 pub use crate::sizing::{Sizable, Size, StyleSized};
 use gpui::{
-    App, BoxShadow, Corners, Edges, ParentElement, Pixels, StyleRefinement, Styled, Window, div,
-    hsla, px,
+    App, BoxShadow, Corners, Edges, ParentElement, Pixels, Refineable as _, Style, StyleRefinement,
+    Styled, Window, div, hsla, px,
 };
 pub use gpui_base::{FocusableExt, RoleOverride, StyledExt, box_shadow, h_flex, v_flex};
 
@@ -14,6 +14,29 @@ const FOCUS_RING_OPACITY: f32 = 0.5;
 /// Ink every layer of a surface's shadow carries — the `rgb(0 0 0 / 0.1)`
 /// shadcn/ui spends at each elevation.
 const SURFACE_SHADOW_INK: f32 = 0.1;
+
+/// Resolves the corner-radius part of the same style cascade applied to a surface.
+///
+/// Material paints outside the child's style pass, so it needs this small projection of the
+/// final surface style to use the identical backdrop mask without maintaining a second style
+/// representation.
+pub(crate) fn resolved_corner_radii(
+    defaults: Corners<Pixels>,
+    refinement: &StyleRefinement,
+    rem_size: Pixels,
+) -> Corners<Pixels> {
+    let mut style = Style {
+        corner_radii: Corners {
+            top_left: defaults.top_left.into(),
+            top_right: defaults.top_right.into(),
+            bottom_right: defaults.bottom_right.into(),
+            bottom_left: defaults.bottom_left.into(),
+        },
+        ..Style::default()
+    };
+    style.refine(refinement);
+    style.corner_radii.to_pixels(rem_size)
+}
 
 /// GPUI's native `shadow-md` at `strength` of its full ink.
 ///
