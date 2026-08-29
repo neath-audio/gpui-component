@@ -1536,13 +1536,11 @@ impl DockArea {
         let dock = self.dock_context(placement, &pane.dock);
 
         // A closed left or right dock takes no space at all; a closed bottom
-        // dock keeps a strip so its tab bar stays clickable. Nothing is drawn
-        // for a dock with no extent, and the renderer is not asked for chrome
-        // nobody can see.
+        // dock keeps a strip so its tab bar stays clickable. The renderer is
+        // still called at zero extent: a skin may need to observe the closed
+        // state to retire frame-local geometry even though the structural
+        // wrapper clips everything it returns.
         let size = dock_extent(&dock);
-        if size <= px(0.) {
-            return Some(div().into_any_element());
-        }
 
         let content = self.render_node(pane.tree.root(), window, cx);
         // The box is applied here rather than left to the renderer, and that is
@@ -1554,7 +1552,11 @@ impl DockArea {
         // chrome hook, so a renderer that draws nothing at all still gets a
         // dock that is the right shape.
         let chrome = self.renderer.render_dock(&dock, content, window, cx);
-        Some(dock_frame(&dock, size).child(chrome).into_any_element())
+        Some(
+            dock_frame(&dock, size)
+                .child(div().size_full().child(chrome))
+                .into_any_element(),
+        )
     }
 
     fn dock_context(&self, placement: DockPlacement, dock: &Dock) -> DockContext {
@@ -1998,8 +2000,9 @@ pub trait DockAreaRenderer: 'static {
     /// Chrome only. The dock's own box -- its extent along its own axis, and
     /// the `flex_none` that holds it there -- is applied by
     /// [`DockArea::render_dock`] around whatever this returns, so a renderer
-    /// cannot misplace a dock by not knowing to size it, and the default here
-    /// can be what it is: the content, undecorated.
+    /// cannot misplace a dock by not knowing to size it. This hook also runs
+    /// for a zero-extent closed side dock so a skin can retire frame-local
+    /// state; base's outer frame clips anything it returns there.
     fn render_dock(
         &self,
         dock: &DockContext,
@@ -4558,6 +4561,62 @@ mod tests {
         bottom: Rc<Cell<Option<Bounds<Pixels>>>>,
         zoomed: Rc<Cell<bool>>,
         full_width: bool,
+    }
+
+    struct DockRenderCallSkin {
+        left_calls: Rc<Cell<usize>>,
+    }
+
+    impl DockAreaRenderer for DockRenderCallSkin {
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+
+        fn tiles_renderer(&self) -> Rc<dyn TilesRenderer> {
+            Rc::new(BareTiles)
+        }
+
+        fn render_dock(
+            &self,
+            dock: &DockContext,
+            content: AnyElement,
+            _: &mut Window,
+            _: &mut App,
+        ) -> AnyElement {
+            if dock.placement() == DockPlacement::Left {
+                self.left_calls.set(self.left_calls.get() + 1);
+            }
+            content
+        }
+    }
+
+    #[gpui::test]
+    fn a_closed_side_dock_still_reaches_the_renderer(cx: &mut TestAppContext) {
+        let left_calls = Rc::new(Cell::new(0));
+        let calls = left_calls.clone();
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("closed-render", None, window, cx)
+                .with_renderer(Rc::new(DockRenderCallSkin { left_calls }))
+        });
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.set_dock(
+                    DockPlacement::Left,
+                    DockLayout::tabs().panel(TestPanel::new("Left", cx)),
+                    window,
+                    cx,
+                );
+                area.toggle_dock(DockPlacement::Left, window, cx);
+            });
+        });
+        calls.set(0);
+
+        draw_area(cx);
+
+        assert!(
+            calls.get() > 0,
+            "a skin must observe the closed state even though base clips it to zero"
+        );
     }
 
     impl DockAreaRenderer for BoundsSkin {
