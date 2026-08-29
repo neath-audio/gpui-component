@@ -6,14 +6,8 @@ use gpui::{
     RenderOnce, SharedString, StyleRefinement, Styled, Window, div, prelude::FluentBuilder as _,
     px,
 };
-use gpui_base::{Spring, Switch as BaseSwitch, SwitchThumb, SwitchTrack, spring};
-use std::{rc::Rc, time::Duration};
-
-/// Thumb travel motion.
-///
-/// Critically damped: the thumb slides inside a track it must not leave, so an
-/// overshoot would push it through the border.
-const THUMB_SPRING: Spring = Spring::new(Duration::from_millis(180)).with_epsilon(0.1);
+use gpui_base::{Switch as BaseSwitch, SwitchThumb, SwitchTrack, spring};
+use std::rc::Rc;
 
 /// A Switch element that can be toggled on or off.
 #[derive(IntoElement)]
@@ -23,6 +17,8 @@ pub struct Switch {
     checked: bool,
     disabled: bool,
     label: Option<Text>,
+    /// The announced name, when the visible label is not it.
+    accessibility_label: Option<SharedString>,
     label_side: Side,
     on_click: Option<Rc<dyn Fn(&bool, &mut Window, &mut App)>>,
     size: Size,
@@ -40,6 +36,7 @@ impl Switch {
             checked: false,
             disabled: false,
             label: None,
+            accessibility_label: None,
             on_click: None,
             label_side: Side::Right,
             size: Size::Medium,
@@ -57,6 +54,17 @@ impl Switch {
     /// Set the label of the switch.
     pub fn label(mut self, label: impl Into<Text>) -> Self {
         self.label = Some(label.into());
+        self
+    }
+
+    /// Set the name a screen reader announces, when the visible label is not
+    /// it.
+    ///
+    /// A switch's name comes from its [`label`](Self::label) by default.
+    /// Setting this replaces the announced name without changing what is
+    /// displayed.
+    pub fn accessibility_label(mut self, label: impl Into<SharedString>) -> Self {
+        self.accessibility_label = Some(label.into());
         self
     }
 
@@ -107,6 +115,10 @@ impl RenderOnce for Switch {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let checked = self.checked;
         let on_click = self.on_click.clone();
+        let accessibility_label = self
+            .accessibility_label
+            .clone()
+            .or_else(|| self.label.as_ref().map(|label| label.get_text(cx)));
 
         let checked_bg = self
             .color
@@ -147,7 +159,7 @@ impl RenderOnce for Switch {
             } else {
                 px(0.)
             },
-            THUMB_SPRING,
+            cx.theme().motion_tokens().spring_move,
             window,
             cx,
         );
@@ -156,10 +168,9 @@ impl RenderOnce for Switch {
             BaseSwitch::new(self.id.clone())
                 .checked(checked)
                 .disabled(self.disabled)
-                .when_some(
-                    self.label.as_ref().map(|l| l.get_text(cx)),
-                    |this, label| this.accessibility_label(label),
-                )
+                .when_some(accessibility_label, |this, label| {
+                    this.accessibility_label(label)
+                })
                 .when_some(on_click, |this, on_click| {
                     this.on_change(move |next, _, window, cx| on_click(&next, window, cx))
                 })
@@ -233,6 +244,32 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn an_explicit_accessibility_label_replaces_the_visible_one() {
+        let plain = Switch::new("wifi").label("Wi-Fi");
+        assert_eq!(plain.accessibility_label, None);
+        assert!(matches!(
+            &plain.label,
+            Some(Text::String(label)) if label.as_ref() == "Wi-Fi"
+        ));
+
+        let named = Switch::new("wifi")
+            .label("Wi-Fi")
+            .accessibility_label("Toggle Wi-Fi");
+        assert_eq!(
+            named.accessibility_label.as_deref(),
+            Some("Toggle Wi-Fi"),
+            "an explicit name must win over the visible label"
+        );
+        assert!(
+            matches!(
+                &named.label,
+                Some(Text::String(label)) if label.as_ref() == "Wi-Fi"
+            ),
+            "and must not change what is drawn"
+        );
+    }
 
     struct SwitchHarness {
         disabled: bool,
