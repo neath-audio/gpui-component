@@ -1458,15 +1458,15 @@ where
             .h_full()
             .border_r_1()
             .border_color(cx.theme().table_row_border)
-            .bg(cx.theme().tokens.table_head)
             .flex_shrink_0()
             .table_cell_size(self.options.size)
             .when(!is_head, |this| {
-                this.when(self.row_selectable, |this| {
-                    this.on_click(cx.listener(move |table, _, _window, cx| {
-                        table.set_selected_row(row_ix, cx);
-                    }))
-                })
+                this.bg(cx.theme().tokens.table_head)
+                    .when(self.row_selectable, |this| {
+                        this.on_click(cx.listener(move |table, _, _window, cx| {
+                            table.set_selected_row(row_ix, cx);
+                        }))
+                    })
             })
     }
 
@@ -1693,6 +1693,8 @@ where
             .h_flex()
             .w_full()
             .flex_shrink_0()
+            // The outer header owns the translucent surface. Painting the
+            // fixed and scrolling panes again compounds authored alpha.
             .bg(cx.theme().tokens.table_head)
             .text_color(cx.theme().table_head_foreground)
             .refine_style(&style)
@@ -1734,7 +1736,6 @@ where
                     h_flex()
                         .relative()
                         .h_full()
-                        .bg(cx.theme().tokens.table_head)
                         .child(v_flex().min_w_full().flex_shrink_0().children(
                             layout.iter().enumerate().map(|(_row_ix, row_cells)| {
                                 h_flex()
@@ -1794,7 +1795,6 @@ where
                     .overflow_scroll()
                     .relative()
                     .track_scroll(&horizontal_scroll_handle)
-                    .bg(cx.theme().tokens.table_head)
                     .child(v_flex().min_w_full().flex_shrink_0().children(
                         layout.iter().enumerate().map(|(row_ix, row_cells)| {
                             let is_leaf_row = row_ix + 1 == layout_len;
@@ -2144,7 +2144,7 @@ where
                                         .border_color(cx.theme().table_active_border),
                                 )
                             } else {
-                                this.bg(cx.theme().tokens.accent)
+                                this.bg(cx.theme().tokens.table_active)
                             }
                         })
                     })
@@ -2579,6 +2579,60 @@ mod tests {
         }
     }
 
+    struct TranslucentPaintDelegate;
+
+    impl TableDelegate for TranslucentPaintDelegate {
+        fn columns_count(&self, _cx: &App) -> usize {
+            2
+        }
+
+        fn rows_count(&self, _cx: &App) -> usize {
+            1
+        }
+
+        fn column(&self, col_ix: usize, _cx: &App) -> Column {
+            let column =
+                Column::new(format!("col-{col_ix}"), format!("Col {col_ix}")).width(px(150.));
+            if col_ix == 0 {
+                column.fixed_left()
+            } else {
+                column
+            }
+        }
+
+        fn render_td(
+            &mut self,
+            _row_ix: usize,
+            col_ix: usize,
+            _window: &mut Window,
+            _cx: &mut Context<TableState<Self>>,
+        ) -> impl IntoElement {
+            div().child(format!("cell {col_ix}"))
+        }
+    }
+
+    struct TranslucentPaintRoot {
+        table: Entity<TableState<TranslucentPaintDelegate>>,
+    }
+
+    impl TranslucentPaintRoot {
+        fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+            let table = cx.new(|cx| {
+                let mut table =
+                    TableState::new(TranslucentPaintDelegate, window, cx).row_header(false);
+                table.selected_row = Some(0);
+                table
+            });
+            Self { table }
+        }
+    }
+
+    impl Render for TranslucentPaintRoot {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(300.)).h(px(120.)).child(self.table.clone())
+        }
+    }
+
     struct TestRoot {
         table: Entity<TableState<TestDelegate>>,
     }
@@ -2669,6 +2723,55 @@ mod tests {
     /// Inside the first row.
     fn row_0_point() -> Point<Pixels> {
         point(px(10.), px(48.))
+    }
+
+    #[gpui::test]
+    fn translucent_header_and_plain_selection_each_have_one_semantic_owner(
+        cx: &mut TestAppContext,
+    ) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            let config = serde_json::from_value::<crate::ThemeConfig>(serde_json::json!({
+                "name": "Table paint ownership",
+                "mode": "dark",
+                "colors": {
+                    "table.head.background": "#12345666",
+                    "table.active.background": "#65432133"
+                }
+            }))
+            .expect("table paint test theme");
+            crate::Theme::global_mut(cx).apply_config(&Rc::new(config));
+            crate::Theme::global_mut(cx).list.active_highlight = false;
+        });
+
+        let (_, cx) = cx.add_window_view(TranslucentPaintRoot::new);
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        let (table_head, table_active, quads) = cx.update(|window, cx| {
+            let _ = window.draw(cx);
+            (
+                cx.theme().tokens.table_head.background,
+                cx.theme().tokens.table_active.background,
+                window.painted_quads(),
+            )
+        });
+
+        assert_eq!(
+            quads
+                .iter()
+                .filter(|quad| quad.background == table_head)
+                .count(),
+            1,
+            "fixed and scrolling header panes must share one translucent surface"
+        );
+        assert_eq!(
+            quads
+                .iter()
+                .filter(|quad| quad.background == table_active)
+                .count(),
+            1,
+            "plain selected rows must use the semantic table-active surface"
+        );
     }
 
     /// In the sibling panel, outside the table's bounds but inside the fake

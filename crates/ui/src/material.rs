@@ -120,11 +120,13 @@ impl Material {
         target: &mut T,
         cx: &mut App,
     ) {
+        let Some(material) = material else {
+            target.paint_child(&mut self.child, cx);
+            return;
+        };
+
         target.paint_layer(bounds, |target| {
-            if let Some(material) = material
-                && material.blur_radius.as_f32().is_finite()
-                && material.blur_radius != Pixels::ZERO
-            {
+            if material.blur_radius.as_f32().is_finite() && material.blur_radius != Pixels::ZERO {
                 target.paint_backdrop_blur(bounds, self.corner_radii, material.blur_radius);
             }
             target.paint_child(&mut self.child, cx);
@@ -345,9 +347,18 @@ mod tests {
     }
 
     #[gpui::test]
-    fn opaque_zero_and_nonfinite_materials_paint_child_without_blur(cx: &mut TestAppContext) {
+    fn opaque_material_bypasses_the_layer(cx: &mut TestAppContext) {
+        let mut material = Material::new("recorded", MaterialDepth::Panel, gpui::Empty);
+        let mut target = RecordingPaintTarget::default();
+
+        cx.update(|cx| material.paint_resolved(bounds(), None, &mut target, cx));
+
+        assert_eq!(target.events, vec![PaintEvent::ChildPainted]);
+    }
+
+    #[gpui::test]
+    fn zero_and_nonfinite_materials_keep_the_layer_without_blur(cx: &mut TestAppContext) {
         for resolved in [
-            None,
             Some(ResolvedMaterial {
                 blur_radius: Pixels::ZERO,
             }),

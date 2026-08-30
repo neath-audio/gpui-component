@@ -586,7 +586,7 @@ impl Render for Root {
             .relative()
             .size_full()
             .font_family(cx.theme().font_family.clone())
-            .bg(cx.theme().tokens.background)
+            .bg(cx.theme().tokens.window_background)
             .text_color(cx.theme().foreground)
             .refine_style(&self.style)
             .child(TextSelectionLayer)
@@ -608,7 +608,7 @@ impl Render for Root {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::TestAppContext;
+    use gpui::{Background, TestAppContext, VisualTestContext, rgba};
 
     struct TestView;
 
@@ -616,6 +616,48 @@ mod tests {
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
             div()
         }
+    }
+
+    #[gpui::test]
+    fn root_paints_window_frost_instead_of_content_background(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            let config = serde_json::from_value::<crate::ThemeConfig>(serde_json::json!({
+                "name": "Distinct Root Frost",
+                "mode": "dark",
+                "translucency": { "window": true },
+                "colors": {
+                    "background": "#11223340",
+                    "window.background": "#44556680"
+                }
+            }))
+            .expect("root frost test theme");
+            crate::Theme::global_mut(cx).apply_config(&std::rc::Rc::new(config));
+        });
+
+        let (_, cx) = cx.add_window_view(|window, cx| {
+            let view = cx.new(|_| TestView);
+            Root::new(view, window, cx).bordered(false)
+        });
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        let quads = cx.update(|window, cx| {
+            let _ = window.draw(cx);
+            window.painted_quads()
+        });
+
+        let window_frost: Background = rgba(0x44556680).into();
+        let content_background: Background = rgba(0x11223340).into();
+        assert!(
+            quads.iter().any(|quad| quad.background == window_frost),
+            "Root must paint the authored window frost"
+        );
+        assert!(
+            quads
+                .iter()
+                .all(|quad| quad.background != content_background),
+            "Root must not paint a content-plane background across the whole window"
+        );
     }
 
     #[gpui::test]
