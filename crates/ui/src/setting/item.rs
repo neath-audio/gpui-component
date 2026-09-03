@@ -278,7 +278,7 @@ impl SettingItem {
                         .when(disabled, |this| this.opacity(0.5))
                         .map(|this| {
                             if layout.is_horizontal() {
-                                this.h_flex().justify_between().items_start()
+                                this.h_flex().justify_between().items_center()
                             } else {
                                 this.v_flex()
                             }

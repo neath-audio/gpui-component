@@ -1498,9 +1498,9 @@ dependencies = [
 
 [[package]]
 name = "console_log"
-version = "1.1.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86919cef3e37b9356ccf54d4421208c17ecfda01beae61393e7ffd72916c0ef1"
+checksum = "be8aed40e4edbf4d3b4431ab260b63fdc40f5780a4766824329ea0f1eefe3c0f"
 dependencies = [
  "log",
  "web-sys",
@@ -1558,9 +1558,9 @@ dependencies = [
 
 [[package]]
 name = "cookie"
-version = "0.18.2"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a373e3602691c3cdea496d2f0ee5935151e6168fe87739483c463db1b2f2f87"
+checksum = "4ddef33a339a91ea89fb53151bd0a4689cfce27055c291dfa69945475d22c747"
 dependencies = [
  "time",
  "version_check",
@@ -2778,9 +2778,9 @@ dependencies = [
 
 [[package]]
 name = "font-types"
-version = "0.12.4"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e64eb721ca85a34323425f4041adc5d82704d3782d5f8f03793bc012419dce23"
+checksum = "75382bc7392ef10aad10935f92fc3db36d2d4dad0e5d96d8d65e04f89a07ec39"
 dependencies = [
  "bytemuck",
 ]
@@ -2873,6 +2873,16 @@ dependencies = [
  "io-lifetimes 2.0.4",
  "rustix",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "fs2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]
@@ -3487,17 +3497,22 @@ dependencies = [
  "anyhow",
  "async-channel",
  "chrono",
+ "futures",
  "gpui",
  "gpui_macros",
  "gpui_platform",
+ "html5ever 0.27.0",
  "indoc",
  "instant",
  "lsp-types 0.97.0",
+ "markdown",
+ "markup5ever_rcdom",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
  "raw-window-handle",
  "regex",
+ "reqwest_client",
  "ropey",
  "schemars",
  "serde",
@@ -3521,6 +3536,7 @@ dependencies = [
  "gpui-base",
  "gpui_platform",
  "log",
+ "reqwest_client",
  "syntect",
  "tracing-wasm",
  "wasm-bindgen",
@@ -3546,6 +3562,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "gpui-component-shell"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "gpui-neath",
+ "gpui-shell",
+ "serde_json",
 ]
 
 [[package]]
@@ -3607,11 +3633,11 @@ name = "gpui-fps"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "instant",
  "libc",
  "objc2-core-foundation",
  "objc2-io-kit",
  "sysinfo 0.37.2",
+ "web-time",
  "windows 0.58.0",
 ]
 
@@ -3623,20 +3649,17 @@ dependencies = [
  "chrono",
  "core-text",
  "enum-iterator",
- "futures",
  "gpui",
  "gpui-base",
  "gpui-component-assets",
  "gpui-component-macros",
  "gpui_macros",
- "html5ever 0.27.0",
  "indoc",
  "instant",
  "itertools 0.13.0",
  "log",
  "lsp-types 0.97.0",
  "markdown",
- "markup5ever_rcdom",
  "notify",
  "num-traits",
  "objc2 0.6.4",
@@ -3706,6 +3729,7 @@ dependencies = [
  "async-channel",
  "cap-std",
  "chrono",
+ "fs2",
  "gpui",
  "gpui-base",
  "gpui-fps",
@@ -3722,9 +3746,11 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "smallvec",
  "tracing",
  "tungstenite",
+ "wait-timeout",
  "windows 0.58.0",
  "zed-reqwest 0.12.15-zed (git+https://github.com/zed-industries/reqwest.git?rev=c15662463bda39148ba154100dd44d3fba5873a4)",
 ]
@@ -5133,9 +5159,9 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "libredox"
-version = "0.1.21"
+version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7955dfc218a8afb29dfeffd540e3a6e96baeb94fe7138228dd7cc6937fbbf96"
+checksum = "28d0a00925a9f930d679b6789b721e3a7f9ed110f41b86d2497caa780c3a070a"
 dependencies = [
  "libc",
 ]
@@ -6557,9 +6583,9 @@ dependencies = [
 
 [[package]]
 name = "open"
-version = "5.4.2"
+version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ade3be4664bc1ef537ce133015f04c176b737815c2ba9fd60edf212d6e90dd55"
+checksum = "f9cfef937e9c486488c7e3d949ae31c0f1d06bdacd75b99c086cb35356e30408"
 dependencies = [
  "is-wsl",
  "libc",
@@ -7833,7 +7859,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "046a7d674daf459825b32f5062056d6882db0d2f5a479fbd76ccfc870ac18709"
 dependencies = [
  "bytemuck",
- "font-types 0.12.4",
+ "font-types 0.12.3",
  "once_cell",
 ]
 
@@ -9510,9 +9536,9 @@ dependencies = [
 
 [[package]]
 name = "tao-macros"
-version = "0.1.4"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f7eeb6d99155545da6150a1795945f16ac9c178deb2a5f2e74d776107bd5849"
+checksum = "f4e16beb8b2ac17db28eab8bca40e62dbfbb34c0fcdc6d9826b11b7b5d047dfd"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -12827,9 +12853,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant"
-version = "5.15.0"
+version = "5.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1d34c27cc6cdd1f458427519dd6b8612f7b7e3f7b9a0b2355d041dda9869147"
+checksum = "b5e28c25bd8bb8da5a1f3e7065d0c156b9ee9a7973adf78b0e35eaefdf3b1b5c"
 dependencies = [
  "endi",
  "enumflags2",
@@ -12843,9 +12869,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant_derive"
-version = "5.15.0"
+version = "5.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "864155e69b4352db0c7f374917bf45d1e0c8d17659c8b3dbf9795f3673f8c497"
+checksum = "d496a145685283b67e232bd9e47377f6b60ad9d51e3601b23867f77c42477f96"
 dependencies = [
  "proc-macro-crate 3.5.0",
  "proc-macro2",
@@ -12856,9 +12882,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant_utils"
-version = "4.2.0"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bad0294361a320b694a328460dc73add56c306150f5cb6bfafc44446120008a3"
+checksum = "629d80ece222cad20fe0e8741be493c4ab166acf3b85341bdc2cdbcfd8f3c2d6"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use gpui::{App, Bounds, Entity, EntityId, Global, Pixels, Point, Window};
-
-use crate::text::TextViewState;
+use gpui::{App, Bounds, EntityId, Global, Pixels, Point, Window};
 
 pub use gpui_base::GlobalState;
 
@@ -13,13 +11,13 @@ pub(crate) fn init(cx: &mut App) {
     // Preserve the legacy initialization point while `gpui_base::init` remains
     // after Root initialization for focus-trap ordering compatibility.
     GlobalState::init(cx);
-    cx.set_global(UiGlobalState::new());
+    if !cx.has_global::<UiGlobalState>() {
+        cx.set_global(UiGlobalState::new());
+    }
 }
 
 /// UI-only global state whose types cannot cross into `gpui-base`.
 pub(crate) struct UiGlobalState {
-    pub(crate) text_view_state_stack: Vec<Entity<TextViewState>>,
-    selection_document_order: u64,
     open_menu_bounds: HashMap<EntityId, Bounds<Pixels>>,
     pub(crate) text_link_handler: Option<TextLinkHandler>,
 }
@@ -29,8 +27,6 @@ impl Global for UiGlobalState {}
 impl UiGlobalState {
     fn new() -> Self {
         Self {
-            text_view_state_stack: Vec::new(),
-            selection_document_order: 1,
             open_menu_bounds: HashMap::new(),
             text_link_handler: None,
         }
@@ -42,20 +38,6 @@ impl UiGlobalState {
 
     pub(crate) fn global_mut(cx: &mut App) -> &mut Self {
         cx.global_mut::<Self>()
-    }
-
-    pub(crate) fn text_view_state(&self) -> Option<&Entity<TextViewState>> {
-        self.text_view_state_stack.last()
-    }
-
-    pub(crate) fn begin_selection_frame(&mut self) {
-        self.selection_document_order = 1;
-    }
-
-    pub(crate) fn next_selection_document_order(&mut self) -> u64 {
-        let order = self.selection_document_order;
-        self.selection_document_order = self.selection_document_order.wrapping_add(1);
-        order
     }
 
     pub(crate) fn update_menu_bounds(&mut self, id: EntityId, bounds: Bounds<Pixels>) {

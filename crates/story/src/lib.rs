@@ -267,7 +267,7 @@ pub fn init(cx: &mut App) {
                                 alert.title("About").description(markdown(
                                     "GPUI Component Storybook\n\n\
                                     Version 0.1.0\n\n\
-                                    https://longbridge.github.io/gpui-component",
+                                    https://gpui-kit.com",
                                 ))
                             });
                         });
@@ -724,7 +724,9 @@ impl StoryState {
         }
 
         match self.story_klass.to_string().as_str() {
+            "AttachmentStory" => story!(AttachmentStory),
             "BreadcrumbStory" => story!(BreadcrumbStory),
+            "BubbleStory" => story!(BubbleStory),
             "ButtonStory" => story!(ButtonStory),
             "CalendarStory" => story!(CalendarStory),
             "SelectStory" => story!(SelectStory),
@@ -732,8 +734,12 @@ impl StoryState {
             "ImageStory" => story!(ImageStory),
             "InputStory" => story!(InputStory),
             "ListStory" => story!(ListStory),
+            "MarkerStory" => story!(MarkerStory),
+            "MessageStory" => story!(MessageStory),
+            "MessageScrollerStory" => story!(MessageScrollerStory),
             "DialogStory" => story!(DialogStory),
             "SeparatorStory" => story!(SeparatorStory),
+            "ShimmerStory" => story!(ShimmerStory),
             "PopoverStory" => story!(PopoverStory),
             "ProgressStory" => story!(ProgressStory),
             "ResizableStory" => story!(ResizableStory),

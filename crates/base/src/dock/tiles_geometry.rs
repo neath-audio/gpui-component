@@ -8,8 +8,6 @@
 
 use gpui::{Bounds, EntityId, Pixels, Point, Size, px, size};
 
-use crate::history::HistoryItem;
-
 /// A tile smaller than this on either axis cannot be usefully manipulated.
 /// This is behavior, not presentation: it bounds what resize/drag arithmetic
 /// will produce.
@@ -33,7 +31,6 @@ pub struct TileChange {
     tile_id: EntityId,
     old_bounds: Option<Bounds<Pixels>>,
     new_bounds: Option<Bounds<Pixels>>,
-    version: usize,
 }
 
 impl TileChange {
@@ -47,7 +44,6 @@ impl TileChange {
             tile_id,
             old_bounds: Some(old_bounds),
             new_bounds: Some(new_bounds),
-            version: 0,
         }
     }
 
@@ -64,16 +60,6 @@ impl TileChange {
     }
 }
 
-impl HistoryItem for TileChange {
-    fn version(&self) -> usize {
-        self.version
-    }
-
-    fn set_version(&mut self, version: usize) {
-        self.version = version;
-    }
-}
-
 /// Which edge (or corner) of a tile a resize drag is manipulating.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ResizeSide {
@@ -84,24 +70,30 @@ pub enum ResizeSide {
     BottomRight,
 }
 
-/// In-flight state for a resize drag: which side is moving, and the pointer
-/// position and tile bounds recorded at the last processed move event.
+/// In-flight state for a resize drag: which side is moving, where the pointer
+/// began the drag, and the tile bounds recorded at the last processed move
+/// event.
+///
+/// Pointer positions arrive in window coordinates while tile bounds live in
+/// canvas coordinates, so the start position is kept for the only measure
+/// meaningful across the two: how far the pointer has travelled since the
+/// drag began.
 #[derive(Clone, Copy, Debug)]
 pub struct ResizeDrag {
     side: ResizeSide,
-    last_position: Point<Pixels>,
+    start_position: Point<Pixels>,
     last_bounds: Bounds<Pixels>,
 }
 
 impl ResizeDrag {
     pub fn new(
         side: ResizeSide,
-        last_position: Point<Pixels>,
+        start_position: Point<Pixels>,
         last_bounds: Bounds<Pixels>,
     ) -> Self {
         Self {
             side,
-            last_position,
+            start_position,
             last_bounds,
         }
     }
@@ -110,13 +102,12 @@ impl ResizeDrag {
         self.side
     }
 
-    pub fn last_bounds(&self) -> Bounds<Pixels> {
-        self.last_bounds
+    pub fn start_position(&self) -> Point<Pixels> {
+        self.start_position
     }
 
-    pub fn with_last_position(mut self, last_position: Point<Pixels>) -> Self {
-        self.last_position = last_position;
-        self
+    pub fn last_bounds(&self) -> Bounds<Pixels> {
+        self.last_bounds
     }
 
     pub fn with_last_bounds(mut self, last_bounds: Bounds<Pixels>) -> Self {

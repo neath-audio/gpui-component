@@ -144,9 +144,7 @@ impl SettingsStory {
                         .icon(IconName::Info)
                         .ghost()
                         .xsmall()
-                        .on_click(|_, _, cx| {
-                            cx.open_url("https://longbridge.github.io/gpui-component/")
-                        })
+                        .on_click(|_, _, cx| cx.open_url("https://gpui-kit.com/"))
                 })
                 .groups(vec![
                     SettingGroup::new().title("Appearance").items(vec![
@@ -504,7 +502,7 @@ impl SettingsStory {
                                     .label("Website...")
                                     .with_size(options.size())
                                     .on_click(|_, _window, cx| {
-                                        cx.open_url("https://longbridge.github.io/gpui-component/");
+                                        cx.open_url("https://gpui-kit.com/");
                                     })
                             }),
                         )

@@ -51,9 +51,8 @@ impl Example {
             WebView::new(webview, window, cx)
         });
 
-        let address_input = cx.new(|cx| {
-            InputState::new(window, cx).default_value("https://longbridge.github.io/gpui-component")
-        });
+        let address_input =
+            cx.new(|cx| InputState::new(window, cx).default_value("https://gpui-kit.com"));
 
         let url = address_input.read(cx).value().clone();
         webview.update(cx, |view, _| {

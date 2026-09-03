@@ -102,8 +102,8 @@ semantic seams. Base does not walk arbitrary descendant trees to discover them.
 ### 3. Stateful systems
 
 Examples include InputState, TextareaState, EditorState, CalendarState, TreeState, SliderState,
-ResizableState, OtpState, ColorPickerState, ToastManager, ToastStackState, DockArea, TabGroup, and
-TilesState.
+ResizableState, OtpState, ColorPickerState, ToastManager, ToastStackState, NavStackState, DockArea,
+TabGroup, and TilesState.
 
 These modules retain data because their behavior spans frames or requires
 measurement, subscriptions, history, focus, or incremental updates. State is
@@ -397,6 +397,17 @@ VirtualList owns variable-size item layout, visible-range calculation, content
 masking, deferred scroll-to-item requests, and clamped offsets. The caller owns
 item sizes and renders only the requested range. Tree builds on GPUI's uniform
 list because its visible entries share a row height.
+
+`ScrollableMask` owns wheel dispatch, not scrolling. GPUI's own overflow
+listener runs in the bubble phase and never stops propagation, so a scroll area
+nested inside another one cannot win: `gpui::list` registers its listener after
+its items paint, and bubble runs in reverse registration order. The mask is a
+sibling of the scrolled element that consumes axis-dominant wheel events in the
+capture phase, locks each gesture to the axis it started on, and stays inert
+while occluded. Edge semantics differ per axis, matching platform scrollers: a
+vertical mask chains to the ancestor at the edge, a horizontal one keeps
+consuming. `horizontal_scroll_area` is the paired viewport and mask, used by the
+Markdown scrolling table.
 
 One handle represents one logical viewport. Sharing a handle between nested or
 unrelated scroll areas causes offsets, hitboxes, and scrollbar geometry to
