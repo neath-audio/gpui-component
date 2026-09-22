@@ -23,7 +23,7 @@ pub(super) trait AvatarSized: IntoElement + Styled {
     fn avatar_text_size(self, size: Size) -> Self {
         match size {
             Size::Large => self.text_3xl().font_semibold(),
-            Size::Medium => self.text_sm(),
+            Size::Medium => self.text_size(Size::Medium.text_size()),
             Size::Small => self.text_xs(),
             Size::XSmall => self.text_size(rems(0.65)),
             Size::Size(size) => self.size(size * 0.5),

@@ -1,3 +1,4 @@
+use crate::Size;
 use crate::{
     highlighter::HighlightTheme, list::ListSettings, notification::NotificationSettings,
     scroll::ScrollbarMode, sheet::SheetSettings,
@@ -519,7 +520,12 @@ impl Theme {
         let mut tokens = TypographyTokens::default();
         tokens.sans = self.font_family.clone();
         tokens.mono = self.mono_font_family.clone();
-        tokens.md.size = self.font_size;
+        tokens.xs.size = Size::XSmall.text_size().to_pixels(self.font_size);
+        tokens.sm.size = Size::Small.text_size().to_pixels(self.font_size);
+        tokens.md.size = Size::Medium.text_size().to_pixels(self.font_size);
+        tokens.lg.size = Size::Large.text_size().to_pixels(self.font_size);
+        // Keep the public xl role compatible without introducing another UI tier.
+        tokens.xl.size = tokens.lg.size;
         tokens.mono_md.size = self.mono_font_size;
         tokens
     }
@@ -567,7 +573,8 @@ impl Theme {
         self.radius_lg = tokens.radius.lg;
         self.font_family = tokens.typography.sans.clone();
         self.mono_font_family = tokens.typography.mono.clone();
-        self.font_size = tokens.typography.md.size;
+        // Medium is body text, while font_size is the rem base for the whole UI.
+        self.font_size = tokens.typography.md.size / Size::Medium.text_size().0;
         self.mono_font_size = tokens.typography.mono_md.size;
         self.shadow = !tokens.shadow.sm.is_empty()
             || !tokens.shadow.md.is_empty()

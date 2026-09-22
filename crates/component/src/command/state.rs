@@ -781,7 +781,7 @@ impl CommandState {
             .py_6()
             .w_full()
             .text_center()
-            .text_sm()
+            .text_size(crate::Size::Medium.text_size())
             .text_color(cx.theme().muted_foreground)
             .child(message)
             .into_any_element()

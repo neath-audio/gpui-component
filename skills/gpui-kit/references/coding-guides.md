@@ -357,7 +357,7 @@ Rules:
 - application code must not introduce raw hex, `rgb`/`rgba`, or `hsla`; read a
   semantic color from `cx.theme()` or add the missing role to the product theme;
 - application layout should use GPUI's rem-based scale helpers (`p_2()`,
-  `gap_3()`, `w_64()`, `text_sm()`) instead of direct `px(...)` values;
+  `gap_3()`, `w_64()`) and Size typography instead of direct `px(...)` values;
 - use semantic tokens for meaning, not palette position;
 - keep state-independent geometry in the ordinary builder chain;
 - use GPUI `hover`, `active`, `focus`, and `focus_visible` modifiers for
@@ -406,9 +406,9 @@ instead of silently hiding all keyboard focus.
 ### Base font is the application zoom control
 
 `Root::render` calls `window.set_rem_size(cx.theme().font_size)`. Therefore the
-theme's base font is not only body typography; it is the reference length for
-the application's rem-based design scale. This deliberately follows the useful
-part of Tailwind's model: named type, spacing, and size steps share one relative
+theme's base font is the reference length for the application's rem-based
+design scale. Root applies the theme Medium role to body text separately.
+This deliberately follows the useful part of Tailwind's model: named type, spacing, and size steps share one relative
 base instead of becoming unrelated pixel constants.
 
 Change zoom by updating the base font and refreshing the window:
@@ -420,10 +420,14 @@ window.refresh();
 ```
 
 The base font itself is a pixel value because it anchors the scale. Descendant
-application UI should normally use relative helpers—`text_sm()`, `gap_2()`,
-`px_3()`, `h_8()`, `size_4()`—so type, whitespace, controls, and icons respond
-together. A custom component that combines rem-based text with fixed-pixel
-padding or icon geometry must document why that part should not zoom.
+application UI should use `Size::text_size()` for text roles and
+`Size::control_text_size()` for control labels, alongside relative geometry
+helpers such as `gap_2()`, `px_3()`, `h_8()`, and `size_4()`. At the default
+16px rem base the text roles are 10/12/13/15px; XSmall controls use 12px.
+Do not map component sizes to GPUI's raw `text_sm()` or `text_base()` helpers.
+Theme typography tokens use the same Size scale, and applying a Medium text
+size converts it back to a rem base using that tier's ratio. A custom
+component that combines rem-based text with fixed-pixel padding or icon geometry must document why that part should not zoom.
 
 Treat every direct `px(...)` and raw color constructor in application UI as a
 review finding. Accept it only for a documented physical/platform boundary,

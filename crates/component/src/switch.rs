@@ -182,71 +182,70 @@ impl RenderOnce for Switch {
             cx,
         );
 
-        div().refine_style(&self.style).child(
-            BaseSwitch::new(self.id.clone())
-                .checked(checked)
-                .disabled(self.disabled)
-                .styles(|styles| {
-                    styles.disabled(|style| {
-                        style.text_color(disabled_label_color).cursor_not_allowed()
+        div()
+            .text_size(self.size.control_text_size())
+            .refine_style(&self.style)
+            .child(
+                BaseSwitch::new(self.id.clone())
+                    .checked(checked)
+                    .disabled(self.disabled)
+                    .styles(|styles| {
+                        styles.disabled(|style| {
+                            style.text_color(disabled_label_color).cursor_not_allowed()
+                        })
                     })
-                })
-                .when_some(accessibility_label, |this, label| {
-                    this.accessibility_label(label)
-                })
-                .when_some(on_click, |this, on_click| {
-                    this.on_change(move |next, _, window, cx| on_click(&next, window, cx))
-                })
-                .h_flex()
-                .gap_2()
-                .items_start()
-                .when(self.label_side.is_left(), |this| this.flex_row_reverse())
-                .child(
-                    // Switch Bar
-                    SwitchTrack::new((self.id.clone(), "track"))
-                        .checked(checked)
-                        .disabled(self.disabled)
-                        .when(cfg!(test), |this| {
-                            this.debug_selector(|| "switch-bar".into())
-                        })
-                        .w(bg_width)
-                        .h(bg_height)
-                        .rounded(radius)
-                        .flex()
-                        .items_center()
-                        .border(inset)
-                        .border_color(cx.theme().transparent)
-                        .when(!checked, |this| this.bg(unchecked_bg))
-                        .styles(|styles| {
-                            styles
-                                .checked(|style| style.bg(checked_bg))
-                                .disabled(|style| style.bg(disabled_bg))
-                        })
-                        .map(|this| self.tooltip.apply(this))
-                        .child(
-                            // Switch Toggle
-                            SwitchThumb::new(checked)
-                                .rounded(radius)
-                                .size(bar_width)
-                                .left(thumb_x)
-                                .bg(toggle_bg),
-                        ),
-                )
-                .when_some(self.label, |this, label| {
-                    this.child(
-                        div()
+                    .when_some(accessibility_label, |this, label| {
+                        this.accessibility_label(label)
+                    })
+                    .when_some(on_click, |this, on_click| {
+                        this.on_change(move |next, _, window, cx| on_click(&next, window, cx))
+                    })
+                    .h_flex()
+                    .gap_2()
+                    .items_start()
+                    .when(self.label_side.is_left(), |this| this.flex_row_reverse())
+                    .child(
+                        // Switch Bar
+                        SwitchTrack::new((self.id.clone(), "track"))
+                            .checked(checked)
+                            .disabled(self.disabled)
                             .when(cfg!(test), |this| {
-                                this.debug_selector(|| "switch-label".into())
+                                this.debug_selector(|| "switch-bar".into())
                             })
-                            .line_height(bg_height)
-                            .child(label)
-                            .map(|this| match self.size {
-                                Size::XSmall | Size::Small => this.text_sm(),
-                                _ => this.text_base(),
-                            }),
+                            .w(bg_width)
+                            .h(bg_height)
+                            .rounded(radius)
+                            .flex()
+                            .items_center()
+                            .border(inset)
+                            .border_color(cx.theme().transparent)
+                            .when(!checked, |this| this.bg(unchecked_bg))
+                            .styles(|styles| {
+                                styles
+                                    .checked(|style| style.bg(checked_bg))
+                                    .disabled(|style| style.bg(disabled_bg))
+                            })
+                            .map(|this| self.tooltip.apply(this))
+                            .child(
+                                // Switch Toggle
+                                SwitchThumb::new(checked)
+                                    .rounded(radius)
+                                    .size(bar_width)
+                                    .left(thumb_x)
+                                    .bg(toggle_bg),
+                            ),
                     )
-                }),
-        )
+                    .when_some(self.label, |this, label| {
+                        this.child(
+                            div()
+                                .when(cfg!(test), |this| {
+                                    this.debug_selector(|| "switch-label".into())
+                                })
+                                .line_height(bg_height)
+                                .child(label),
+                        )
+                    }),
+            )
     }
 }
 

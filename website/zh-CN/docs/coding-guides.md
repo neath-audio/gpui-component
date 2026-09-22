@@ -251,7 +251,7 @@ div()
 
 - 不写死 product color、radius、spacing 或 control geometry；
 - application code 不得引入 raw hex、`rgb`/`rgba` 或 `hsla`；颜色从 `cx.theme()`读取，缺少语义 role 时补入 product theme；
-- application layout 使用 GPUI rem-based helper（`p_2()`、`gap_3()`、`w_64()`、`text_sm()`），而不是直接 `px(...)`；
+- application layout 使用 GPUI rem-based geometry helper（`p_2()`、`gap_3()`、`w_64()`）和 Size typography，而不是直接 `px(...)`；
 - token 按语义而不是 palette 位置使用；
 - state-independent geometry 放普通 builder chain；
 - runtime hover/active/focus/focus-visible 使用 GPUI modifier；
@@ -274,7 +274,7 @@ div()
 
 ### 基础字号控制应用缩放
 
-`Root::render` 会调用 `window.set_rem_size(cx.theme().font_size)`。因此 theme base font 不只是 body typography，也是 application rem-based design scale 的 reference length。这有意沿用 Tailwind 中有价值的模型：具名 type、spacing、size step 共享一个 relative base，而不是变成互不相关的 pixel constant。
+`Root::render` 会调用 `window.set_rem_size(cx.theme().font_size)`。Theme base font 是 application rem-based design scale 的 reference length；Root 另外把 Theme 的 Medium role 应用于正文。具名 type、spacing、size step 共享一个 relative base，而不是变成互不相关的 pixel constant。
 
 通过更新 base font 并 refresh window 改变 zoom：
 
@@ -284,7 +284,7 @@ Theme::sync_base(cx);
 window.refresh();
 ```
 
-Base font 自身是 px，因为它负责锚定 scale。Descendant application UI 通常使用`text_sm()`、`gap_2()`、`px_3()`、`h_8()`、`size_4()` 等 relative helper，让 type、whitespace、control 与 icon 一起响应。Custom component 如果把 rem-based text 与 fixed-px padding/icon geometry 混合，必须记录为什么该部分不应 zoom。
+Base font 自身是 px，因为它负责锚定 scale。应用文字使用 `Size::text_size()`，控件标签使用 `Size::control_text_size()`；几何尺寸继续使用 `gap_2()`、`px_3()`、`h_8()`、`size_4()` 等 relative helper。默认 16px rem 基准下，字号为 10/12/13/15px，XSmall 控件使用 12px 文字。不能把组件 Size 映射到 GPUI 原始的 `text_sm()` 或 `text_base()`。Theme typography token 使用同一套 Size 比例；应用 Medium 字号时，按该档比例换算回 rem 基准。Custom component 如果把 rem-based text 与 fixed-px padding/icon geometry 混合，必须记录为什么该部分不应 zoom。
 
 Application UI 中每个直接 `px(...)` 和 raw color constructor 都应视为 review finding。只有 documented physical/platform boundary、measured runtime geometry、raster/data color 或 theme/token definition 本身可以例外。方便或“匹配截图”都不是有效理由。
 

@@ -130,7 +130,6 @@ impl RenderOnce for SearchableListItemElement {
             .relative()
             .gap_x_1()
             .rounded(cx.theme().radius)
-            .text_base()
             .text_color(cx.theme().foreground)
             .items_center()
             .justify_between()

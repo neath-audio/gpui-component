@@ -358,11 +358,14 @@ Zoom is successful when the relationship between title and body, control and
 icon, inner and outer spacing, primary and secondary regions still feels the
 same at every scale—not merely when every object becomes larger.
 
-GPUI Component adopts the relative-scale idea familiar from Tailwind. The
-theme's base `font_size` becomes the window's `rem` through `Root`, and GPUI
-scale helpers such as `text_sm()`, `gap_2()`, `p_4()`, `h_8()`, and `size_4()`
-resolve against it. This gives typography, spacing, controls, and icons one
-shared zoom axis.
+The theme's base `font_size` becomes the window's `rem` through `Root`.
+Component typography uses `Size::text_size()`: XSmall 10px, Small 12px,
+Medium 13px, and Large 15px at a 16px rem base. Control labels use
+`Size::control_text_size()`, which keeps XSmall control text at 12px.
+Theme typography projects this same scale; its legacy `xl` role aliases Large.
+GPUI's raw `text_sm()` uses a different scale and must not stand in for a
+component Size. Rem-based typography and geometry helpers such as `gap_2()`,
+`p_4()`, `h_8()`, and `size_4()` share the same zoom axis.
 
 Design in ratios:
 
@@ -380,9 +383,9 @@ clip content. Conversely, multiplying every physical pixel—including
 hairlines—can make the interface visually heavy.
 
 As a rule, application layout should not call `px(...)` directly. Use GPUI's
-rem-based scale helpers (`p_2`, `gap_3`, `w_64`, `text_sm`, and related
-builders) or semantic component sizes. Use fixed pixels only when the value
-represents a physical or raster boundary:
+rem-based geometry helpers (`p_2`, `gap_3`, `w_64`, and related
+builders) and the component Size typography APIs. Use fixed pixels only
+when the value represents a physical or raster boundary:
 a one-device-pixel hairline, platform window inset, bitmap dimension, minimum
 hit-test tolerance, or geometry that must match an external surface. These are
 audited, documented exceptions. Product spacing, typography, icon size, and

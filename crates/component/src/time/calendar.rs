@@ -119,7 +119,7 @@ impl RenderOnce for Calendar {
                 .items_center()
                 .justify_center()
                 .when(state.kind() != CalendarItemKind::Weekday, |this| {
-                    this.text_sm()
+                    this.text_size(size.control_text_size())
                 })
                 .when(state.kind() == CalendarItemKind::Weekday, |this| {
                     this.text_xs()
@@ -132,7 +132,7 @@ impl RenderOnce for Calendar {
                         state.kind(),
                         CalendarItemKind::MonthToggle | CalendarItemKind::YearToggle
                     ),
-                    |this| this.text_sm().font_medium(),
+                    |this| this.text_size(size.control_text_size()).font_medium(),
                 )
                 .when(
                     matches!(

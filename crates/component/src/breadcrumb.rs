@@ -1,3 +1,4 @@
+use crate::Size;
 use std::rc::Rc;
 
 use gpui::{
@@ -197,7 +198,7 @@ impl RenderOnce for Breadcrumb {
 
         h_flex()
             .gap_1p5()
-            .text_sm()
+            .text_size(Size::Medium.text_size())
             .text_color(cx.theme().muted_foreground)
             .refine_style(&self.style)
             .children(children)

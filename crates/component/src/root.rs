@@ -589,6 +589,7 @@ impl Render for Root {
             .relative()
             .size_full()
             .font_family(cx.theme().font_family.clone())
+            .text_size(cx.theme().typography_tokens().md.size)
             .bg(cx.theme().tokens.window_background)
             .text_color(cx.theme().foreground)
             .refine_style(&self.style)

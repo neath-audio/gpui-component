@@ -203,7 +203,7 @@ Medium 是生态默认值。密度应在局部上下文整体变化，而不是�
 
 良好的 `rem` 系统能在界面 zoom 时保持设计层次。成功的 zoom 不只是每个对象都变大，而是在每一档 scale 下，title/body、control/icon、inner/outer spacing、primary/secondary region 之间仍保持相同关系。
 
-GPUI Component 采用了 Tailwind 中有价值的相对 scale 思想。Theme 的 base `font_size`通过 `Root` 成为 window `rem`；`text_sm()`、`gap_2()`、`p_4()`、`h_8()`、`size_4()`等 GPUI scale helper 都以它解析。Typography、spacing、control 与 icon 因而共享同一条 zoom axis。
+Theme 的 base `font_size` 通过 `Root` 成为 window `rem`。组件排版统一使用 `Size::text_size()`：在 16px rem 基准下，XSmall 为 10px、Small 为 12px、Medium 为 13px、Large 为 15px。控件标签使用 `Size::control_text_size()`，其中 XSmall 控件仍使用 12px 文字。Theme typography 投影同一套字号；保留的 `xl` role 对应 Large。GPUI 的原始 `text_sm()` 使用另一套比例，不能代替组件 Size。相对字号与 `gap_2()`、`p_4()`、`h_8()`、`size_4()` 等 geometry helper 共享同一条 zoom axis。
 
 设计时关注比例：
 
@@ -215,7 +215,7 @@ GPUI Component 采用了 Tailwind 中有价值的相对 scale 思想。Theme 的
 
 不能只改变文字实现 zoom。固定高度 Button 中放大 label、固定 pane minimum 中放大 document、或 virtual-list measurement 未失效时放大 row，都会破坏原有节奏并裁切内容。反过来，把包括 hairline 在内的每个 physical pixel 全部相乘，也会让界面变得沉重。
 
-原则上 application layout 不得直接调用 `px(...)`。使用 GPUI rem-based scale helper（`p_2`、`gap_3`、`w_64`、`text_sm` 等 builder）或 semantic component Size。只有值代表 physical/raster boundary 时才使用 fixed px：one-device-pixel hairline、platform window inset、bitmap dimension、minimum hit-test tolerance，或必须匹配 external surface 的 geometry。这些必须是经过审查和记录的例外。Product spacing、typography、icon size 与普通 control geometry 保持在 relative scale 上。
+原则上 application layout 不得直接调用 `px(...)`。几何尺寸使用 GPUI rem-based helper（`p_2`、`gap_3`、`w_64` 等 builder），字号使用组件 Size typography API。只有值代表 physical/raster boundary 时才使用 fixed px：one-device-pixel hairline、platform window inset、bitmap dimension、minimum hit-test tolerance，或必须匹配 external surface 的 geometry。这些必须是经过审查和记录的例外。Product spacing、typography、icon size 与普通 control geometry 保持在 relative scale 上。
 
 不能只在默认值验证。至少使用多档 base font 检查 hierarchy、wrap、truncate、minimum window size、pane resize、focus-ring clearance、popup placement 与 virtualized row measurement。同时区分 interface zoom 与 Dock panel zoom：Dock zoom 让一个 container 保留 chrome 并填满区域，不改变 `rem` 或 application scale。
 

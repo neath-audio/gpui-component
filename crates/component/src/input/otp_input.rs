@@ -1,6 +1,6 @@
 use gpui::{
     AnyElement, App, Entity, Focusable, InteractiveElement as _, IntoElement, MouseButton,
-    ParentElement as _, RenderOnce, Styled as _, Window, div, prelude::FluentBuilder, px,
+    ParentElement as _, RenderOnce, Styled as _, Window, div, prelude::FluentBuilder,
 };
 
 use super::input::input_style;
@@ -79,11 +79,9 @@ impl RenderOnce for OtpInput {
         let is_focused = state.focus_handle(cx).is_focused(window);
 
         let text_size = match self.size {
-            Size::XSmall => px(14.),
-            Size::Small => px(14.),
-            Size::Medium => px(16.),
-            Size::Large => px(18.),
-            Size::Size(v) => v * 0.5,
+            // A custom OTP size specifies fixed cell dimensions.
+            Size::Size(cell_size) => cell_size * 0.5,
+            size => size.control_text_size().to_pixels(window.rem_size()),
         };
 
         let cursor_ix = state

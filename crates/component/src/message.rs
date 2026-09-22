@@ -1,3 +1,4 @@
+use crate::Size;
 use gpui::{
     AnyElement, App, IntoElement, ParentElement, RenderOnce, StyleRefinement, Styled, Window,
     prelude::FluentBuilder as _, relative, rems,
@@ -159,7 +160,7 @@ impl RenderOnce for Message {
             .w_full()
             .min_w_0()
             .gap(rems(0.625))
-            .text_sm()
+            .text_size(Size::Medium.text_size())
             .line_height(relative(1.25))
             .map(|this| match alignment {
                 MessageAlignment::Start => this.items_start(),

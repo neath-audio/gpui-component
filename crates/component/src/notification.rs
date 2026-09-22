@@ -1,3 +1,4 @@
+use crate::Size;
 use std::{any::TypeId, borrow::Cow, collections::HashMap, rc::Rc, time::Duration};
 
 use gpui::{
@@ -437,10 +438,15 @@ impl Render for Notification {
                     .overflow_hidden()
                     .when(has_icon, |this| this.pl_6())
                     .when_some(self.title.clone(), |this, title| {
-                        this.child(div().text_sm().font_semibold().child(title))
+                        this.child(
+                            div()
+                                .text_size(Size::Medium.text_size())
+                                .font_semibold()
+                                .child(title),
+                        )
                     })
                     .when_some(self.message.clone(), |this, message| {
-                        this.child(div().text_sm().child(message))
+                        this.child(div().text_size(Size::Medium.text_size()).child(message))
                     })
                     .when_some(content, |this, content| this.child(content)),
             )

@@ -679,30 +679,26 @@ fn attachment_size_style<T: Styled + gpui::prelude::FluentBuilder>(
     has_media: bool,
     has_content: bool,
 ) -> T {
+    let element = element.text_size(size.control_text_size());
     match size {
         Size::XSmall => element
             .gap_1p5()
-            .text_xs()
             .when(has_content, |this| this.px_1p5().py_1())
             .when(has_media, |this| this.p_1()),
         Size::Small => element
             .gap_2p5()
-            .text_xs()
             .when(has_content, |this| this.px_2().py_1p5())
             .when(has_media, |this| this.p_1p5()),
         Size::Medium => element
             .gap_2()
-            .text_sm()
             .when(has_content, |this| this.px_2p5().py_2())
             .when(has_media, |this| this.p_2()),
         Size::Large => element
             .gap_3()
-            .text_base()
             .when(has_content, |this| this.px_4().py_3())
             .when(has_media, |this| this.p_3()),
         Size::Size(value) => element
             .gap_1()
-            .text_size(value * 0.875)
             .when(has_content || has_media, |this| this.p(value * 0.25)),
     }
 }

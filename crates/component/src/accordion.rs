@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc, sync::Arc};
 use gpui::{
     AnyElement, App, ElementId, InteractiveElement as _, IntoElement, ParentElement, RenderOnce,
     SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Window, div,
-    percentage, prelude::FluentBuilder as _, rems,
+    percentage, prelude::FluentBuilder as _,
 };
 
 use crate::{ActiveTheme as _, Icon, IconName, Sizable, Size, StyledExt as _, h_flex};
@@ -277,11 +277,6 @@ impl Styled for AccordionItem {
 
 impl RenderOnce for AccordionItem {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let text_size = match self.size {
-            Size::XSmall => rems(0.8125),
-            Size::Large => rems(1.0),
-            _ => rems(0.875),
-        };
         let progress = spring(
             (self.index, "accordion-panel"),
             if self.open { 1. } else { 0. },
@@ -373,7 +368,7 @@ impl RenderOnce for AccordionItem {
                 .when(!self.last, |this| {
                     this.border_b_1().border_color(cx.theme().border)
                 })
-                .text_size(text_size)
+                .text_size(self.size.control_text_size())
                 .refine_style(&self.style),
         )
     }

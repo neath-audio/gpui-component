@@ -280,6 +280,7 @@ impl RenderOnce for DescriptionList {
         let rows_len = rows.len();
 
         v_flex()
+            .text_size(self.size.control_text_size())
             .gap(gap)
             .overflow_hidden()
             .when(self.bordered, |this| {
@@ -316,7 +317,6 @@ impl RenderOnce for DescriptionList {
                                                 .text_color(
                                                     cx.theme().description_list_label_foreground,
                                                 )
-                                                .text_sm()
                                                 .px(padding_x)
                                                 .py(padding_y)
                                                 .when(self.bordered, |this| {

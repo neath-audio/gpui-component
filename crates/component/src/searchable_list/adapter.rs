@@ -97,7 +97,7 @@ impl<D: SearchableListDelegate + 'static> ListDelegate for SearchableListAdapter
                 .py_0p5()
                 .px_2()
                 .list_size(self.size)
-                .text_sm()
+                .text_size(Size::Small.text_size())
                 .text_color(cx.theme().muted_foreground)
                 .child(item)
                 .into_any_element(),

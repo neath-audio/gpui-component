@@ -367,7 +367,7 @@ impl RenderOnce for Tooltip {
         // Structured content (title + rows) takes precedence over freeform `base` children.
         let content = if title.is_some() || !rows.is_empty() {
             v_flex()
-                .text_sm()
+                .text_size(crate::Size::Small.text_size())
                 .gap_1()
                 .when_some(title, |this, title| {
                     this.child(div().font_semibold().child(title))
