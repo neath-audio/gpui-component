@@ -2086,7 +2086,11 @@ where
                                                             div()
                                                                 .absolute()
                                                                 .inset_0()
-                                                                .bg(cx.theme().tokens.table_active),
+                                                                .bg(cx.theme().tokens.table_active)
+                                                                .border_1()
+                                                                .border_color(
+                                                                    cx.theme().table_active_border,
+                                                                ),
                                                         )
                                                     })
                                                     .when(
@@ -2197,10 +2201,18 @@ where
                                                         ))
                                                         .when(is_cell_selected, |this| {
                                                             this.child(
-                                                                div().absolute().inset_0().bg(cx
-                                                                    .theme()
-                                                                    .tokens
-                                                                    .table_active),
+                                                                div()
+                                                                    .absolute()
+                                                                    .inset_0()
+                                                                    .bg(cx
+                                                                        .theme()
+                                                                        .tokens
+                                                                        .table_active)
+                                                                    .border_1()
+                                                                    .border_color(
+                                                                        cx.theme()
+                                                                            .table_active_border,
+                                                                    ),
                                                             )
                                                         })
                                                         .when(
@@ -2255,8 +2267,25 @@ where
                         )
                         .child(self.delegate.render_last_empty_col(window, cx)),
                 )
-                // Row selected style
-                .when(is_selected, |this| this.bg(cx.theme().tokens.table_active))
+                // Preserve the outlined current-row overlay. Its translucent
+                // fill also distinguishes it from delegate-painted selections.
+                .when(is_selected, |this| {
+                    if cx.theme().list.active_highlight {
+                        this.border_color(gpui::transparent_white()).child(
+                            div()
+                                .top(if row_ix == 0 { px(0.) } else { px(-1.) })
+                                .left(px(0.))
+                                .right(px(0.))
+                                .bottom(px(-1.))
+                                .absolute()
+                                .bg(cx.theme().tokens.table_active)
+                                .border_1()
+                                .border_color(cx.theme().table_active_border),
+                        )
+                    } else {
+                        this.bg(cx.theme().tokens.table_active)
+                    }
+                })
                 // Row right click row style
                 .when(self.right_clicked_row == Some(row_ix), |this| {
                     this.border_color(gpui::transparent_white()).child(
