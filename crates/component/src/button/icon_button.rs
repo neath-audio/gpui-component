@@ -190,7 +190,6 @@ pub struct IconButton {
     icon: Option<Icon>,
     label: Option<SharedString>,
     on_click: Option<ClickHandler>,
-    active_color: Option<Hsla>,
     dimmed: bool,
     disabled: bool,
     loading: bool,
@@ -212,7 +211,6 @@ impl IconButton {
             icon: None,
             label: None,
             on_click: None,
-            active_color: None,
             dimmed: false,
             disabled: false,
             loading: false,
@@ -295,17 +293,6 @@ impl IconButton {
         self
     }
 
-    /// Draw the filled background square (no rounded corners).
-    pub fn fill_square(mut self) -> Self {
-        self.fill_corners = Corners {
-            top_left: false,
-            top_right: false,
-            bottom_right: false,
-            bottom_left: false,
-        };
-        self
-    }
-
     /// Set the hover tooltip. Icon-only controls also use this as the
     /// accessibility label.
     pub fn tooltip(mut self, tooltip: impl Into<SharedString>) -> Self {
@@ -321,22 +308,9 @@ impl IconButton {
         self
     }
 
-    /// Override the active-state icon color (default `theme.primary`).
-    pub fn active_color(mut self, color: Hsla) -> Self {
-        self.active_color = Some(color);
-        self
-    }
-
     fn chrome(&self, cx: &App) -> IconChrome {
         let active = self.selected;
-        let tint = tint(
-            active,
-            self.prominent,
-            self.dimmed,
-            self.disabled,
-            self.active_color,
-            cx,
-        );
+        let tint = tint(active, self.prominent, self.dimmed, self.disabled, None, cx);
         let clickable = !self.disabled && !self.loading && self.on_click.is_some();
         let hover_feedback = clickable || (self.hoverable && !self.disabled && !self.loading);
         IconChrome {
@@ -514,7 +488,7 @@ impl IconToggle {
         self
     }
 
-    /// See [`IconButton::fill_square`].
+    /// Draw the filled background square (no rounded corners).
     pub fn fill_square(mut self) -> Self {
         self.fill_corners = Corners {
             top_left: false,
@@ -525,7 +499,7 @@ impl IconToggle {
         self
     }
 
-    /// See [`IconButton::active_color`].
+    /// Override the active-state icon color (default `theme.primary`).
     pub fn active_color(mut self, color: Hsla) -> Self {
         self.active_color = Some(color);
         self
@@ -842,7 +816,7 @@ mod tests {
                     loading.prominent,
                     loading.dimmed,
                     loading.disabled,
-                    loading.active_color,
+                    None,
                     cx
                 )
                 .base,

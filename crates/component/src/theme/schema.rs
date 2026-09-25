@@ -1716,7 +1716,7 @@ impl Theme {
 
 #[cfg(test)]
 mod tests {
-    use gpui::{WindowBackgroundAppearance, linear_color_stop, linear_gradient, px};
+    use gpui::{linear_color_stop, linear_gradient, px};
 
     use crate::{
         Colorize as _, Theme, ThemeConfig, ThemeMode, ThemeSet, ThemeTranslucencyConfig,
@@ -1842,10 +1842,6 @@ mod tests {
         theme.apply_config(&std::rc::Rc::new(config));
 
         assert!(!theme.glass_active());
-        assert_eq!(
-            theme.window_background_appearance(),
-            WindowBackgroundAppearance::Opaque
-        );
         assert_eq!(theme.overlay_blur(), px(0.));
         assert_eq!(theme.panel_blur(), px(0.));
     }
@@ -1872,10 +1868,6 @@ mod tests {
         theme.apply_config(&std::rc::Rc::new(config));
 
         assert!(theme.glass_active());
-        assert_eq!(
-            theme.window_background_appearance(),
-            WindowBackgroundAppearance::Blurred
-        );
         assert_eq!(theme.overlay_blur(), px(44.));
         assert_eq!(theme.panel_blur(), px(12.));
     }

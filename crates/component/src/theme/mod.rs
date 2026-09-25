@@ -5,7 +5,7 @@ use crate::{
 };
 use gpui::{
     App, Global, Hsla, IsZero as _, Pixels, SharedString, Window, WindowAppearance,
-    WindowBackgroundAppearance, prelude::FluentBuilder as _, px,
+    prelude::FluentBuilder as _, px,
 };
 pub use gpui_base::{
     ColorTokens, RadiusTokens, SemanticThemeTokens, ShadowTokens, SpacingTokens, TextStyleToken,
@@ -488,15 +488,6 @@ impl Theme {
     /// Whether the active theme explicitly enables glass.
     pub fn glass_active(&self) -> bool {
         self.translucency.window
-    }
-
-    /// How the platform should composite the window behind theme paint.
-    pub fn window_background_appearance(&self) -> WindowBackgroundAppearance {
-        if self.glass_active() {
-            WindowBackgroundAppearance::Blurred
-        } else {
-            WindowBackgroundAppearance::Opaque
-        }
     }
 
     /// The active overlay backdrop blur radius.
