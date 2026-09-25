@@ -256,7 +256,10 @@ impl BaseDialogRoot {
         map_base_root!(self, close_on_escape(value))
     }
     fn close_on_backdrop_press(self, value: bool) -> Self {
-        map_base_root!(self, close_on_backdrop_press(value))
+        match self {
+            Self::Dialog(root) => Self::Dialog(root.close_on_backdrop_press(value)),
+            Self::AlertDialog(root) => Self::AlertDialog(root),
+        }
     }
     fn dismiss_below_y(self, value: Pixels) -> Self {
         map_base_root!(self, dismiss_below_y(value))

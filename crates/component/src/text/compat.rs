@@ -111,11 +111,6 @@ impl TextView {
         self.inner = self.inner.selectable(value);
         self
     }
-    /// Keeps mouse selection within this view, including its Markdown blocks.
-    pub fn selection_isolated(mut self, value: bool) -> Self {
-        self.inner = self.inner.selection_isolated(value);
-        self
-    }
     /// Sets whether a copied selection carries Markdown source or plain text.
     pub fn selection_format(mut self, value: SelectionFormat) -> Self {
         self.inner = self.inner.selection_format(value);

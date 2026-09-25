@@ -122,7 +122,6 @@ pub struct TextView {
     text_view_style: Option<TextViewStyle>,
     style: StyleRefinement,
     selectable: bool,
-    selection_isolated: bool,
     selection_format: SelectionFormat,
     scrollable: bool,
     max_lines: Option<usize>,
@@ -168,7 +167,6 @@ impl TextView {
             text_view_style: None,
             style: StyleRefinement::default(),
             selectable: true,
-            selection_isolated: false,
             selection_format: SelectionFormat::default(),
             scrollable: false,
             max_lines: None,
@@ -191,7 +189,6 @@ impl TextView {
             style: StyleRefinement::default(),
             state: None,
             selectable: true,
-            selection_isolated: false,
             selection_format: SelectionFormat::default(),
             scrollable: false,
             max_lines: None,
@@ -214,7 +211,6 @@ impl TextView {
             style: StyleRefinement::default(),
             state: None,
             selectable: true,
-            selection_isolated: false,
             selection_format: SelectionFormat::default(),
             scrollable: false,
             max_lines: None,
@@ -236,14 +232,6 @@ impl TextView {
     /// Set whether the text view is selectable, default is true.
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = selectable;
-        self
-    }
-
-    /// Keeps mouse selection within this text view, including its Markdown blocks.
-    ///
-    /// Isolated views do not join selections started in other views. Defaults to false.
-    pub fn selection_isolated(mut self, isolated: bool) -> Self {
-        self.selection_isolated = isolated;
         self
     }
 
@@ -778,7 +766,6 @@ impl Element for TextView {
                 scroll_offset,
                 document_order,
                 self_scroll,
-                self.selection_isolated,
                 window,
                 cx,
             );
@@ -804,66 +791,6 @@ mod tests {
         Render, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled as _,
         TestAppContext, VisualTestContext, Window, div, point, px, rems,
     };
-
-    struct IsolatedTextViewRoot {
-        format: crate::text::SelectionFormat,
-    }
-
-    impl Render for IsolatedTextViewRoot {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-            div()
-                .size_full()
-                .child(crate::TextSelectionLayer)
-                .child(
-                    div().h(px(120.)).child(
-                        TextView::markdown("isolated-message", "**first**\n\nsecond")
-                            .selection_isolated(true)
-                            .selection_format(self.format),
-                    ),
-                )
-                .child(TextView::markdown(
-                    "neighbor",
-                    "neighbor must stay unselected",
-                ))
-        }
-    }
-
-    #[gpui::test]
-    fn isolated_text_view_copies_its_markdown_blocks_without_neighboring_messages(
-        cx: &mut TestAppContext,
-    ) {
-        cx.update(crate::init);
-        for (format, expected) in [
-            (crate::text::SelectionFormat::Plain, "first\nsecond"),
-            (crate::text::SelectionFormat::Source, "**first**\n\nsecond"),
-        ] {
-            let (_, visual) = cx.add_window_view(|_, _| IsolatedTextViewRoot { format });
-            visual.run_until_parked();
-            visual.update(|window, cx| {
-                let _ = window.draw(cx);
-            });
-            visual.simulate_mouse_down(
-                point(px(0.), px(8.)),
-                MouseButton::Left,
-                Modifiers::default(),
-            );
-            visual.simulate_mouse_move(
-                point(px(300.), px(135.)),
-                Some(MouseButton::Left),
-                Modifiers::default(),
-            );
-            visual.simulate_mouse_up(
-                point(px(300.), px(135.)),
-                MouseButton::Left,
-                Modifiers::default(),
-            );
-            visual.update(|window, cx| {
-                let _ = window.draw(cx);
-            });
-            let selected = visual.update(crate::TextSelection::selected_text);
-            assert_eq!(selected.trim(), expected);
-        }
-    }
 
     struct TextViewTestRoot {
         text_view: Entity<TextViewState>,

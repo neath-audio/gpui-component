@@ -223,7 +223,6 @@ pub struct TextSelectionRegistration {
     self_scroll: bool,
     selection_edges: Option<(Bounds<Pixels>, Bounds<Pixels>)>,
     rendered: Option<WeakEntity<RenderedMarker>>,
-    isolated: bool,
 }
 
 impl TextSelectionRegistration {
@@ -239,7 +238,6 @@ impl TextSelectionRegistration {
             self_scroll: false,
             selection_edges: None,
             rendered: None,
-            isolated: false,
         }
     }
 
@@ -285,18 +283,6 @@ impl TextSelectionRegistration {
     pub(crate) fn with_self_scroll(mut self, self_scroll: bool) -> Self {
         self.self_scroll = self_scroll;
         self
-    }
-
-    /// Keeps gestures beginning here within this participant, and excludes it
-    /// from selections beginning in other participants. Defaults to false.
-    pub fn with_isolated(mut self, isolated: bool) -> Self {
-        self.isolated = isolated;
-        self
-    }
-
-    /// Returns whether this participant has an independent selection boundary.
-    pub const fn is_isolated(&self) -> bool {
-        self.isolated
     }
 
     /// Sets the participant's content scroll offset.
@@ -1233,19 +1219,6 @@ impl WindowSelectionState {
             })
             .collect::<Vec<_>>();
         let mut handlers = Vec::new();
-        // An isolated gesture cannot migrate to another row after its owner
-        // virtualizes away, nor revive across rows when that owner remounts.
-        if stale.iter().any(|(id, _)| {
-            self.anchor.as_ref().and_then(SelectionEndpoint::entity_id) == Some(*id)
-                && self.participants[id].registration.isolated
-        }) {
-            self.stop_anchor_auto_scroll(cx);
-            self.anchor = None;
-            self.cursor = None;
-            self.pending_extension_anchor = None;
-            self.is_selecting = false;
-            self.did_hit_text = false;
-        }
         for (id, participant) in stale {
             self.participants.remove(&id);
             if let Some(participant) = participant.upgrade() {
@@ -1869,8 +1842,6 @@ impl WindowSelectionState {
         if !extend && !already_prepared {
             self.clear(cx);
         }
-        // Shift-extension must apply the original participant boundary during hit testing.
-        self.anchor = previous_anchor.clone();
         let endpoint = self.endpoint(position, window.as_deref(), cx);
         let focus_participant = endpoint
             .inside
@@ -1923,19 +1894,8 @@ impl WindowSelectionState {
             Rc<TextSelectionRegistration>,
         )> = None;
 
-        let anchor_id = self.anchor.as_ref().and_then(SelectionEndpoint::entity_id);
-        let isolated_anchor = anchor_id.filter(|id| {
-            self.participants
-                .get(id)
-                .is_some_and(|entry| entry.registration.isolated)
-        });
-
         for registration in self.participants.values() {
-            let id = registration.participant.entity_id();
-            if isolated_anchor.is_some_and(|anchor| anchor != id)
-                || (anchor_id.is_some_and(|anchor| anchor != id)
-                    && registration.registration.isolated)
-                || registration.registration.scope != self.active_scope
+            if registration.registration.scope != self.active_scope
                 || registration.participant.upgrade().is_none()
             {
                 continue;
@@ -2080,9 +2040,6 @@ impl WindowSelectionState {
         let Some(cursor) = self.cursor.as_ref().and_then(SelectionEndpoint::entity_id) else {
             return false;
         };
-        if registration.registration.isolated && id != anchor {
-            return false;
-        }
         let Some(anchor_registration) = self.participants.get(&anchor) else {
             return false;
         };
@@ -2913,7 +2870,6 @@ mod tests {
 
     struct FakeParticipant {
         selection: TextSelectionHandle,
-        isolated: bool,
     }
 
     struct WindowSelectionView {
@@ -3062,15 +3018,7 @@ mod tests {
     impl FakeParticipant {
         fn new(text: &str, cx: &mut gpui::App) -> Self {
             let selection = TextSelectionHandle::new(text, cx);
-            Self {
-                selection,
-                isolated: false,
-            }
-        }
-
-        fn isolated(mut self) -> Self {
-            self.isolated = true;
-            self
+            Self { selection }
         }
 
         fn register(
@@ -3095,7 +3043,6 @@ mod tests {
                 )
                 .with_scope(scope)
                 .with_document_order(document_order)
-                .with_isolated(self.isolated)
                 .with_text_bounds(vec![bounds]),
                 cx,
             );
@@ -3604,101 +3551,6 @@ mod tests {
     }
 
     #[gpui::test]
-    fn isolated_selection_keeps_forward_reverse_and_shift_endpoints_in_its_owner(
-        cx: &mut TestAppContext,
-    ) {
-        cx.update(|cx| {
-            let mut state = WindowSelectionState::default();
-            let before = FakeParticipant::new("before", cx);
-            let isolated = FakeParticipant::new("isolated", cx).isolated();
-            let after = FakeParticipant::new("after", cx);
-            for (index, participant) in [&before, &isolated, &after].iter().enumerate() {
-                participant.register(
-                    &mut state,
-                    index as f32 * 20.,
-                    TextSelectionScopeId::default(),
-                    index as u64,
-                    cx,
-                );
-            }
-            let id = isolated.selection.entity_id();
-            state.begin(point(px(5.), px(25.)), false, cx);
-            for y in [45., 5., 25.] {
-                state.update(point(px(10.), px(y)), cx);
-                let snapshot = state.snapshot().unwrap();
-                assert_eq!(snapshot.anchor().entity_id(), Some(id));
-                assert_eq!(snapshot.cursor().entity_id(), Some(id));
-                assert_eq!(state.selected_text(cx), "isolated");
-                assert!(before.selection.snapshot(cx).is_none());
-                assert!(after.selection.snapshot(cx).is_none());
-            }
-            state.end(cx);
-            state.begin(point(px(10.), px(45.)), true, cx);
-            assert_eq!(state.snapshot().unwrap().cursor().entity_id(), Some(id));
-            assert_eq!(state.selected_text(cx), "isolated");
-            state.end(cx);
-            // A fresh gesture may still select the neighboring ordinary view.
-            state.begin(point(px(1.), px(45.)), false, cx);
-            state.update(point(px(10.), px(45.)), cx);
-            assert_eq!(state.selected_text(cx), "after");
-        });
-    }
-
-    #[gpui::test]
-    fn ordinary_selection_does_not_include_isolated_participants(cx: &mut TestAppContext) {
-        cx.update(|cx| {
-            let mut state = WindowSelectionState::default();
-            let first = FakeParticipant::new("first", cx);
-            let isolated = FakeParticipant::new("isolated", cx).isolated();
-            let last = FakeParticipant::new("last", cx);
-            for (index, participant) in [&first, &isolated, &last].iter().enumerate() {
-                participant.register(
-                    &mut state,
-                    index as f32 * 20.,
-                    TextSelectionScopeId::default(),
-                    index as u64,
-                    cx,
-                );
-            }
-            state.begin(point(px(1.), px(1.)), false, cx);
-            state.update(point(px(10.), px(25.)), cx);
-            assert_eq!(
-                state.snapshot().unwrap().cursor().entity_id(),
-                Some(first.selection.entity_id())
-            );
-            state.update(point(px(10.), px(45.)), cx);
-            assert_eq!(state.selected_text(cx), "first\nlast");
-            assert!(isolated.selection.snapshot(cx).is_none());
-        });
-    }
-
-    #[gpui::test]
-    fn isolated_selection_cannot_migrate_after_its_virtualized_owner_remounts(
-        cx: &mut TestAppContext,
-    ) {
-        cx.update(|cx| {
-            let mut state = WindowSelectionState::default();
-            let owner = FakeParticipant::new("owner", cx).isolated();
-            let other = FakeParticipant::new("other", cx);
-            owner.register(&mut state, 0., TextSelectionScopeId::default(), 0, cx);
-            other.register(&mut state, 20., TextSelectionScopeId::default(), 1, cx);
-            state.begin(point(px(1.), px(1.)), false, cx);
-            state.update(point(px(10.), px(25.)), cx);
-            state.finish_frame(cx);
-            other.register(&mut state, 0., TextSelectionScopeId::default(), 1, cx);
-            let handlers = state.finish_frame(cx);
-            dispatch_clear_handlers(handlers, cx);
-            assert!(!state.is_selecting());
-            assert_eq!(state.selected_text(cx), "");
-            state.update(point(px(10.), px(1.)), cx);
-            owner.register(&mut state, 20., TextSelectionScopeId::default(), 0, cx);
-            assert_eq!(state.selected_text(cx), "");
-            assert!(owner.selection.snapshot(cx).is_none());
-            assert!(other.selection.snapshot(cx).is_none());
-        });
-    }
-
-    #[gpui::test]
     fn shift_extension_keeps_its_original_anchor_when_reversed(cx: &mut TestAppContext) {
         cx.update(|cx| {
             let mut selection_state = WindowSelectionState::default();
@@ -3868,11 +3720,7 @@ mod tests {
             let selection = view.read(cx).selection.clone();
             let selection_state = WindowSelectionState::ensure(window, cx);
             selection_state.update(cx, |selection_state, cx| {
-                FakeParticipant {
-                    selection,
-                    isolated: false,
-                }
-                .register(
+                FakeParticipant { selection }.register(
                     selection_state,
                     0.,
                     TextSelectionScopeId::default(),
@@ -3968,7 +3816,6 @@ mod tests {
             state.update(cx, |state, cx| {
                 FakeParticipant {
                     selection: selection.clone(),
-                    isolated: false,
                 }
                 .register(state, 0., TextSelectionScopeId::default(), 0, cx);
                 state.begin(point(px(1.), px(1.)), false, cx);
@@ -4454,11 +4301,7 @@ mod tests {
             let selection_state = WindowSelectionState::ensure(window, cx);
             let selection = view.read(cx).selection.clone();
             selection_state.update(cx, |selection_state, cx| {
-                FakeParticipant {
-                    selection,
-                    isolated: false,
-                }
-                .register(
+                FakeParticipant { selection }.register(
                     selection_state,
                     0.,
                     TextSelectionScopeId::default(),

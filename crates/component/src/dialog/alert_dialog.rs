@@ -241,11 +241,9 @@ impl AlertDialog {
         self
     }
 
-    /// Set the overlay closable of the alert dialog, defaults to `false`.
-    ///
-    /// When the overlay is clicked, the dialog will be closed.
-    pub fn overlay_closable(mut self, overlay_closable: bool) -> Self {
-        self.base = self.base.overlay_closable(overlay_closable);
+    /// Alert dialogs never close from a backdrop press.
+    #[deprecated(note = "AlertDialog backdrop dismissal is disabled by design")]
+    pub fn overlay_closable(self, _: bool) -> Self {
         self
     }
 
@@ -516,13 +514,13 @@ mod material_tests {
         cx
     }
 
-    fn open_alert(cx: &mut VisualTestContext, overlay_closable: Option<bool>) -> Rc<Cell<bool>> {
+    fn open_alert(cx: &mut VisualTestContext) -> Rc<Cell<bool>> {
         let canceled = Rc::new(Cell::new(false));
         let canceled_for_builder = canceled.clone();
         cx.update(|window, cx| {
             window.open_alert_dialog(cx, move |alert, _, _| {
                 let canceled = canceled_for_builder.clone();
-                let alert = alert
+                alert
                     .rounded(px(29.))
                     .on_cancel(move |_, _, _| {
                         canceled.set(true);
@@ -532,11 +530,7 @@ mod material_tests {
                         div()
                             .debug_selector(|| "alert-dialog-surface-content".into())
                             .size(px(12.)),
-                    );
-                match overlay_closable {
-                    Some(value) => alert.overlay_closable(value),
-                    None => alert,
-                }
+                    )
             });
         });
         cx.run_until_parked();
@@ -550,9 +544,9 @@ mod material_tests {
     }
 
     #[gpui::test]
-    fn explicit_overlay_closable_alert_closes_on_backdrop_press(cx: &mut TestAppContext) {
+    fn alert_material_stays_open_on_backdrop_press(cx: &mut TestAppContext) {
         let cx = harness(cx);
-        let canceled = open_alert(cx, Some(true));
+        let canceled = open_alert(cx);
         assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
         assert!(cx.debug_bounds("alert-dialog-surface-content").is_some());
         let materials = take_painted_materials();
@@ -570,21 +564,6 @@ mod material_tests {
 
         press_safe_backdrop(cx);
 
-        assert!(canceled.get());
-        assert!(!cx.update(|window, cx| window.has_active_dialog(cx)));
-    }
-
-    #[gpui::test]
-    fn default_and_explicit_false_alerts_stay_open_on_backdrop_press(cx: &mut TestAppContext) {
-        let cx = harness(cx);
-        let canceled = open_alert(cx, None);
-        press_safe_backdrop(cx);
-        assert!(!canceled.get());
-        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
-
-        cx.update(|window, cx| window.close_dialog(cx));
-        let canceled = open_alert(cx, Some(false));
-        press_safe_backdrop(cx);
         assert!(!canceled.get());
         assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
     }
