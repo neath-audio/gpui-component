@@ -64,7 +64,7 @@ fn node_to_state(node: &PaneNode, source: &dyn PanelSource) -> PanelState {
 
 /// Turns a persisted leaf into a live panel id.
 ///
-/// The production implementation (at the `gpui-component` layer, above this
+/// The production implementation (at the `gpui-neath` layer, above this
 /// crate) consults `PanelRegistry` and falls back to an invalid-panel
 /// placeholder that retains the original `PanelState`, so a panel type this
 /// build does not know about survives a load/save round trip instead of

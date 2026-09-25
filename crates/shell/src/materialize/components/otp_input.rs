@@ -2,7 +2,7 @@
 //!
 //! Base's `OtpInput` is the keyboard and the focus and nothing else: "unstyled
 //! OTP interaction root. Applications provide the visual cells as children." A
-//! `gpui-component` application does exactly that, building one box per digit
+//! `gpui-neath` application does exactly that, building one box per digit
 //! from `value()`, `len()`, `is_masked()` and `cursor_visible()` on every
 //! frame.
 //!
@@ -60,7 +60,7 @@
 //!
 //! Base stores the flag and draws nothing, so the glyph is the shell's to
 //! choose. It is [`MASK_CHAR`], the same bullet base's own masked text editors
-//! use — not `gpui-component`'s asterisk icon, because the shell has no icon
+//! use — not `gpui-neath`'s asterisk icon, because the shell has no icon
 //! set it can count on.
 
 use std::rc::Rc;
@@ -85,7 +85,7 @@ use crate::{
 ///
 /// The bullet rather than an asterisk: it is what `gpui_base`'s own masked text
 /// editors draw, and unlike `*` it sits on the centre line, which is where a
-/// box the size of a digit expects it. `gpui-component` uses an asterisk icon,
+/// box the size of a digit expects it. `gpui-neath` uses an asterisk icon,
 /// but an icon is an asset, and the shell cannot assume a script has one.
 const MASK_CHAR: char = '\u{2022}';
 

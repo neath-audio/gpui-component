@@ -16,7 +16,7 @@ must preserve its root. Renaming the existing methods would hide that mismatch.
 ## Decision
 
 Expose two independent public data structures from `gpui-base` and through the
-legacy `gpui-component::history` module:
+legacy `gpui-neath::history` module:
 
 - `History<T>` is a browser-style linear trail with a current entry.
 - `UndoHistory<T>` is a grouped change log with undo and redo transactions.
@@ -109,7 +109,7 @@ behavior, not navigation or undo behavior, and has no production consumer.
 - Input's stale `HistoryItem for Change` implementation and version field are
   removed. Its private transaction-aware `UndoManager` remains unchanged.
 - `gpui_base::{History, UndoHistory}` and
-  `gpui_component::history::{History, UndoHistory}` are both available.
+  `gpui_neath::history::{History, UndoHistory}` are both available.
 - The English and Chinese History documentation explain the two types and stop
   presenting MRU behavior as part of `History`.
 
@@ -125,6 +125,6 @@ Undo tests cover single transactions, timed and explicit grouping, undo/redo
 order, redo truncation, ignore mode, and capacity.
 
 Existing Dock and NavStack tests must pass after migration. Compatibility tests
-verify both types are re-exported through `gpui-component`. Formatting, the
+verify both types are re-exported through `gpui-neath`. Formatting, the
 targeted `gpui-base` and compatibility tests, and a workspace check are run
 before completion.

@@ -72,7 +72,7 @@ fn mount(
 fn concrete_charts_consume_plain_immutable_rows(cx: &mut TestAppContext) {
     let source = r#"
 import { View, div } from "gpui-kit";
-import { BarChart, LineChart, AreaChart, PieChart, RadarChart } from "gpui-component";
+import { BarChart, LineChart, AreaChart, PieChart, RadarChart } from "gpui-neath";
 globalThis.calls = 0;
 const rows = () => { globalThis.calls++; return [{label: "Jan", value: 2}, {label: "Feb", value: 5}]; };
 export default class App extends View {
@@ -114,7 +114,7 @@ fn chart_rows_reject_missing_fields_without_panicking(cx: &mut TestAppContext) {
         cx,
         r#"
 import { View } from "gpui-kit";
-import { BarChart } from "gpui-component";
+import { BarChart } from "gpui-neath";
 export default class App extends View { render() { return new BarChart(() => [{label: "Jan"}]); } }
 "#,
     );

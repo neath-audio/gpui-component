@@ -617,7 +617,12 @@ impl Sizable for Tab {
 }
 
 impl RenderOnce for Tab {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(mut self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let text_size = self
+            .base
+            .text_style()
+            .font_size
+            .unwrap_or_else(|| self.size.control_text_size().into());
         let mut normal_style = self.variant.normal(cx);
         let mut selected_style = self.variant.selected(cx);
         let mut disabled_style = self.variant.disabled(self.selected, cx);
@@ -800,11 +805,7 @@ impl RenderOnce for Tab {
             .flex_shrink_0()
             .h(height)
             .overflow_hidden()
-            .map(|this| match self.size {
-                Size::XSmall => this.text_xs(),
-                Size::Large => this.text_base(),
-                _ => this.text_sm(),
-            })
+            .text_size(text_size)
             .rounded(radius)
             .when(!self.selected && !self.disabled, |this| {
                 this.text_color(normal_style.fg)

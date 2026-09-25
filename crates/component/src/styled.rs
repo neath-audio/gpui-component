@@ -2,7 +2,8 @@ pub use crate::component_traits::{Collapsible, Disableable, Selectable};
 pub use crate::sizing::{Sizable, Size, StyleSized};
 use gpui::{
     App, BoxShadow, Corners, Edges, Hsla, InteractiveElement as _, ParentElement, Pixels,
-    StyleRefinement, Styled, Window, div, hsla, prelude::FluentBuilder as _, px,
+    Refineable as _, Style, StyleRefinement, Styled, Window, div, hsla,
+    prelude::FluentBuilder as _, px,
 };
 pub use gpui_base::{FocusableExt, RoleOverride, StyledExt, box_shadow, h_flex, v_flex};
 
@@ -15,59 +16,45 @@ const FOCUS_RING_OPACITY: f32 = 0.5;
 /// shadcn/ui spends at each elevation.
 const SURFACE_SHADOW_INK: f32 = 0.1;
 
-/// Ink of the hairline ring standing in for a popover's border.
+/// Resolves the corner-radius part of the same style cascade applied to a surface.
 ///
-/// shadcn/ui draws no border on a popup surface at all: its edge is a 1px
-/// `rgb(0 0 0 / 0.1)` ring spent as a shadow layer. Because the ring is
-/// translucent the shadow shows *through* it, which is what makes the edge read
-/// as part of one grounded surface rather than as an outline with a separate
-/// shadow below it. An opaque border cannot reproduce that — a border composites
-/// over the element's own background, not over the shadow.
-const POPOVER_RING_INK: f32 = 0.1;
-
-/// The colour of a popup surface's hairline ring in this theme.
-///
-/// shadcn spends black on it in light mode and white in dark
-/// (`oklch(1 0 0 / 10%)`), so it follows the foreground rather than the border
-/// token: a fixed black ring would all but vanish on a dark surface.
-///
-pub(crate) fn popover_ring(cx: &App) -> Hsla {
-    cx.theme().foreground.alpha(POPOVER_RING_INK)
+/// Material paints outside the child's style pass, so it needs this small projection of the
+/// final surface style to use the identical backdrop mask without maintaining a second style
+/// representation.
+pub(crate) fn resolved_corner_radii(
+    defaults: Corners<Pixels>,
+    refinement: &StyleRefinement,
+    rem_size: Pixels,
+) -> Corners<Pixels> {
+    let mut style = Style {
+        corner_radii: Corners {
+            top_left: defaults.top_left.into(),
+            top_right: defaults.top_right.into(),
+            bottom_right: defaults.bottom_right.into(),
+            bottom_left: defaults.bottom_left.into(),
+        },
+        ..Style::default()
+    };
+    style.refine(refinement);
+    style.corner_radii.to_pixels(rem_size)
 }
 
-/// shadcn/ui's popup surface shadow — a hairline `ring` plus `shadow-md` — at
-/// `strength` of its full ink.
+/// GPUI's native `shadow-md` at `strength` of its full ink.
 ///
 /// Callers animating a surface in pass a rising `strength`; a resting surface
 /// passes `1.0`.
 ///
-/// The two blurred layers use Tailwind's radii **halved**, which is the
-/// conversion CSS requires and not a taste adjustment. CSS defines a box
-/// shadow's blur radius as twice the gaussian's standard deviation, while GPUI's
-/// shader takes the field as the deviation itself (`gaussian(y, sigma)`).
-/// Copying Tailwind's `6px` and `4px` across therefore spreads the shadow over
-/// twice the distance, which is why [`Styled::shadow_md`] reads as a wide grey
-/// haze next to a browser's compact one.
-///
-/// Measured against shadcn's own render, this lands within a luminance step of
-/// it the whole way down the falloff.
-///
-/// The ring is taken as a colour rather than read from the theme here so that an
-/// animation can hold it across frames, where no `App` is in hand.
-pub(crate) fn popover_shadow(ring: Hsla, strength: f32) -> Vec<BoxShadow> {
+/// This duplicates the native method's two values only because an animation
+/// needs to vary their alpha after the styling context is gone.
+pub(crate) fn popover_shadow(strength: f32) -> Vec<BoxShadow> {
     let strength = strength.clamp(0., 1.);
     let ink = hsla(0., 0., 0., SURFACE_SHADOW_INK * strength);
     vec![
-        // The ring, sitting in the 1px band outside the surface. No blur, so it
-        // takes the shader's crisp path rather than the gaussian one.
-        BoxShadow::new(px(0.), px(0.), ring.alpha(ring.a * strength))
-            .blur_radius(px(0.))
-            .spread_radius(px(1.)),
         BoxShadow::new(px(0.), px(4.), ink)
-            .blur_radius(px(3.))
+            .blur_radius(px(6.))
             .spread_radius(px(-1.)),
         BoxShadow::new(px(0.), px(2.), ink)
-            .blur_radius(px(2.))
+            .blur_radius(px(4.))
             .spread_radius(px(-2.)),
     ]
 }
@@ -79,7 +66,7 @@ pub(crate) fn popover_shadow(ring: Hsla, strength: f32) -> Vec<BoxShadow> {
 /// a real 1px border rather than the translucent ring it puts on a popup, so
 /// there is no ring layer here. Its corner radius is left to the caller.
 ///
-/// The radii are Tailwind's halved, for the reason [`popover_shadow`] explains.
+/// The radii retain the existing toast tuning independently of popovers.
 pub(crate) fn toast_shadow(strength: f32) -> Vec<BoxShadow> {
     let ink = hsla(0., 0., 0., SURFACE_SHADOW_INK * strength.clamp(0., 1.));
     vec![
@@ -192,11 +179,12 @@ impl<T: Styled + Sized> ThemeStyled for T {
 
     fn popover_style(self, cx: &App) -> Self {
         let theme = cx.theme();
-        // No border: the edge is the ring inside `popover_shadow`, which is how
-        // shadcn draws it and the only way the shadow can show through it.
-        self.bg(theme.popover)
+        // Opaque strong edge plus GPUI's native medium elevation.
+        self.bg(theme.tokens.popover)
             .text_color(theme.popover_foreground)
-            .shadow(popover_shadow(popover_ring(cx), 1.))
+            .border_1()
+            .border_color(theme.border_strong)
+            .shadow_md()
             .rounded(theme.radius)
     }
 }

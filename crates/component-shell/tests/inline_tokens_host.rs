@@ -32,7 +32,7 @@ fn inline_tokens_script_operations_and_click_reentry(cx: &mut TestAppContext) {
     let app = TempApp::new(
         r#"
 import { div, View } from "gpui-kit";
-import { Input, InputState, Textarea, TextareaState } from "gpui-component";
+import { Input, InputState, Textarea, TextareaState } from "gpui-neath";
 import { Button as BaseButton, InputState as BaseInputState, TextareaState as BaseTextareaState } from "gpui-base";
 function assert(value, message) { if (!value) throw new Error(message); }
 function exercise(state) {
@@ -87,7 +87,7 @@ export default class TokenHost extends View {
     let window = cx.add_window(move |window, cx| {
         let view = runtime.mount_application(&loaded, window, cx).unwrap();
         *capture.borrow_mut() = Some(view.clone());
-        gpui_component::Root::new(view, window, cx)
+        gpui_neath::Root::new(view, window, cx)
     });
     let view = mounted.borrow().clone().unwrap();
     let mut context = VisualTestContext::from_window(*window.deref(), cx);

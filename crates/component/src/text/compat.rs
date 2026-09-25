@@ -1,7 +1,7 @@
 use gpui::{
     AnyElement, App, Bounds, ClickEvent, Element, ElementId, Entity, GlobalElementId,
-    HighlightStyle, InspectorElementId, IntoElement, LayoutId, Pixels, Refineable as _, RenderOnce,
-    SharedString, StyleRefinement, Styled, Window,
+    HighlightStyle, InspectorElementId, IntoElement, LayoutId, MouseButton, Pixels,
+    Refineable as _, RenderOnce, SharedString, StyleRefinement, Styled, Window,
 };
 
 use std::time::Duration;
@@ -47,6 +47,21 @@ pub struct TextView {
     stream_fade: Option<bool>,
 }
 
+fn with_component_link_default(text_view: gpui_base::TextView) -> gpui_base::TextView {
+    text_view.on_link_click(|url, event, window, cx| {
+        let should_open = match event {
+            ClickEvent::Mouse(click) => {
+                matches!(click.up.button, MouseButton::Left | MouseButton::Middle)
+            }
+            ClickEvent::Keyboard(_) => true,
+            ClickEvent::Touch(click) => !click.long_press,
+        };
+        if should_open {
+            super::open_text_link(url.as_ref(), window, cx);
+        }
+    })
+}
+
 impl Styled for TextView {
     fn style(&mut self) -> &mut StyleRefinement {
         gpui::Styled::style(&mut self.inner)
@@ -58,7 +73,7 @@ impl TextView {
     pub fn new(state: &Entity<TextViewState>) -> Self {
         Self {
             id: ElementId::Name(state.entity_id().to_string().into()),
-            inner: gpui_base::TextView::new(state),
+            inner: with_component_link_default(gpui_base::TextView::new(state)),
             text_style: None,
             motion: None,
             stream_fade: None,
@@ -69,7 +84,7 @@ impl TextView {
         let id = id.into();
         Self {
             id: id.clone(),
-            inner: gpui_base::TextView::markdown(id, text),
+            inner: with_component_link_default(gpui_base::TextView::markdown(id, text)),
             text_style: None,
             motion: None,
             stream_fade: None,
@@ -80,7 +95,7 @@ impl TextView {
         let id = id.into();
         Self {
             id: id.clone(),
-            inner: gpui_base::TextView::html(id, text),
+            inner: with_component_link_default(gpui_base::TextView::html(id, text)),
             text_style: None,
             motion: None,
             stream_fade: None,
@@ -94,6 +109,11 @@ impl TextView {
     /// Sets whether the text can be selected with the mouse.
     pub fn selectable(mut self, value: bool) -> Self {
         self.inner = self.inner.selectable(value);
+        self
+    }
+    /// Keeps mouse selection within this view, including its Markdown blocks.
+    pub fn selection_isolated(mut self, value: bool) -> Self {
+        self.inner = self.inner.selection_isolated(value);
         self
     }
     /// Sets whether a copied selection carries Markdown source or plain text.

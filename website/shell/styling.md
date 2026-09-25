@@ -172,7 +172,7 @@ renders.
 
 The corresponding `.overflow_scrollbar()`, `.overflow_x_scrollbar()` and
 `.overflow_y_scrollbar()` methods keep the same scrolling behavior and also
-paint gpui-component's native scrollbars. They require a stable `.id(...)` so
+paint gpui-neath's native scrollbars. They require a stable `.id(...)` so
 each viewport keeps independent scrollbar and scroll-position state.
 
 ## Theme values

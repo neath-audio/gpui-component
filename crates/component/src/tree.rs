@@ -26,7 +26,7 @@ type RenderItem = dyn Fn(usize, &TreeEntry, bool, &mut Window, &mut App) -> List
 type ContextMenuBuilder =
     dyn Fn(usize, &TreeEntry, PopupMenu, &mut Window, &mut Context<TreeState>) -> PopupMenu;
 
-/// A styled tree view that preserves the legacy `gpui-component` API while
+/// A styled tree view that preserves the legacy `gpui-neath` API while
 /// delegating tree behavior and interaction state to `gpui-base`.
 #[derive(IntoElement)]
 pub struct Tree {

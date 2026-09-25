@@ -1,3 +1,4 @@
+use crate::Size;
 use std::{any::TypeId, borrow::Cow, collections::HashMap, rc::Rc, time::Duration};
 
 use gpui::{
@@ -75,7 +76,7 @@ impl NotificationDelivery {
 
 /// Namespaces the library's system-notification tags away from tags the
 /// application posts itself, so the response handler can tell them apart.
-const SYSTEM_TAG_PREFIX: &str = "gpui-component/notification/";
+const SYSTEM_TAG_PREFIX: &str = "gpui-neath/notification/";
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub(crate) enum NotificationId {
@@ -438,10 +439,15 @@ impl Render for Notification {
                     .overflow_hidden()
                     .when(has_icon, |this| this.pl_6())
                     .when_some(self.title.clone(), |this, title| {
-                        this.child(div().text_sm().font_semibold().child(title))
+                        this.child(
+                            div()
+                                .text_size(Size::Medium.text_size())
+                                .font_semibold()
+                                .child(title),
+                        )
                     })
                     .when_some(self.message.clone(), |this, message| {
-                        this.child(div().text_sm().child(message))
+                        this.child(div().text_size(Size::Medium.text_size()).child(message))
                     })
                     .when_some(content, |this, content| this.child(content)),
             )
@@ -566,8 +572,8 @@ impl Default for NotificationSettings {
 /// Registers the app-global system-notification response handler.
 ///
 /// gpui keeps a single such handler (later registrations replace earlier
-/// ones), so gpui-component owns it: applications must not call
-/// [`gpui::App::on_system_notification_response`] after `gpui_component::init`.
+/// ones), so gpui-neath owns it: applications must not call
+/// [`gpui::App::on_system_notification_response`] after `gpui_neath::init`.
 /// Responses to notifications the application posts itself are ignored here.
 pub(crate) fn init(cx: &mut App) {
     cx.on_system_notification_response(SystemNotificationRegistry::handle_response);

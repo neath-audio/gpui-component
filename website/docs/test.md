@@ -77,7 +77,7 @@ For an existing application, add this development dependency to its package.
 Its normal `gpui-kit` dependency must resolve to the same source and version;
 features then unify for tests. Keep `test-support` in development dependencies
 so ordinary application builds do not enable observation. An application that
-uses the component crate directly can enable `gpui-component/test-support`.
+uses the component crate directly can enable `gpui-neath/test-support`.
 
 ## A complete test
 

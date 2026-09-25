@@ -304,13 +304,25 @@ impl DockArea {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let open = {
+            let Some(pane) = self.docks.get(&placement) else {
+                return;
+            };
+            if !pane.dock.is_collapsible() && pane.dock.is_open() {
+                return;
+            }
+            pane.dock.is_open()
+        };
+        // Reconcile reapplies the tree's sizes to every live ResizableState.
+        // Capture the on-screen measurements before closing, while they are
+        // still valid, so reopening restores the geometry the user saw rather
+        // than the insertion- or load-time values still stored in the tree.
+        if open {
+            self.adopt_measured_sizes(placement, cx);
+        }
         let Some(pane) = self.docks.get_mut(&placement) else {
             return;
         };
-        if !pane.dock.is_collapsible() && pane.dock.is_open() {
-            return;
-        }
-        let open = pane.dock.is_open();
         pane.dock.set_open(!open);
         // A closed dock takes its displayed panel off screen, which the
         // active-state contract counts as no panel being displayed — that is
@@ -360,6 +372,23 @@ impl DockArea {
             }
             cx.notify();
             cx.emit(DockEvent::LayoutChanged);
+        }
+    }
+
+    /// Floor for [`Self::set_dock_size`] and pointer resize of this dock.
+    /// Defaults to [`PANEL_MIN_SIZE`].
+    pub fn set_dock_min_size(
+        &mut self,
+        placement: DockPlacement,
+        min_size: Pixels,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(pane) = self.docks.get_mut(&placement) {
+            pane.dock.set_min_size(min_size);
+            let size = pane.dock.size();
+            pane.dock.set_size(size);
+            cx.notify();
         }
     }
 }
@@ -1211,9 +1240,15 @@ impl DockArea {
             DockPlacement::Right => self.dock_size(DockPlacement::Left),
             _ => None,
         };
+        let min_size = self
+            .docks
+            .get(&placement)
+            .map(|pane| pane.dock.min_size())
+            .unwrap_or(PANEL_MIN_SIZE);
         let sizing = DockSizing::new(placement)
             .with_area_bounds(self.bounds)
-            .with_opposite_dock_size(opposite.unwrap_or(px(0.)));
+            .with_opposite_dock_size(opposite.unwrap_or(px(0.)))
+            .with_min_size(min_size);
         let size = sizing.clamp(sizing.size_from_pointer(pointer));
 
         if let Some(pane) = self.docks.get_mut(&placement) {
@@ -1336,11 +1371,12 @@ impl DockArea {
         let pane = self.docks.get(&placement)?;
         let dock = self.dock_context(placement, &pane.dock);
 
-        // A closed left or right dock takes no space at all; a closed bottom
-        // dock keeps a strip so its tab bar stays clickable. Nothing is drawn
-        // for a dock with no extent, and the renderer is not asked for chrome
-        // nobody can see.
-        let size = dock_extent(&dock);
+        // An open dock always uses its stored size. A closed dock keeps only
+        // the chrome its renderer says remains interactive; base cannot infer
+        // that extent because it does not know whether the renderer draws a
+        // tab bar, a title row, or nothing at all.
+        let collapsed_extent = self.renderer.collapsed_dock_extent(&dock, window, cx);
+        let size = dock_extent(&dock, collapsed_extent);
         if size <= px(0.) {
             return Some(div().into_any_element());
         }
@@ -1411,33 +1447,16 @@ impl Render for DockArea {
             })
             .track_focus(&self.focus_handle)
             .map(|frame| match self.zoomed_view() {
-                Some(view) => frame.child(view),
-                None => frame
-                    .when_some(
-                        self.render_dock(DockPlacement::Left, window, cx),
-                        ParentElement::child,
-                    )
-                    .child(
-                        renderer
-                            .center_frame(window, cx)
-                            // Same reason as the frame above: the centre is
-                            // whatever the side docks leave, in a column with
-                            // the bottom dock. Without this it is neither, and
-                            // shrinks to its content.
-                            .flex()
-                            .flex_1()
-                            .flex_col()
-                            .overflow_hidden()
-                            .child(self.render_node(self.center.root(), window, cx))
-                            .when_some(
-                                self.render_dock(DockPlacement::Bottom, window, cx),
-                                ParentElement::child,
-                            ),
-                    )
-                    .when_some(
-                        self.render_dock(DockPlacement::Right, window, cx),
-                        ParentElement::child,
-                    ),
+                Some(view) => frame.child(renderer.render_zoomed(view, window, cx)),
+                None => {
+                    let regions = DockRegions {
+                        left: self.render_dock(DockPlacement::Left, window, cx),
+                        center: self.render_node(self.center.root(), window, cx),
+                        bottom: self.render_dock(DockPlacement::Bottom, window, cx),
+                        right: self.render_dock(DockPlacement::Right, window, cx),
+                    };
+                    frame.children(renderer.compose_regions(regions, window, cx))
+                }
             })
     }
 }
@@ -1663,6 +1682,28 @@ impl Render for PlaceholderPanel {
 type DockToggleHandler = Rc<dyn Fn(&mut Window, &mut App)>;
 type DockResizeHandler = Rc<dyn Fn(Point<Pixels>, &mut Window, &mut App)>;
 
+/// The four regions a skin packs in [`DockAreaRenderer::compose_regions`].
+pub struct DockRegions {
+    left: Option<AnyElement>,
+    center: AnyElement,
+    bottom: Option<AnyElement>,
+    right: Option<AnyElement>,
+}
+
+impl DockRegions {
+    /// Consume the regions in left, center, bottom, right order for composition.
+    pub fn into_parts(
+        self,
+    ) -> (
+        Option<AnyElement>,
+        AnyElement,
+        Option<AnyElement>,
+        Option<AnyElement>,
+    ) {
+        (self.left, self.center, self.bottom, self.right)
+    }
+}
+
 /// What a skin needs to draw one dock, and the callbacks it invokes rather
 /// than reimplementing the open/close and clamping behavior.
 #[derive(Clone)]
@@ -1705,17 +1746,11 @@ impl DockContext {
     }
 }
 
-/// A closed bottom dock keeps this much, so its tab bar stays clickable. A
-/// closed side dock keeps nothing: there is no tab bar left to click at zero
-/// width, and reopening it is the application's to offer.
-pub const CLOSED_BOTTOM_STRIP: Pixels = px(29.);
-
 /// How much room a dock asks for along its own axis.
-pub fn dock_extent(dock: &DockContext) -> Pixels {
-    match (dock.is_open(), dock.placement()) {
-        (true, _) => dock.size(),
-        (false, DockPlacement::Bottom) => CLOSED_BOTTOM_STRIP,
-        (false, _) => px(0.),
+fn dock_extent(dock: &DockContext, collapsed_extent: Pixels) -> Pixels {
+    match dock.is_open() {
+        true => dock.size(),
+        false => collapsed_extent,
     }
 }
 
@@ -1816,6 +1851,61 @@ pub trait DockAreaRenderer: 'static {
         cx: &mut App,
     ) -> AnyElement {
         content
+    }
+
+    /// Pack the four regions into the area.
+    ///
+    /// The default is the IDE picture: left | (center over bottom) | right.
+    /// Center is `flex_1`/`min_w_0` so that column fills the row.
+    fn compose_regions(
+        &self,
+        regions: DockRegions,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Vec<AnyElement> {
+        vec![
+            div()
+                .id("dock-area-regions")
+                .size_full()
+                .flex()
+                .flex_row()
+                .min_w_0()
+                .children(regions.left)
+                .child(
+                    self.center_frame(window, cx)
+                        .flex()
+                        .flex_1()
+                        .min_w_0()
+                        .flex_col()
+                        .overflow_hidden()
+                        .child(regions.center)
+                        .children(regions.bottom),
+                )
+                .children(regions.right)
+                .into_any_element(),
+        ]
+    }
+
+    /// Wrap the container that fills the area while zoomed.
+    ///
+    /// The default fills the frame with the view.
+    fn render_zoomed(&self, view: AnyView, _: &mut Window, _: &mut App) -> AnyElement {
+        div().size_full().child(view).into_any_element()
+    }
+
+    /// The chrome a closed dock keeps along its own axis.
+    ///
+    /// Base owns the structural frame around that chrome, but cannot derive
+    /// its extent from an element before layout. A renderer that leaves an
+    /// interactive tab or title strip supplies its height or width here; a
+    /// renderer with no closed-dock chrome keeps the zero default.
+    fn collapsed_dock_extent(
+        &self,
+        dock: &DockContext,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Pixels {
+        px(0.)
     }
 
     /// The stand-in for a panel this build cannot construct — one whose
@@ -1924,6 +2014,78 @@ mod tests {
             let _ = crate::Theme::global_mut(cx);
         });
         cx.add_window_view(|window, cx| DockArea::new("test-dock", None, window, cx))
+    }
+
+    struct CollapsedExtentSkin {
+        requested: Pixels,
+        measured: Rc<Cell<Pixels>>,
+    }
+
+    impl DockAreaRenderer for CollapsedExtentSkin {
+        fn collapsed_dock_extent(&self, _: &DockContext, _: &mut Window, _: &mut App) -> Pixels {
+            self.requested
+        }
+
+        fn render_dock(
+            &self,
+            dock: &DockContext,
+            content: AnyElement,
+            _: &mut Window,
+            _: &mut App,
+        ) -> AnyElement {
+            if dock.placement() != DockPlacement::Bottom {
+                return content;
+            }
+            let measured = self.measured.clone();
+            div()
+                .size_full()
+                .on_prepaint(move |bounds, _, _| measured.set(bounds.size.height))
+                .child(content)
+                .into_any_element()
+        }
+
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+    }
+
+    fn measure_closed_bottom(requested: Pixels, cx: &mut TestAppContext) -> Pixels {
+        cx.update(|cx| {
+            let _ = crate::Theme::global_mut(cx);
+        });
+        let measured = Rc::new(Cell::new(Pixels::ZERO));
+        let probe = measured.clone();
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("collapsed-extent", None, window, cx).with_renderer(Rc::new(
+                CollapsedExtentSkin {
+                    requested,
+                    measured: probe,
+                },
+            ))
+        });
+        cx.simulate_resize(gpui::size(px(800.), px(600.)));
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.set_dock(
+                    DockPlacement::Bottom,
+                    DockLayout::tabs().panel(TestPanel::new("Bottom", cx)),
+                    window,
+                    cx,
+                );
+                if area.is_dock_open(DockPlacement::Bottom) {
+                    area.toggle_dock(DockPlacement::Bottom, window, cx);
+                }
+            });
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        measured.get()
+    }
+
+    #[gpui::test]
+    fn closed_bottom_extent_comes_from_its_renderer(cx: &mut TestAppContext) {
+        assert_eq!(measure_closed_bottom(px(17.), cx), px(17.));
+        assert_eq!(measure_closed_bottom(px(43.), cx), px(43.));
     }
 
     #[gpui::test]
@@ -2373,6 +2535,69 @@ mod tests {
             sizes, &measured,
             "the written sizes are the ones on screen, not the ones the tree \
              was built from"
+        );
+    }
+
+    #[gpui::test]
+    fn toggling_a_dock_preserves_its_measured_split_sizes(cx: &mut TestAppContext) {
+        let (area, cx) = setup(cx);
+        cx.update(|window, cx| {
+            let center = TestPanel::new("Center", cx);
+            let alpha = TestPanel::new("Alpha", cx);
+            let beta = TestPanel::new("Beta", cx);
+            area.update(cx, |area, cx| {
+                area.set_center(DockLayout::tabs().panel(center), window, cx);
+                area.set_dock(
+                    DockPlacement::Left,
+                    DockLayout::h_split()
+                        .child(DockLayout::tabs().panel(alpha), Some(px(300.)))
+                        .child(DockLayout::tabs().panel(beta), Some(px(300.))),
+                    window,
+                    cx,
+                );
+                area.set_dock_size(DockPlacement::Left, px(420.), window, cx);
+            });
+        });
+        cx.run_until_parked();
+
+        let root = cx.read(|cx| {
+            area.read(cx)
+                .layout(DockPlacement::Left)
+                .expect("left dock")
+                .root()
+                .id()
+        });
+        let split = cx.read(|cx| area.read(cx).splits[&root].entity.clone());
+        let before = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_ne!(
+            before,
+            vec![px(300.), px(300.)],
+            "the fixture must produce live measurements different from the tree"
+        );
+
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.toggle_dock(DockPlacement::Left, window, cx);
+            });
+        });
+
+        let after_close = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_eq!(
+            after_close, before,
+            "closing a dock must not replace its live split sizes with stale tree values"
+        );
+
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.toggle_dock(DockPlacement::Left, window, cx);
+            });
+        });
+        cx.run_until_parked();
+
+        let after_reopen = cx.read(|cx| split.read(cx).sizes().clone());
+        assert_eq!(
+            after_reopen, before,
+            "reopening a dock must restore the split sizes captured before closing"
         );
     }
 
@@ -4005,6 +4230,278 @@ mod tests {
         assert!(
             !cx.read(|cx| area.read(cx).is_zoomed()),
             "the area must not fill itself with a group that never zoomed"
+        );
+    }
+
+    fn install_four_regions(area: &Entity<DockArea>, window: &mut Window, cx: &mut App) {
+        let center = TestPanel::new("Center", cx);
+        let left = TestPanel::new("Left", cx);
+        let right = TestPanel::new("Right", cx);
+        let bottom = TestPanel::new("Bottom", cx);
+        area.update(cx, |area, cx| {
+            area.set_center(DockLayout::tabs().panel(center), window, cx);
+            area.set_dock(
+                DockPlacement::Left,
+                DockLayout::tabs().panel(left),
+                window,
+                cx,
+            );
+            area.set_dock(
+                DockPlacement::Right,
+                DockLayout::tabs().panel(right),
+                window,
+                cx,
+            );
+            area.set_dock(
+                DockPlacement::Bottom,
+                DockLayout::tabs().panel(bottom),
+                window,
+                cx,
+            );
+            area.set_dock_size(DockPlacement::Left, px(200.), window, cx);
+            area.set_dock_size(DockPlacement::Right, px(200.), window, cx);
+            area.set_dock_size(DockPlacement::Bottom, px(120.), window, cx);
+        });
+    }
+
+    struct BoundsSkin {
+        bottom: Rc<Cell<Option<Bounds<Pixels>>>>,
+        zoomed: Rc<Cell<bool>>,
+        full_width: bool,
+    }
+
+    impl DockAreaRenderer for BoundsSkin {
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+        fn render_dock(
+            &self,
+            dock: &DockContext,
+            content: AnyElement,
+            _: &mut Window,
+            _: &mut App,
+        ) -> AnyElement {
+            if dock.placement() != DockPlacement::Bottom {
+                return div().size_full().child(content).into_any_element();
+            }
+            let bottom_cell = self.bottom.clone();
+            div()
+                .id("measured-bottom")
+                .size_full()
+                .on_prepaint(move |bounds, _, _| bottom_cell.set(Some(bounds)))
+                .child(content)
+                .into_any_element()
+        }
+        fn compose_regions(
+            &self,
+            regions: DockRegions,
+            window: &mut Window,
+            cx: &mut App,
+        ) -> Vec<AnyElement> {
+            if !self.full_width {
+                return BareDefaultSkin.compose_regions(regions, window, cx);
+            }
+            vec![
+                div()
+                    .id("full-width-shell")
+                    .size_full()
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .flex()
+                            .flex_row()
+                            .children(regions.left)
+                            .child(div().flex_1().min_w_0().child(regions.center))
+                            .children(regions.right),
+                    )
+                    .children(regions.bottom)
+                    .into_any_element(),
+            ]
+        }
+        fn render_zoomed(&self, view: AnyView, _: &mut Window, _: &mut App) -> AnyElement {
+            self.zoomed.set(true);
+            div()
+                .id("zoomed-wrap")
+                .size_full()
+                .pt(px(34.))
+                .child(view)
+                .into_any_element()
+        }
+    }
+
+    /// Marker that forces the trait default `compose_regions` (IDE packing).
+    struct BareDefaultSkin;
+    impl DockAreaRenderer for BareDefaultSkin {
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+    }
+
+    #[gpui::test]
+    fn default_compose_keeps_bottom_under_center(cx: &mut TestAppContext) {
+        let bottom = Rc::new(Cell::new(None));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("default-compose", None, window, cx).with_renderer(Rc::new(BoundsSkin {
+                bottom: bottom.clone(),
+                zoomed: Rc::new(Cell::new(false)),
+                full_width: false,
+            }))
+        });
+        cx.update(|window, cx| install_four_regions(&area, window, cx));
+        cx.run_until_parked();
+        let area_width = cx.read(|cx| area.read(cx).bounds().size.width);
+        let bottom_width = bottom.get().expect("bottom prepainted").size.width;
+        assert!(
+            bottom_width < area_width,
+            "IDE default: Bottom is only as wide as Center, got bottom={bottom_width:?} area={area_width:?}"
+        );
+    }
+
+    #[gpui::test]
+    fn a_renderer_can_compose_full_width_bottom(cx: &mut TestAppContext) {
+        let bottom = Rc::new(Cell::new(None));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("full-width", None, window, cx).with_renderer(Rc::new(BoundsSkin {
+                bottom: bottom.clone(),
+                zoomed: Rc::new(Cell::new(false)),
+                full_width: true,
+            }))
+        });
+        cx.update(|window, cx| install_four_regions(&area, window, cx));
+        cx.run_until_parked();
+        let area_width = cx.read(|cx| area.read(cx).bounds().size.width);
+        let bottom_width = bottom.get().expect("bottom prepainted").size.width;
+        assert_eq!(bottom_width, area_width);
+    }
+
+    #[gpui::test]
+    fn render_zoomed_wraps_the_zoomed_view(cx: &mut TestAppContext) {
+        let zoomed = Rc::new(Cell::new(false));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("zoom-wrap", None, window, cx).with_renderer(Rc::new(BoundsSkin {
+                bottom: Rc::new(Cell::new(None)),
+                zoomed: zoomed.clone(),
+                full_width: true,
+            }))
+        });
+        cx.update(|window, cx| {
+            let center = TestPanel::new("Center", cx);
+            area.update(cx, |area, cx| {
+                area.set_center(DockLayout::tabs().panel(center), window, cx);
+            });
+        });
+        // `set_center` wraps a tab group in a Split, so zoom names that group.
+        let node = child_node(&area, 0, cx);
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| area.set_zoomed_in(node, window, cx));
+        });
+        cx.run_until_parked();
+        assert!(
+            zoomed.get(),
+            "render_zoomed must run for a zoomed container"
+        );
+    }
+
+    /// Outer Left/Right/Bottom are not packed through `ResizableState`, so a
+    /// window grow must not proportionally stretch an explicit edge size.
+    /// Skins honor `dock.size()` the way `DockSkin` and Neath do.
+    struct EdgeSizeSkin {
+        left: Rc<Cell<Option<Bounds<Pixels>>>>,
+    }
+
+    impl DockAreaRenderer for EdgeSizeSkin {
+        fn tab_group_renderer(&self) -> Rc<dyn TabGroupRenderer> {
+            Rc::new(BareTabGroup)
+        }
+        fn render_dock(
+            &self,
+            dock: &DockContext,
+            content: AnyElement,
+            _: &mut Window,
+            _: &mut App,
+        ) -> AnyElement {
+            match dock.placement() {
+                DockPlacement::Left => {
+                    let left = self.left.clone();
+                    div()
+                        .id("measured-left")
+                        .flex_none()
+                        .w(dock.size())
+                        .h_full()
+                        .on_prepaint(move |bounds, _, _| left.set(Some(bounds)))
+                        .child(content)
+                        .into_any_element()
+                }
+                DockPlacement::Right => div()
+                    .flex_none()
+                    .w(dock.size())
+                    .h_full()
+                    .child(content)
+                    .into_any_element(),
+                DockPlacement::Bottom => div()
+                    .flex_none()
+                    .w_full()
+                    .h(dock.size())
+                    .child(content)
+                    .into_any_element(),
+                DockPlacement::Center => content,
+            }
+        }
+    }
+
+    fn draw_area(cx: &mut VisualTestContext) {
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            window.draw(cx).clear(cx);
+            window.draw(cx).clear(cx);
+        });
+    }
+
+    /// Task 13.1: an explicit 260 px left dock stays 260 after the window
+    /// grows. If this is already green, no outer-edge `.fixed(true)` hook.
+    #[gpui::test]
+    fn an_explicit_left_dock_stays_260_after_the_window_grows(cx: &mut TestAppContext) {
+        let left = Rc::new(Cell::new(None));
+        let (area, cx) = cx.add_window_view(|window, cx| {
+            DockArea::new("edge-size", None, window, cx)
+                .with_renderer(Rc::new(EdgeSizeSkin { left: left.clone() }))
+        });
+        cx.update(|window, cx| {
+            install_four_regions(&area, window, cx);
+            area.update(cx, |area, cx| {
+                area.set_dock_size(DockPlacement::Left, px(260.), window, cx);
+            });
+        });
+
+        cx.simulate_resize(gpui::size(px(800.), px(600.)));
+        draw_area(cx);
+        let at_800 = left.get().expect("left prepainted at 800").size.width;
+        assert_eq!(at_800, px(260.), "left is 260 before the window grows");
+        assert_eq!(
+            cx.read(|cx| area.read(cx).dump(cx).left_dock.as_ref().unwrap().size()),
+            px(260.)
+        );
+
+        cx.simulate_resize(gpui::size(px(1400.), px(600.)));
+        draw_area(cx);
+        let at_1400 = left.get().expect("left prepainted at 1400").size.width;
+        assert_eq!(
+            at_1400,
+            px(260.),
+            "window grow must not stretch an explicit 260 px left dock, got {at_1400:?}"
+        );
+        assert_eq!(
+            cx.read(|cx| area.read(cx).dump(cx).left_dock.as_ref().unwrap().size()),
+            px(260.),
+            "dump size must stay the stored 260, not a rescaled measurement"
+        );
+        let area_width = cx.read(|cx| area.read(cx).bounds().size.width);
+        assert!(
+            area_width > px(800.),
+            "the window has to have grown, or this cannot tell stretch from a no-op; area={area_width:?}"
         );
     }
 }

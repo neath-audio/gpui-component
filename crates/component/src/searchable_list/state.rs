@@ -1,6 +1,6 @@
 use gpui::{
-    AnyElement, App, AppContext as _, Bounds, Context, Entity, FocusHandle, Focusable as _, Length,
-    Pixels, StyleRefinement, Subscription, Window,
+    AnyElement, App, AppContext as _, Bounds, Context, Entity, FocusHandle, Focusable as _, Hsla,
+    Length, Pixels, StyleRefinement, Subscription, Window,
 };
 
 use gpui_base::DeferredPopover;
@@ -33,10 +33,20 @@ where
     pub(crate) cleanable: bool,
     pub(crate) placeholder: Option<gpui::SharedString>,
     pub(crate) search_placeholder: Option<gpui::SharedString>,
+    /// Query-row text-size variant, passed through to the popup `List` —
+    /// see `List::search_text_size`.
+    pub(crate) search_text_size: Option<gpui::Rems>,
+    /// Query-row wrapper insets, passed through to the popup `List` —
+    /// see `List::search_paddings`.
+    pub(crate) search_paddings: Option<gpui::Edges<Pixels>>,
     pub(crate) menu_width: Length,
     pub(crate) menu_max_h: Length,
+    pub(crate) menu_bg: Option<Hsla>,
+    pub(crate) menu_border: Option<Hsla>,
+    pub(crate) menu_accent: Option<Hsla>,
     pub(crate) disabled: bool,
     pub(crate) appearance: bool,
+    pub(crate) trigger_ghost: bool,
     pub(crate) empty: Option<Box<dyn Fn(&mut Window, &App) -> AnyElement + 'static>>,
 
     pub(crate) _subscriptions: Vec<Subscription>,
@@ -120,10 +130,16 @@ where
             cleanable: false,
             placeholder: None,
             search_placeholder: None,
+            search_text_size: None,
+            search_paddings: None,
             menu_width: Length::Auto,
+            menu_border: None,
+            menu_accent: None,
             menu_max_h: gpui::rems(20.).into(),
+            menu_bg: None,
             disabled: false,
             appearance: true,
+            trigger_ghost: false,
             empty: None,
             _subscriptions,
         }

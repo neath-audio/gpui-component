@@ -165,6 +165,6 @@ Rating::new("rating")
     .color(cx.theme().orange)
 ```
 
-[Rating]: https://docs.rs/gpui-component/latest/gpui_component/rating/struct.Rating.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
-[Disableable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Disableable.html
+[Rating]: https://docs.rs/gpui-neath/latest/gpui_neath/rating/struct.Rating.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html
+[Disableable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Disableable.html

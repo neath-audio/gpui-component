@@ -1,6 +1,6 @@
 use super::{Carrier, take};
 use super::{bool_method, require_child};
-use gpui_component::{
+use gpui_neath::{
     Icon, IconName, h_flex,
     list::ListItem,
     tree::{Tree, TreeItem, TreeState},

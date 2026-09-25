@@ -9,7 +9,10 @@ use crate::highlighter::{HighlightTheme, HighlightThemeStyle};
 use super::color::{
     try_parse_background, try_parse_background_clamped, try_parse_color, try_parse_theme_color,
 };
-use super::{Colorize, SemanticThemeTokens, Theme, ThemeColor, ThemeMode, ThemeToken, ThemeTokens};
+use super::{
+    Colorize, SemanticThemeTokens, Theme, ThemeColor, ThemeMode, ThemeToken, ThemeTokens,
+    ThemeTranslucency,
+};
 
 fn try_parse_theme_token(value: &str) -> anyhow::Result<ThemeToken> {
     Ok(ThemeToken::new(
@@ -73,12 +76,29 @@ pub struct ThemeConfig {
     #[serde(rename = "shadow")]
     pub shadow: Option<bool>,
 
+    /// Opt-in controls for whole-window and local translucent materials.
+    pub translucency: ThemeTranslucencyConfig,
+
     /// The colors of the theme.
     pub colors: ThemeConfigColors,
     /// The highlight theme, this part is combilbility with `style` section in Zed theme.
     ///
     /// https://github.com/zed-industries/zed/blob/f50041779dcfd7a76c8aec293361c60c53f02d51/assets/themes/ayu/ayu.json#L9
     pub highlight: Option<HighlightThemeStyle>,
+}
+
+/// Theme-authored translucency settings.
+///
+/// Transparency in a color never enables glass. Themes must explicitly set
+/// [`Self::window`] before the platform window or local materials become translucent.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct ThemeTranslucencyConfig {
+    pub window: bool,
+    #[schemars(range(min = 0.0, max = 64.0))]
+    pub overlay_blur: f32,
+    #[schemars(range(min = 0.0, max = 64.0))]
+    pub panel_blur: f32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -263,6 +283,9 @@ pub struct ThemeConfigColors {
     /// Default background color.
     #[serde(rename = "background")]
     pub background: Option<SharedString>,
+    /// Window background color.
+    #[serde(rename = "window.background")]
+    pub window_background: Option<SharedString>,
     /// Default border color
     #[serde(rename = "border")]
     pub border: Option<SharedString>,
@@ -378,10 +401,10 @@ pub struct ThemeConfigColors {
     #[serde(rename = "chart.5")]
     pub chart_5: Option<SharedString>,
     /// Bullish color for candlestick charts (upward price movement).
-    #[serde(rename = "chart.bullish")]
+    #[serde(rename = "chart.bullish", alias = "chart_bullish")]
     pub chart_bullish: Option<SharedString>,
     /// Bearish color for candlestick charts (downward price movement).
-    #[serde(rename = "chart.bearish")]
+    #[serde(rename = "chart.bearish", alias = "chart_bearish")]
     pub chart_bearish: Option<SharedString>,
     /// Danger background color.
     #[serde(rename = "danger.background")]
@@ -658,6 +681,7 @@ pub struct ThemeConfigColors {
     /// Base magenta color.
     #[serde(rename = "base.magenta")]
     magenta: Option<String>,
+    /// Base light magenta color.
     #[serde(rename = "base.magenta.light")]
     magenta_light: Option<String>,
     /// Base red color.
@@ -672,6 +696,187 @@ pub struct ThemeConfigColors {
     /// Base light yellow color.
     #[serde(rename = "base.yellow.light")]
     yellow_light: Option<String>,
+
+    /// Strong border color for emphasized outlines and drop zones.
+    #[serde(rename = "border.strong")]
+    pub border_strong: Option<SharedString>,
+    /// Card background color.
+    #[serde(rename = "card.background")]
+    pub card: Option<SharedString>,
+    /// Card foreground color.
+    #[serde(rename = "card.foreground")]
+    pub card_foreground: Option<SharedString>,
+    /// Card border color.
+    #[serde(rename = "card.border")]
+    pub card_border: Option<SharedString>,
+    /// Card hover background color.
+    #[serde(rename = "card.hover.background")]
+    pub card_hover: Option<SharedString>,
+    /// Card active background color.
+    #[serde(rename = "card.active.background")]
+    pub card_active: Option<SharedString>,
+    /// Selected card background color.
+    #[serde(rename = "card.selected.background")]
+    pub card_selected: Option<SharedString>,
+    /// Selected card border color.
+    #[serde(rename = "card.selected.border")]
+    pub card_selected_border: Option<SharedString>,
+    /// Checked switch track background color.
+    #[serde(rename = "switch.checked.background")]
+    pub switch_checked: Option<SharedString>,
+    /// Checked switch thumb background color.
+    #[serde(rename = "switch.thumb.checked.background")]
+    pub switch_thumb_checked: Option<SharedString>,
+    /// Transport strip background color.
+    #[serde(rename = "transport.background")]
+    pub transport: Option<SharedString>,
+    /// Transport strip border color.
+    #[serde(rename = "transport.border")]
+    pub transport_border: Option<SharedString>,
+    /// Knob track background color.
+    #[serde(rename = "knob.background")]
+    pub knob: Option<SharedString>,
+    /// Knob value background color.
+    #[serde(rename = "knob.value.background")]
+    pub knob_value: Option<SharedString>,
+    /// Knob pointer foreground color.
+    #[serde(rename = "knob.foreground")]
+    pub knob_foreground: Option<SharedString>,
+    /// Low similarity score color.
+    #[serde(rename = "similarity.low")]
+    pub similarity_low: Option<SharedString>,
+    /// Medium similarity score color.
+    #[serde(rename = "similarity.medium")]
+    pub similarity_medium: Option<SharedString>,
+    /// High similarity score color.
+    #[serde(rename = "similarity.high")]
+    pub similarity_high: Option<SharedString>,
+    /// Meter fill color.
+    #[serde(rename = "meter.fill")]
+    pub meter_fill: Option<SharedString>,
+    /// Meter held-peak color.
+    #[serde(rename = "meter.peak")]
+    pub meter_peak: Option<SharedString>,
+    /// Meter track color.
+    #[serde(rename = "meter.track")]
+    pub meter_track: Option<SharedString>,
+    /// Meter clipping indicator color.
+    #[serde(rename = "meter.clip")]
+    pub meter_clip: Option<SharedString>,
+    /// Waveform canvas background color.
+    #[serde(rename = "waveform.background")]
+    pub waveform: Option<SharedString>,
+    /// Compact waveform thumbnail fill color.
+    #[serde(rename = "waveform.thumbnail.fill")]
+    pub waveform_thumbnail_fill: Option<SharedString>,
+    /// Main waveform fill color.
+    #[serde(rename = "waveform.fill")]
+    pub waveform_fill: Option<SharedString>,
+    /// Waveform fill inside a time selection.
+    #[serde(rename = "waveform.time_selection.foreground")]
+    pub waveform_time_selection_foreground: Option<SharedString>,
+    /// Time-selection band background color.
+    #[serde(rename = "waveform.time_selection.background")]
+    pub waveform_time_selection: Option<SharedString>,
+    /// Time-selection border color.
+    #[serde(rename = "waveform.time_selection.border")]
+    pub waveform_time_selection_border: Option<SharedString>,
+    /// Active time-selection border color.
+    #[serde(rename = "waveform.time_selection.active.border")]
+    pub waveform_time_selection_active_border: Option<SharedString>,
+    /// Waveform fill over a visual overlay.
+    #[serde(rename = "waveform.overlay.fill")]
+    pub waveform_overlay_fill: Option<SharedString>,
+    /// Waveform overlay zero-line color.
+    #[serde(rename = "waveform.overlay.zero_line")]
+    pub waveform_overlay_zero_line: Option<SharedString>,
+    /// Selected waveform fill over a visual overlay.
+    #[serde(rename = "waveform.overlay.time_selection.foreground")]
+    pub waveform_overlay_time_selection_foreground: Option<SharedString>,
+    /// Waveform zero-line color.
+    #[serde(rename = "waveform.zero_line")]
+    pub waveform_zero_line: Option<SharedString>,
+    /// Waveform fade-control color.
+    #[serde(rename = "waveform.fade_control")]
+    pub waveform_fade_control: Option<SharedString>,
+    /// Waveform playhead color.
+    #[serde(rename = "waveform.playhead")]
+    pub waveform_playhead: Option<SharedString>,
+    /// Waveform ruler background color.
+    #[serde(rename = "waveform.ruler.background")]
+    pub waveform_ruler: Option<SharedString>,
+    /// Waveform ruler foreground color.
+    #[serde(rename = "waveform.ruler.foreground")]
+    pub waveform_ruler_foreground: Option<SharedString>,
+    /// Waveform channel-label background color.
+    #[serde(rename = "waveform.channel_label.background")]
+    pub waveform_channel_label: Option<SharedString>,
+    /// Waveform channel-label foreground color.
+    #[serde(rename = "waveform.channel_label.foreground")]
+    pub waveform_channel_label_foreground: Option<SharedString>,
+    /// Waveform marker background color.
+    #[serde(rename = "waveform.marker.background")]
+    pub waveform_marker: Option<SharedString>,
+    /// Waveform marker foreground color.
+    #[serde(rename = "waveform.marker.foreground")]
+    pub waveform_marker_foreground: Option<SharedString>,
+    /// Active waveform marker color.
+    #[serde(rename = "waveform.marker.active")]
+    pub waveform_marker_active: Option<SharedString>,
+    /// Waveform segment background color.
+    #[serde(rename = "waveform.segment.background")]
+    pub waveform_segment: Option<SharedString>,
+    /// Active waveform segment color.
+    #[serde(rename = "waveform.segment.active")]
+    pub waveform_segment_active: Option<SharedString>,
+}
+
+/// Canonical schema metadata paired with one resolved representative color.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedThemeColorProperty {
+    /// Persisted JSON key from [`ThemeConfigColors`]' generated schema.
+    pub key: SharedString,
+    /// Human-readable description from the generated schema.
+    pub description: SharedString,
+    /// Solid representative color for swatches and color editors.
+    pub color: Hsla,
+}
+
+fn waveform_tint(
+    background: Hsla,
+    foreground: Hsla,
+    selection: Hsla,
+    saturation: f32,
+    contrast: f32,
+) -> Hsla {
+    Hsla {
+        h: selection.h,
+        s: saturation,
+        l: background.l + (foreground.l - background.l) * contrast,
+        a: 1.,
+    }
+}
+
+fn mix_hsla(left: Hsla, right: Hsla, amount: f32) -> Hsla {
+    let mut hue_delta = right.h - left.h;
+    if hue_delta > 0.5 {
+        hue_delta -= 1.;
+    } else if hue_delta < -0.5 {
+        hue_delta += 1.;
+    }
+
+    Hsla {
+        h: (left.h + hue_delta * amount).rem_euclid(1.),
+        s: left.s + (right.s - left.s) * amount,
+        l: left.l + (right.l - left.l) * amount,
+        a: left.a + (right.a - left.a) * amount,
+    }
+}
+
+fn selected_overlay_waveform(mut color: Hsla) -> Hsla {
+    color.l += 0.18 * (1. - color.l);
+    color.s = (color.s * 1.08).min(1.);
+    color
 }
 
 impl ThemeColor {
@@ -738,6 +943,7 @@ impl ThemeColor {
         }
 
         apply_background_color!(background);
+        apply_background_color!(window_background, fallback = tokens.background);
 
         // Base colors for fallback
         apply_color!(red);
@@ -914,6 +1120,7 @@ impl ThemeColor {
                 )
         );
         apply_color!(group_box_foreground, fallback = self.foreground);
+        apply_color!(group_box_title_foreground, fallback = self.muted_foreground);
         apply_color!(caret, fallback = self.primary);
         apply_color!(chart_1, fallback = self.blue.lighten(0.4));
         apply_color!(chart_2, fallback = self.blue.lighten(0.2));
@@ -1051,11 +1258,407 @@ impl ThemeColor {
             0.3,
         );
 
+        // Direct component and product roles resolve only after their upstream
+        // parents are final, including the highlight alpha clamps above.
+        apply_color!(border_strong, fallback = self.input);
+
+        apply_background_color!(card, fallback = tokens.group_box);
+        apply_color!(card_foreground, fallback = self.group_box_foreground);
+        apply_color!(card_border, fallback = self.border);
+        apply_background_color!(card_hover, fallback = tokens.list_hover);
+        apply_background_color!(card_active, fallback = tokens.button_secondary_active);
+        apply_background_color!(card_selected, fallback = tokens.list_active);
+        apply_color!(card_selected_border, fallback = self.list_active_border);
+
+        apply_background_color!(switch_checked, fallback = tokens.primary);
+        apply_background_color!(switch_thumb_checked, fallback = tokens.switch_thumb);
+
+        apply_background_color!(transport, fallback = tokens.background);
+        apply_color!(transport_border, fallback = self.border);
+
+        apply_background_color!(knob, fallback = self.muted_foreground.opacity(0.2));
+        apply_background_color!(knob_value, fallback = tokens.slider_bar);
+        apply_color!(knob_foreground, fallback = self.foreground);
+
+        apply_color!(similarity_low, fallback = self.danger);
+        apply_color!(similarity_medium, fallback = self.warning);
+        apply_color!(similarity_high, fallback = self.success);
+
+        apply_background_color!(meter_fill, fallback = tokens.primary);
+        apply_background_color!(meter_peak, fallback = tokens.primary);
+        apply_background_color!(
+            meter_track,
+            fallback = self.border.opacity(0.45).opacity(0.6)
+        );
+        apply_background_color!(meter_clip, fallback = tokens.danger);
+
+        let background = self.background;
+        let foreground = self.foreground;
+        let muted_foreground = self.muted_foreground;
+        let selection = self.selection;
+        let is_dark = background.l < 0.5;
+
+        apply_background_color!(waveform, fallback = tokens.background);
+
+        let thumbnail_fill = Hsla {
+            a: 1.,
+            ..muted_foreground
+        }
+        .mix_oklab(
+            Hsla {
+                a: 1.,
+                ..self.accent
+            },
+            0.92,
+        );
+        apply_background_color!(waveform_thumbnail_fill, fallback = thumbnail_fill);
+
+        let waveform_fill = waveform_tint(
+            background,
+            foreground,
+            selection,
+            0.30,
+            if is_dark { 0.78 } else { 0.76 },
+        );
+        apply_background_color!(waveform_fill, fallback = waveform_fill);
+
+        let selected_waveform_fill = waveform_tint(
+            background,
+            foreground,
+            selection,
+            0.55,
+            if is_dark { 0.86 } else { 0.84 },
+        );
+        apply_color!(
+            waveform_time_selection_foreground,
+            fallback = selected_waveform_fill
+        );
+
+        let selection_alpha_factor = if selection.a > 0. {
+            0.18 / selection.a
+        } else {
+            1.
+        };
+        let time_selection = ThemeToken::new(
+            selection.alpha(0.18),
+            tokens.selection.background.opacity(selection_alpha_factor),
+        );
+        apply_background_color!(waveform_time_selection, fallback = time_selection);
+        apply_color!(
+            waveform_time_selection_border,
+            fallback = selection.alpha(if is_dark { 0.72 } else { 0.66 })
+        );
+        apply_color!(
+            waveform_time_selection_active_border,
+            fallback = selection.alpha(0.78)
+        );
+
+        let overlay_fill = Hsla {
+            h: selection.h,
+            s: 0.22,
+            l: background.l + (foreground.l - background.l) * if is_dark { 0.92 } else { 0.88 },
+            a: 1.,
+        };
+        apply_background_color!(waveform_overlay_fill, fallback = overlay_fill);
+        apply_color!(
+            waveform_overlay_zero_line,
+            fallback = Hsla {
+                h: 0.,
+                s: 0.,
+                l: if overlay_fill.l > 0.5 { 0. } else { 1. },
+                a: 0.80,
+            }
+        );
+        apply_color!(
+            waveform_overlay_time_selection_foreground,
+            fallback = selected_overlay_waveform(overlay_fill)
+        );
+        apply_color!(waveform_zero_line, fallback = foreground.alpha(0.05));
+        apply_color!(
+            waveform_fade_control,
+            fallback = waveform_tint(background, foreground, selection, 0.72, 0.55).alpha(0.85)
+        );
+        apply_color!(
+            waveform_playhead,
+            fallback = Hsla {
+                h: 0.02,
+                s: 0.56,
+                l: 0.46,
+                a: 1.,
+            }
+        );
+        apply_background_color!(waveform_ruler, fallback = tokens.table_head);
+        apply_color!(
+            waveform_ruler_foreground,
+            fallback = muted_foreground.alpha(0.65)
+        );
+
+        let channel_label = Hsla {
+            a: 0.92,
+            ..mix_hsla(background, foreground, 0.10)
+        };
+        apply_background_color!(waveform_channel_label, fallback = channel_label);
+        apply_color!(
+            waveform_channel_label_foreground,
+            fallback = foreground.alpha(0.60)
+        );
+
+        apply_background_color!(waveform_marker, fallback = tokens.danger);
+        apply_color!(
+            waveform_marker_foreground,
+            fallback = self.danger_foreground
+        );
+        apply_color!(waveform_marker_active, fallback = self.danger_active);
+
+        let segment_alpha = (self.primary.a * 0.55).clamp(0.35, 1.);
+        let segment_alpha_factor = if self.primary.a > 0. {
+            segment_alpha / self.primary.a
+        } else {
+            1.
+        };
+        let segment = ThemeToken::new(
+            self.primary.alpha(segment_alpha),
+            tokens.primary.background.opacity(segment_alpha_factor),
+        );
+        apply_background_color!(waveform_segment, fallback = segment);
+        apply_background_color!(waveform_segment_active, fallback = tokens.primary);
+
         tokens
     }
 }
 
 impl Theme {
+    fn resolved_config_colors(&self) -> ThemeConfigColors {
+        let color = |value: Hsla| Some(SharedString::from(value.to_hex()));
+        let base_color = |value: Hsla| Some(value.to_hex());
+
+        // Keep this construction exhaustive: adding a schema field must fail
+        // compilation until its resolved representative is wired here.
+        ThemeConfigColors {
+            accent: color(self.accent),
+            accent_foreground: color(self.accent_foreground),
+            accordion: color(self.accordion),
+            background: color(self.background),
+            window_background: color(self.window_background),
+            border: color(self.border),
+            button: color(self.button),
+            button_active: color(self.button_active),
+            button_foreground: color(self.button_foreground),
+            button_hover: color(self.button_hover),
+            button_danger: color(self.button_danger),
+            button_danger_active: color(self.button_danger_active),
+            button_danger_foreground: color(self.button_danger_foreground),
+            button_danger_hover: color(self.button_danger_hover),
+            button_info: color(self.button_info),
+            button_info_active: color(self.button_info_active),
+            button_info_foreground: color(self.button_info_foreground),
+            button_info_hover: color(self.button_info_hover),
+            button_primary: color(self.button_primary),
+            button_primary_active: color(self.button_primary_active),
+            button_primary_foreground: color(self.button_primary_foreground),
+            button_primary_hover: color(self.button_primary_hover),
+            button_secondary: color(self.button_secondary),
+            button_secondary_active: color(self.button_secondary_active),
+            button_secondary_foreground: color(self.button_secondary_foreground),
+            button_secondary_hover: color(self.button_secondary_hover),
+            button_success: color(self.button_success),
+            button_success_active: color(self.button_success_active),
+            button_success_foreground: color(self.button_success_foreground),
+            button_success_hover: color(self.button_success_hover),
+            button_warning: color(self.button_warning),
+            button_warning_active: color(self.button_warning_active),
+            button_warning_foreground: color(self.button_warning_foreground),
+            button_warning_hover: color(self.button_warning_hover),
+            group_box: color(self.group_box),
+            group_box_foreground: color(self.group_box_foreground),
+            group_box_title_foreground: color(self.group_box_title_foreground),
+            caret: color(self.caret),
+            chart_1: color(self.chart_1),
+            chart_2: color(self.chart_2),
+            chart_3: color(self.chart_3),
+            chart_4: color(self.chart_4),
+            chart_5: color(self.chart_5),
+            chart_bullish: color(self.chart_bullish),
+            chart_bearish: color(self.chart_bearish),
+            danger: color(self.danger),
+            danger_active: color(self.danger_active),
+            danger_foreground: color(self.danger_foreground),
+            danger_hover: color(self.danger_hover),
+            description_list_label: color(self.description_list_label),
+            description_list_label_foreground: color(self.description_list_label_foreground),
+            drag_border: color(self.drag_border),
+            drop_target: color(self.drop_target),
+            foreground: color(self.foreground),
+            info: color(self.info),
+            info_active: color(self.info_active),
+            info_foreground: color(self.info_foreground),
+            info_hover: color(self.info_hover),
+            input: color(self.input),
+            link: color(self.link),
+            link_active: color(self.link_active),
+            link_hover: color(self.link_hover),
+            list: color(self.colors.list),
+            list_active: color(self.list_active),
+            list_active_border: color(self.list_active_border),
+            list_even: color(self.list_even),
+            list_head: color(self.list_head),
+            list_hover: color(self.list_hover),
+            muted: color(self.muted),
+            muted_foreground: color(self.muted_foreground),
+            popover: color(self.popover),
+            popover_foreground: color(self.popover_foreground),
+            primary: color(self.primary),
+            primary_active: color(self.primary_active),
+            primary_foreground: color(self.primary_foreground),
+            primary_hover: color(self.primary_hover),
+            progress_bar: color(self.progress_bar),
+            ring: color(self.ring),
+            scrollbar: color(self.scrollbar),
+            scrollbar_thumb: color(self.scrollbar_thumb),
+            scrollbar_thumb_hover: color(self.scrollbar_thumb_hover),
+            secondary: color(self.secondary),
+            secondary_active: color(self.secondary_active),
+            secondary_foreground: color(self.secondary_foreground),
+            secondary_hover: color(self.secondary_hover),
+            selection: color(self.selection),
+            sidebar: color(self.sidebar),
+            sidebar_accent: color(self.sidebar_accent),
+            sidebar_accent_foreground: color(self.sidebar_accent_foreground),
+            sidebar_border: color(self.sidebar_border),
+            sidebar_foreground: color(self.sidebar_foreground),
+            sidebar_primary: color(self.sidebar_primary),
+            sidebar_primary_foreground: color(self.sidebar_primary_foreground),
+            skeleton: color(self.skeleton),
+            slider_bar: color(self.slider_bar),
+            slider_thumb: color(self.slider_thumb),
+            success: color(self.success),
+            success_foreground: color(self.success_foreground),
+            success_hover: color(self.success_hover),
+            success_active: color(self.success_active),
+            switch: color(self.switch),
+            switch_thumb: color(self.switch_thumb),
+            tab: color(self.tab),
+            tab_active: color(self.tab_active),
+            tab_active_foreground: color(self.tab_active_foreground),
+            tab_bar: color(self.tab_bar),
+            tab_bar_segmented: color(self.tab_bar_segmented),
+            tab_foreground: color(self.tab_foreground),
+            table: color(self.table),
+            table_active: color(self.table_active),
+            table_active_border: color(self.table_active_border),
+            table_even: color(self.table_even),
+            table_head: color(self.table_head),
+            table_head_foreground: color(self.table_head_foreground),
+            table_foot: color(self.table_foot),
+            table_foot_foreground: color(self.table_foot_foreground),
+            table_hover: color(self.table_hover),
+            table_row_border: color(self.table_row_border),
+            title_bar: color(self.title_bar),
+            title_bar_border: color(self.title_bar_border),
+            status_bar: color(self.status_bar),
+            status_bar_border: color(self.status_bar_border),
+            warning: color(self.warning),
+            warning_active: color(self.warning_active),
+            warning_hover: color(self.warning_hover),
+            warning_foreground: color(self.warning_foreground),
+            overlay: color(self.overlay),
+            window_border: color(self.window_border),
+            blue: base_color(self.blue),
+            blue_light: base_color(self.blue_light),
+            cyan: base_color(self.cyan),
+            cyan_light: base_color(self.cyan_light),
+            green: base_color(self.green),
+            green_light: base_color(self.green_light),
+            magenta: base_color(self.magenta),
+            magenta_light: base_color(self.magenta_light),
+            red: base_color(self.red),
+            red_light: base_color(self.red_light),
+            yellow: base_color(self.yellow),
+            yellow_light: base_color(self.yellow_light),
+            border_strong: color(self.border_strong),
+            card: color(self.card),
+            card_foreground: color(self.card_foreground),
+            card_border: color(self.card_border),
+            card_hover: color(self.card_hover),
+            card_active: color(self.card_active),
+            card_selected: color(self.card_selected),
+            card_selected_border: color(self.card_selected_border),
+            switch_checked: color(self.switch_checked),
+            switch_thumb_checked: color(self.switch_thumb_checked),
+            transport: color(self.transport),
+            transport_border: color(self.transport_border),
+            knob: color(self.knob),
+            knob_value: color(self.knob_value),
+            knob_foreground: color(self.knob_foreground),
+            similarity_low: color(self.similarity_low),
+            similarity_medium: color(self.similarity_medium),
+            similarity_high: color(self.similarity_high),
+            meter_fill: color(self.meter_fill),
+            meter_peak: color(self.meter_peak),
+            meter_track: color(self.meter_track),
+            meter_clip: color(self.meter_clip),
+            waveform: color(self.waveform),
+            waveform_thumbnail_fill: color(self.waveform_thumbnail_fill),
+            waveform_fill: color(self.waveform_fill),
+            waveform_time_selection_foreground: color(self.waveform_time_selection_foreground),
+            waveform_time_selection: color(self.waveform_time_selection),
+            waveform_time_selection_border: color(self.waveform_time_selection_border),
+            waveform_time_selection_active_border: color(
+                self.waveform_time_selection_active_border,
+            ),
+            waveform_overlay_fill: color(self.waveform_overlay_fill),
+            waveform_overlay_zero_line: color(self.waveform_overlay_zero_line),
+            waveform_overlay_time_selection_foreground: color(
+                self.waveform_overlay_time_selection_foreground,
+            ),
+            waveform_zero_line: color(self.waveform_zero_line),
+            waveform_fade_control: color(self.waveform_fade_control),
+            waveform_playhead: color(self.waveform_playhead),
+            waveform_ruler: color(self.waveform_ruler),
+            waveform_ruler_foreground: color(self.waveform_ruler_foreground),
+            waveform_channel_label: color(self.waveform_channel_label),
+            waveform_channel_label_foreground: color(self.waveform_channel_label_foreground),
+            waveform_marker: color(self.waveform_marker),
+            waveform_marker_foreground: color(self.waveform_marker_foreground),
+            waveform_marker_active: color(self.waveform_marker_active),
+            waveform_segment: color(self.waveform_segment),
+            waveform_segment_active: color(self.waveform_segment_active),
+        }
+    }
+
+    /// Return every schema color property with its canonical key, generated
+    /// description, and resolved representative color.
+    pub fn resolved_color_properties(&self) -> anyhow::Result<Vec<ResolvedThemeColorProperty>> {
+        let schema = serde_json::to_value(schemars::schema_for!(ThemeConfigColors))?;
+        let properties = schema
+            .get("properties")
+            .and_then(serde_json::Value::as_object)
+            .ok_or_else(|| anyhow::anyhow!("ThemeConfigColors schema has no properties object"))?;
+        let resolved = serde_json::to_value(self.resolved_config_colors())?;
+        let resolved = resolved
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("resolved theme colors are not an object"))?;
+
+        properties
+            .iter()
+            .map(|(key, property_schema)| {
+                let value = resolved
+                    .get(key)
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("missing resolved theme color for {key}"))?;
+                let description = property_schema
+                    .get("description")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or_default();
+                Ok(ResolvedThemeColorProperty {
+                    key: key.clone().into(),
+                    description: description.to_string().into(),
+                    color: try_parse_color(value)?,
+                })
+            })
+            .collect()
+    }
+
     /// Apply the given theme configuration to the current theme.
     pub fn apply_config(&mut self, config: &Rc<ThemeConfig>) {
         if config.mode.is_dark() {
@@ -1063,42 +1666,48 @@ impl Theme {
         } else {
             self.light_theme = config.clone();
         }
-        if let Some(style) = &config.highlight {
-            let highlight_theme = Arc::new(HighlightTheme {
+        self.highlight_theme = if let Some(style) = &config.highlight {
+            Arc::new(HighlightTheme {
                 name: config.name.to_string(),
                 appearance: config.mode,
                 style: style.clone(),
-            });
-            self.highlight_theme = highlight_theme.clone();
-        }
+            })
+        } else if config.mode.is_dark() {
+            HighlightTheme::default_dark()
+        } else {
+            HighlightTheme::default_light()
+        };
 
         let default_colors = if config.mode.is_dark() {
             ThemeColor::dark()
         } else {
             ThemeColor::light()
         };
+        let defaults = Theme::from(default_colors.as_ref());
 
-        if let Some(font_size) = config.font_size {
-            self.font_size = px(font_size);
-        }
-        if let Some(font_family) = &config.font_family {
-            self.font_family = font_family.clone();
-        }
-        if let Some(mono_font_family) = &config.mono_font_family {
-            self.mono_font_family = mono_font_family.clone();
-        }
-        if let Some(mono_font_size) = config.mono_font_size {
-            self.mono_font_size = px(mono_font_size);
-        }
-        if let Some(radius) = config.radius {
-            self.radius = px(radius as f32);
-        }
-        if let Some(radius_lg) = config.radius_lg {
-            self.radius_lg = px(radius_lg as f32);
-        }
-        if let Some(shadow) = config.shadow {
-            self.shadow = shadow;
-        }
+        // Theme configs are sparse. Every application starts from canonical
+        // defaults so omitted non-color properties cannot leak from the theme
+        // that happened to be active immediately before this one.
+        self.font_size = config.font_size.map(px).unwrap_or(defaults.font_size);
+        self.font_family = config.font_family.clone().unwrap_or(defaults.font_family);
+        self.mono_font_family = config
+            .mono_font_family
+            .clone()
+            .unwrap_or(defaults.mono_font_family);
+        self.mono_font_size = config
+            .mono_font_size
+            .map(px)
+            .unwrap_or(defaults.mono_font_size);
+        self.radius = config
+            .radius
+            .map(|radius| px(radius as f32))
+            .unwrap_or(defaults.radius);
+        self.radius_lg = config
+            .radius_lg
+            .map(|radius| px(radius as f32))
+            .unwrap_or(defaults.radius_lg);
+        self.shadow = config.shadow.unwrap_or(defaults.shadow);
+        self.translucency = ThemeTranslucency::resolve(&config.translucency);
 
         self.tokens = self.colors.apply_config(&config, &default_colors);
         self.mode = config.mode;
@@ -1107,9 +1716,12 @@ impl Theme {
 
 #[cfg(test)]
 mod tests {
-    use gpui::{linear_color_stop, linear_gradient, px};
+    use gpui::{WindowBackgroundAppearance, linear_color_stop, linear_gradient, px};
 
-    use crate::{Colorize as _, Theme, ThemeConfig, ThemeMode, ThemeSet, try_parse_color};
+    use crate::{
+        Colorize as _, Theme, ThemeConfig, ThemeMode, ThemeSet, ThemeTranslucencyConfig,
+        try_parse_color,
+    };
 
     #[test]
     fn test_semantic_theme_config_parses_and_roundtrips() {
@@ -1218,6 +1830,174 @@ mod tests {
     }
 
     #[test]
+    fn translucency_is_disabled_by_default_even_with_a_transparent_background() {
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Opaque by default",
+            "mode": "light",
+            "colors": { "background": "#ffffff80" }
+        }))
+        .unwrap();
+
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        assert!(!theme.glass_active());
+        assert_eq!(
+            theme.window_background_appearance(),
+            WindowBackgroundAppearance::Opaque
+        );
+        assert_eq!(theme.overlay_blur(), px(0.));
+        assert_eq!(theme.panel_blur(), px(0.));
+    }
+
+    #[test]
+    fn translucency_roundtrips_and_resolves_authored_blur_radii() {
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Glass",
+            "mode": "dark",
+            "translucency": {
+                "window": true,
+                "overlay_blur": 44,
+                "panel_blur": 12
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&config).unwrap()["translucency"],
+            serde_json::json!({ "window": true, "overlay_blur": 44.0, "panel_blur": 12.0 })
+        );
+
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        assert!(theme.glass_active());
+        assert_eq!(
+            theme.window_background_appearance(),
+            WindowBackgroundAppearance::Blurred
+        );
+        assert_eq!(theme.overlay_blur(), px(44.));
+        assert_eq!(theme.panel_blur(), px(12.));
+    }
+
+    #[test]
+    fn translucency_clamps_blur_and_disables_local_material_when_window_is_opaque() {
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Clamped",
+            "mode": "dark",
+            "translucency": {
+                "window": true,
+                "overlay_blur": -4,
+                "panel_blur": 128
+            }
+        }))
+        .unwrap();
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        assert_eq!(theme.overlay_blur(), px(0.));
+        assert_eq!(theme.panel_blur(), px(64.));
+
+        let opaque_config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Opaque",
+            "mode": "light",
+            "translucency": {
+                "window": false,
+                "overlay_blur": 44,
+                "panel_blur": 12
+            }
+        }))
+        .unwrap();
+        theme.apply_config(&std::rc::Rc::new(opaque_config));
+
+        assert!(!theme.glass_active());
+        assert_eq!(theme.overlay_blur(), px(0.));
+        assert_eq!(theme.panel_blur(), px(0.));
+    }
+
+    #[test]
+    fn translucency_normalizes_non_finite_blur_radii_to_zero() {
+        let mut theme = Theme::default();
+
+        for (overlay_blur, panel_blur) in [
+            (f32::NAN, f32::NAN),
+            (f32::INFINITY, f32::NEG_INFINITY),
+            (f32::NEG_INFINITY, f32::INFINITY),
+        ] {
+            let config = ThemeConfig {
+                translucency: ThemeTranslucencyConfig {
+                    window: true,
+                    overlay_blur,
+                    panel_blur,
+                },
+                ..ThemeConfig::default()
+            };
+            theme.apply_config(&std::rc::Rc::new(config));
+
+            assert!(theme.glass_active());
+            assert_eq!(theme.overlay_blur(), px(0.));
+            assert_eq!(theme.panel_blur(), px(0.));
+        }
+    }
+
+    #[test]
+    fn window_background_token_falls_back_without_discarding_authored_alpha() {
+        let fallback_config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Window fallback",
+            "mode": "light",
+            "colors": { "background": "#11223380" }
+        }))
+        .unwrap();
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(fallback_config));
+        assert_eq!(theme.tokens.window_background, theme.tokens.background);
+
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Window background",
+            "mode": "light",
+            "colors": {
+                "background": "#112233",
+                "window.background": "#44556680"
+            }
+        }))
+        .unwrap();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        let window_background = try_parse_color("#44556680").unwrap();
+        assert_eq!(theme.window_background, window_background);
+        assert_eq!(theme.tokens.window_background.color, window_background);
+        assert_eq!(
+            theme.tokens.window_background.background,
+            window_background.into()
+        );
+    }
+
+    #[test]
+    fn translucency_and_window_background_are_in_the_generated_schema() {
+        let schema = serde_json::to_value(schemars::schema_for!(ThemeConfig)).unwrap();
+        let properties = schema["properties"].as_object().unwrap();
+        assert_eq!(
+            properties["translucency"]["$ref"],
+            "#/$defs/ThemeTranslucencyConfig"
+        );
+        let translucency_properties = schema["$defs"]["ThemeTranslucencyConfig"]["properties"]
+            .as_object()
+            .unwrap();
+        assert!(translucency_properties.contains_key("window"));
+        assert!(translucency_properties.contains_key("overlay_blur"));
+        assert!(translucency_properties.contains_key("panel_blur"));
+        assert_eq!(translucency_properties["overlay_blur"]["minimum"], 0.0);
+        assert_eq!(translucency_properties["overlay_blur"]["maximum"], 64.0);
+
+        assert_eq!(properties["colors"]["$ref"], "#/$defs/ThemeConfigColors");
+        assert!(
+            schema["$defs"]["ThemeConfigColors"]["properties"]
+                .get("window.background")
+                .is_some()
+        );
+    }
+
+    #[test]
     fn test_apply_config_preserves_gradient_background_and_solid_color_fallback() {
         let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
             "name": "Gradient",
@@ -1257,6 +2037,39 @@ mod tests {
             )
         );
         assert_eq!(theme.mode, ThemeMode::Light);
+    }
+
+    #[test]
+    fn test_waveform_segment_fallbacks_follow_primary_background() {
+        let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+            "name": "Waveform Segment",
+            "mode": "dark",
+            "colors": {
+                "accent.background": "#202020",
+                "primary.background": "linear-gradient(135deg, #4F46E5, #06B6D4)"
+            }
+        }))
+        .unwrap();
+
+        let mut theme = Theme::default();
+        theme.apply_config(&std::rc::Rc::new(config));
+
+        let primary_from = try_parse_color("#4F46E5").unwrap();
+        let primary_to = try_parse_color("#06B6D4").unwrap();
+        assert_eq!(theme.waveform_segment, primary_from.alpha(0.55));
+        assert_eq!(
+            theme.tokens.waveform_segment.background,
+            linear_gradient(
+                135.,
+                linear_color_stop(primary_from.alpha(0.55), 0.),
+                linear_color_stop(primary_to.alpha(0.55), 1.),
+            )
+        );
+        assert_eq!(theme.waveform_segment_active, primary_from);
+        assert_eq!(
+            theme.tokens.waveform_segment_active.background,
+            theme.tokens.primary.background
+        );
     }
 
     #[test]

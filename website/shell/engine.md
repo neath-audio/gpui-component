@@ -124,7 +124,7 @@ Measured on the two smallest real programs in this repository, so the figures ar
 | Binary, unstripped | 16.5 MiB | 33.8 MiB | +17.3 MiB |
 | Resident memory | 67 MiB | 81 MiB | **+14 MiB** |
 
-`hello_world` is 41 lines of Rust over `gpui` and `gpui-component` — a window and a counter. The `gpui-shell` CLI is the smallest host that can run a script application; here it is running `examples/js_todolist`, 519 lines of JavaScript across four modules, with a live QuickJS runtime behind it. Memory is the median of four runs, discarding a first run that reads high while caches are cold; the binaries are `--release` with the workspace's default profile, stripped with `strip(1)`.
+`hello_world` is 41 lines of Rust over `gpui` and `gpui-neath` — a window and a counter. The `gpui-shell` CLI is the smallest host that can run a script application; here it is running `examples/js_todolist`, 519 lines of JavaScript across four modules, with a live QuickJS runtime behind it. Memory is the median of four runs, discarding a first run that reads high while caches are cold; the binaries are `--release` with the workspace's default profile, stripped with `strip(1)`.
 
 **The +13.5 MiB is a constant, and that is the most useful thing here.** The same pair measured on the component gallery — a program five times the size — adds the same 13.5 MiB stripped, where it is +19.8% rather than +107%. Two independent measurements agreeing to three significant figures is what makes this a fact about `gpui-shell` rather than a reading of one application.
 
@@ -132,7 +132,7 @@ The memory rows look like they disagree and do not. On the gallery the differenc
 
 ### Where the binary goes
 
-Not mostly QuickJS. The interpreter is one to two megabytes; the rest is the Standard Runtime it arrives with. `fetch`, `websocket` and `crypto` bring `hyper`, `rustls`, `ring`, `h2`, a `webpki` root store and the compression crates, and `gpui-component` alone brings none of them — `hello_world` links no HTTP, no TLS and no `tokio`. The whole stack enters through this crate.
+Not mostly QuickJS. The interpreter is one to two megabytes; the rest is the Standard Runtime it arrives with. `fetch`, `websocket` and `crypto` bring `hyper`, `rustls`, `ring`, `h2`, a `webpki` root store and the compression crates, and `gpui-neath` alone brings none of them — `hello_world` links no HTTP, no TLS and no `tokio`. The whole stack enters through this crate.
 
 That also explains why an older measurement of this table read +4.7 MiB: it predates the Standard Runtime. `fs`, `net`, `crypto`, `fetch`, `websocket` and `zlib` all arrived after it.
 

@@ -41,7 +41,7 @@
 // to itself. `scope` publishes `with_current_app`, which is how a HostModule
 // reaches the ambient `App`, and hides the frame stack. `scroll` is the one
 // scroll area `materialize` needs, kept here because the shell builds on
-// `gpui-base` alone and cannot borrow `gpui-component`'s copy. `runtime`,
+// `gpui-base` alone and cannot borrow `gpui-neath`'s copy. `runtime`,
 // `error` and `assets` publish their types through the root.
 //
 // **Public because a script drives it.** `dock`. A script contributes panels
@@ -352,7 +352,7 @@ mod init_tests {
 ///             export function version(): string;
 ///             "#,
 ///         )
-///         .function("project_name", |_| Ok(HostValue::from("gpui-component")))
+///         .function("project_name", |_| Ok(HostValue::from("gpui-neath")))
 ///         .function("version", |_| Ok(HostValue::from("0.1.0"))),
 /// )?;
 /// # Ok::<(), gpui_shell::HostError>(())

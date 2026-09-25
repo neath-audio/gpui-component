@@ -54,7 +54,7 @@ Button::new("save")
 
 ## 默认颜色 Token
 
-`gpui-base` 通过 `ColorTokens::light()` 和 `ColorTokens::dark()` 提供可直接使用的浅色、深色语义调色板。`ColorTokens::default()` 使用浅色调色板。两套颜色均使用 `Hsla`，并与 `gpui-component` 的默认浅色、深色主题保持相同的语义角色。
+`gpui-base` 通过 `ColorTokens::light()` 和 `ColorTokens::dark()` 提供可直接使用的浅色、深色语义调色板。`ColorTokens::default()` 使用浅色调色板。两套颜色均使用 `Hsla`，并与 `gpui-neath` 的默认浅色、深色主题保持相同的语义角色。
 
 ```rust
 use gpui_kit::base::{ColorTokens, SemanticThemeTokens, Theme};

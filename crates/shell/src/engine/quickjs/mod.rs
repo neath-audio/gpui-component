@@ -1217,7 +1217,7 @@ pub(crate) mod exports {
 }
 
 /// Defines one `ModuleDef` per built-in module and the loader wiring for all of
-/// them, so adding a layer — `gpui-component`, when its components arrive — is
+/// them, so adding a layer — `gpui-neath`, when its components arrive — is
 /// a list and a line rather than another copy of the same three impls.
 ///
 /// Every module re-exports values that were built at startup and stashed on
@@ -6499,7 +6499,7 @@ globalThis.__gpui = (() => {
 
   // Overlays are window-level, not view-level: `cx.notify()` re-renders this
   // view, `window.open_dialog()` changes what the user is looking at. Grouped
-  // under `window` because that is where `gpui-component` puts them — the
+  // under `window` because that is where `gpui-neath` puts them — the
   // script API reads the same as the Rust it sits beside — and because it is
   // somewhere to grow: `Window` in Rust also answers focus, size and
   // appearance.
@@ -7634,7 +7634,7 @@ impl ShellRuntime {
 
             // Registered exports live apart from the built-in module object.
             // Names such as `InputState` exist in both `gpui-base` and
-            // `gpui-component`; sharing `__gpui` would make the latter silently
+            // `gpui-neath`; sharing `__gpui` would make the latter silently
             // replace the former for every module that reads the global table.
             let module: Object = ctx.globals().get("__gpui")?;
             let component_module = Object::new(ctx.clone())?;

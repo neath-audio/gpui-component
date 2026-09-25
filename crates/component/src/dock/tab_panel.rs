@@ -1,4 +1,4 @@
-//! The gpui-component appearance for a tab group.
+//! The gpui-neath appearance for a tab group.
 //!
 //! `gpui_base::dock::TabGroup` owns the behavior — membership, the displayed
 //! tab, drag hit-testing, the zoom flag — and draws none of it. Everything
@@ -108,7 +108,7 @@ thread_local! {
 /// presentation handle. Silent otherwise, and visual-only: the panel docks,
 /// drags and persists, it just has no title. The shorter method is the wrong
 /// one — `DockLayout::panel` and `DockArea::add_panel` accept a
-/// `gpui_component::dock::Panel` and store the bare entity — so this says
+/// `gpui_neath::dock::Panel` and store the bare entity — so this says
 /// which panel and what to call instead.
 fn warn_unwrapped_once(panel: PanelId, name: &'static str) {
     if !WARNED_UNWRAPPED.with(|warned| warned.borrow_mut().insert(panel)) {
@@ -118,7 +118,7 @@ fn warn_unwrapped_once(panel: PanelId, name: &'static str) {
         panel = name,
         "dock panel reached the skin without its presentation handle, so it \
          draws its panel name instead of its title; install it with \
-         `gpui_component::dock::panel_handle(..)` and `DockLayout::panel_view` \
+         `gpui_neath::dock::panel_handle(..)` and `DockLayout::panel_view` \
          / `DockArea::add_panel_view` rather than `DockLayout::panel` / \
          `DockArea::add_panel`"
     );

@@ -442,7 +442,8 @@ impl gpui_base::RootPlugin for WindowState {
         surface.style().refine(
             &gpui::StyleRefinement::default()
                 .font_family(cx.theme().font_family.clone())
-                .bg(cx.theme().tokens.background)
+                .text_size(cx.theme().typography_tokens().md.size)
+                .bg(cx.theme().tokens.window_background)
                 .text_color(cx.theme().foreground),
         );
     }
@@ -471,7 +472,7 @@ impl Render for WindowState {
 }
 
 const ROOT_MISSING: &str =
-    "component window state is missing; call gpui_component::init before gpui_kit::open_window";
+    "component window state is missing; call gpui_neath::init before gpui_kit::open_window";
 
 /// Window-level layers, always mounted once after the application content.
 /// Child view caching does not affect their ownership or rendering.

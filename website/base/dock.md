@@ -454,7 +454,7 @@ Qt is the outlier worth noting: it has no separate node type at all, because `QD
 ## Runnable example
 
 Everything above, on `gpui-base` alone — panels, a layout, and a skin implementing all three
-renderer traits. Nothing in it depends on `gpui-component`, which is the point: base is usable on
+renderer traits. Nothing in it depends on `gpui-neath`, which is the point: base is usable on
 its own, and a host that wants a different look writes a different skin.
 
 ```bash

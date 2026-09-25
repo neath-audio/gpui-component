@@ -61,10 +61,10 @@ function saveButton(cx) {
 ```
 
 This is the same trade the Rust side makes when an application builds directly
-on `gpui-base` instead of `gpui-component`. Colors are named as semantic theme
+on `gpui-base` instead of `gpui-neath`. Colors are named as semantic theme
 tokens, so a shared visual language stays available without the runtime making
 visual decisions on the application's behalf. Applications that want ready-made
-product visuals use the `gpui-component-shell` host and its `gpui-component`
+product visuals use the `gpui-component-shell` host and its `gpui-neath`
 script module. Run `cargo run -p gpui-component-shell -- examples/js_story`
 for the styled gallery. Use this crate's bare host for Base-first applications.
 

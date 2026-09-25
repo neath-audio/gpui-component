@@ -8,7 +8,7 @@ example: dock
 
 Dock 用可拖动标签组、嵌套分割和可收起的左、右、底部 Dock 构建应用工作区。它是 Longbridge 在商业产品中长期使用的布局基础，而不是一个脱离实际项目的 UI Demo。
 
-`gpui-base` 负责数据模型、布局计算和拖放行为，`gpui-component` 提供完整控件与统一视觉。需要直接用于真实应用的 Dock 时，请使用 `gpui_kit::component::dock`。
+`gpui-base` 负责数据模型、布局计算和拖放行为，`gpui-neath` 提供完整控件与统一视觉。需要直接用于真实应用的 Dock 时，请使用 `gpui_kit::component::dock`。
 
 如果你需要了解与渲染器无关的架构或实现自定义渲染器，请阅读英文版 [Dock — gpui-base](/base/dock)。
 
@@ -74,7 +74,7 @@ impl Render for FilesPanel {
 }
 ```
 
-请用 `panel_handle` 包装带样式的 Panel。这样 base Dock 通过与渲染无关的 handle 保存 Panel 时，仍会保留 `gpui-component` 的完整面板外观。
+请用 `panel_handle` 包装带样式的 Panel。这样 base Dock 通过与渲染无关的 handle 保存 Panel 时，仍会保留 `gpui-neath` 的完整面板外观。
 
 ## 描述初始布局
 

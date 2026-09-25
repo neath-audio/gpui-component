@@ -55,7 +55,7 @@ fn mount(
     let window = cx.add_window(move |window, cx| {
         let view = runtime.mount_application(&loaded, window, cx).unwrap();
         *slot.borrow_mut() = Some(view.clone());
-        gpui_component::Root::new(view, window, cx)
+        gpui_neath::Root::new(view, window, cx)
     });
     let context = VisualTestContext::from_window(*window.deref(), cx);
     let view = mounted.borrow().clone().unwrap();
@@ -74,7 +74,7 @@ fn draw(context: &mut VisualTestContext) {
 fn clicking_a_two_state_control_reports_its_new_state(cx: &mut TestAppContext) {
     let source = r#"
 import { View, div } from "gpui-kit";
-import { Checkbox, Switch, Toggle } from "gpui-component";
+import { Checkbox, Switch, Toggle } from "gpui-neath";
 export default class App extends View {
   init(_props, _cx) { this.checkbox = false; this.switch = false; this.toggle = false; }
   render() {
@@ -119,7 +119,7 @@ export default class App extends View {
 fn clicking_a_button_reaches_the_script(cx: &mut TestAppContext) {
     let source = r#"
 import { View, div } from "gpui-kit";
-import { Button } from "gpui-component";
+import { Button } from "gpui-neath";
 export default class App extends View {
   init(_props, _cx) { this.hits = 0; }
   render() {

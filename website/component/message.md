@@ -418,13 +418,13 @@ domain policy out of the general-purpose primitive.
 - [`Attachment`] — files and media.
 - [`MessageScroller`] — virtualized conversation rows and tail following.
 
-[Message]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.Message.html
-[MessageGroup]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageGroup.html
-[MessageAvatar]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageAvatar.html
-[MessageHeader]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageHeader.html
-[MessageContent]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageContent.html
-[MessageFooter]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageFooter.html
-[MessageAlignment]: https://docs.rs/gpui-component/latest/gpui_component/message/enum.MessageAlignment.html
-[Bubble]: https://docs.rs/gpui-component/latest/gpui_component/bubble/struct.Bubble.html
-[Attachment]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.Attachment.html
-[MessageScroller]: https://docs.rs/gpui-component/latest/gpui_component/message_scroller/struct.MessageScroller.html
+[Message]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.Message.html
+[MessageGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageGroup.html
+[MessageAvatar]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageAvatar.html
+[MessageHeader]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageHeader.html
+[MessageContent]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageContent.html
+[MessageFooter]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageFooter.html
+[MessageAlignment]: https://docs.rs/gpui-neath/latest/gpui_neath/message/enum.MessageAlignment.html
+[Bubble]: https://docs.rs/gpui-neath/latest/gpui_neath/bubble/struct.Bubble.html
+[Attachment]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.Attachment.html
+[MessageScroller]: https://docs.rs/gpui-neath/latest/gpui_neath/message_scroller/struct.MessageScroller.html

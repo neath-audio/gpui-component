@@ -1,7 +1,7 @@
 use super::bool_method;
 use super::reject_style;
 use super::{Carrier, take};
-use gpui_component::{GlobalState, menu::AppMenuBar};
+use gpui_neath::{GlobalState, menu::AppMenuBar};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

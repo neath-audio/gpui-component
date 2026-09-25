@@ -6,20 +6,20 @@ use gpui::{
     RenderOnce, SharedString, StyleRefinement, Styled, Svg, Transformation, Window,
     prelude::FluentBuilder as _, svg,
 };
-pub use gpui_kit_assets::IconNamed;
+pub use gpui_component_assets::IconNamed;
 
 // Preserve the original enum (including exhaustive matches and inherent view)
-// while the complete, shared catalog is owned by gpui-kit-assets.
+// while the complete, shared catalog is owned by gpui-component-assets.
 macro_rules! component_icon_names {
     ($($name:ident => $path:literal,)*) => {
         /// Default component icon names, retained for source compatibility.
-        /// For the complete Lucide catalog, use `gpui_kit_assets::IconName`.
+        /// For the complete Lucide catalog, use `gpui_component_assets::IconName`.
         #[derive(Clone, IntoElement)]
         pub enum IconName {
             $($name,)*
         }
 
-        impl From<IconName> for gpui_kit_assets::IconName {
+        impl From<IconName> for gpui_component_assets::IconName {
             fn from(name: IconName) -> Self {
                 match name {
                     $(IconName::$name => Self::$name,)*
@@ -35,7 +35,7 @@ macro_rules! component_icon_names {
     };
 }
 
-gpui_kit_assets::__component_icon_names!(component_icon_names);
+gpui_component_assets::__component_icon_names!(component_icon_names);
 
 impl IconName {
     /// Return the icon as an Entity<Icon>.
@@ -62,13 +62,13 @@ impl<T: IconNamed> From<T> for Icon {
     }
 }
 
-/// Component view construction for the shared `gpui_kit_assets::IconName`.
+/// Component view construction for the shared `gpui_component_assets::IconName`.
 /// The legacy component `IconName` retains its inherent `view` method.
 pub trait IconNameExt {
     fn view(self, cx: &mut App) -> Entity<Icon>;
 }
 
-impl IconNameExt for gpui_kit_assets::IconName {
+impl IconNameExt for gpui_component_assets::IconName {
     fn view(self, cx: &mut App) -> Entity<Icon> {
         Icon::build(self).view(cx)
     }
@@ -126,7 +126,7 @@ impl Icon {
     /// Parsing and rendering follow GPUI's SVG behavior.
     ///
     /// ```
-    /// use gpui_component::Icon;
+    /// use gpui_neath::Icon;
     ///
     /// let bytes = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     ///     <path d="M4 12h16" stroke="currentColor"/>

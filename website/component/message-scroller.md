@@ -404,5 +404,5 @@ model around this component.
 | `with_bottom_fade(color)` | off | Fade the bottom edge into the surrounding surface color. |
 | `Styled` methods | full-size, clipped root | Style the outer scroller element. |
 
-[MessageScroller]: https://docs.rs/gpui-component/latest/gpui_component/message_scroller/struct.MessageScroller.html
-[MessageScrollerState]: https://docs.rs/gpui-component/latest/gpui_component/message_scroller/struct.MessageScrollerState.html
+[MessageScroller]: https://docs.rs/gpui-neath/latest/gpui_neath/message_scroller/struct.MessageScroller.html
+[MessageScrollerState]: https://docs.rs/gpui-neath/latest/gpui_neath/message_scroller/struct.MessageScrollerState.html

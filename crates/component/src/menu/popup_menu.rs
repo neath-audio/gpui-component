@@ -4,12 +4,15 @@ use crate::actions::{SelectLeft, SelectRight};
 use crate::menu::menu_item::MenuItemElement;
 use crate::scroll::ScrollableElement;
 use crate::{ActiveTheme, ElementExt, Icon, IconName, Sizable as _, h_flex, v_flex};
-use crate::{Side, Size, kbd::Kbd};
+use crate::{
+    Material, MaterialDepth, Side, Size, StyledExt, global_state::UiGlobalState, kbd::Kbd,
+};
 use gpui::{
-    Action, Anchor, AnyElement, App, AppContext, Bounds, Context, DismissEvent, Edges, Entity,
-    EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, KeyBinding,
-    ParentElement, Pixels, Render, Role, ScrollHandle, SharedString, StatefulInteractiveElement,
-    Styled, WeakEntity, Window, anchored, deferred, div, prelude::FluentBuilder, px, rems,
+    Action, Anchor, AnyElement, App, AppContext, Bounds, Context, Corners, DismissEvent, Edges,
+    Entity, EventEmitter, FocusHandle, Focusable, FontWeight, Hsla, InteractiveElement,
+    IntoElement, KeyBinding, ParentElement, Pixels, Rems, Render, Role, ScrollHandle, SharedString,
+    StatefulInteractiveElement, Styled, WeakEntity, Window, anchored, deferred, div,
+    prelude::FluentBuilder, px, rems,
 };
 use gpui::{ClickEvent, Half, MouseDownEvent, OwnedMenuItem, Point, Subscription};
 use gpui_base::TestSupportExt as _;
@@ -299,6 +302,7 @@ pub struct PopupMenu {
     max_height: Option<Pixels>,
     bounds: Bounds<Pixels>,
     size: Size,
+    menu_bg: Option<Hsla>,
     check_side: Side,
 
     /// The parent menu of this menu, if this is a submenu
@@ -332,8 +336,9 @@ pub struct PopupMenu {
 
 impl PopupMenu {
     pub(crate) fn new(cx: &mut App) -> Self {
+        let focus_handle = cx.focus_handle();
         Self {
-            focus_handle: cx.focus_handle(),
+            focus_handle,
             action_context: None,
             previous_focus_handle: None,
             trigger_focus_handle: None,
@@ -349,6 +354,7 @@ impl PopupMenu {
             scroll_handle: ScrollHandle::default(),
             external_link_icon: true,
             size: Size::default(),
+            menu_bg: None,
             submenu_anchor: (Anchor::TopLeft, Pixels::ZERO),
             priority: gpui_base::POPUP_PRIORITY,
             _subscriptions: vec![],
@@ -360,7 +366,19 @@ impl PopupMenu {
         cx: &mut App,
         f: impl FnOnce(Self, &mut Window, &mut Context<PopupMenu>) -> Self,
     ) -> Entity<Self> {
-        cx.new(|cx| f(Self::new(cx), window, cx))
+        cx.new(|cx| {
+            // Menus torn down without a dismiss (their host popover unmounts
+            // while they are open) must still leave the open-menu bounds
+            // registry — release is the one hook that always runs.
+            let entity_id = cx.entity().entity_id();
+            cx.on_release(move |_, cx| {
+                if cx.has_global::<UiGlobalState>() {
+                    UiGlobalState::global_mut(cx).remove_menu_bounds(entity_id);
+                }
+            })
+            .detach();
+            f(Self::new(cx), window, cx)
+        })
     }
 
     /// Set the focus handle of Entity to handle actions.
@@ -440,6 +458,25 @@ impl PopupMenu {
     /// Set max height of the popup menu, default is half of the window height
     pub fn max_h(mut self, height: impl Into<Pixels>) -> Self {
         self.max_height = Some(height.into());
+        self
+    }
+
+    /// Override the menu surface background color, e.g. for a translucent menu.
+    pub fn menu_bg(mut self, bg: impl Into<Hsla>) -> Self {
+        self.menu_bg = Some(bg.into());
+        self
+    }
+
+    /// Use small size, the menu item will have smaller height.
+    pub fn small(mut self) -> Self {
+        self.size = Size::Small;
+        self
+    }
+
+    /// Compact alias of [`Self::small`]: shares Small type (12px) and 20px
+    /// row height. Menus have no distinct 10px tier.
+    pub fn xsmall(mut self) -> Self {
+        self.size = Size::XSmall;
         self
     }
 
@@ -1049,11 +1086,13 @@ impl PopupMenu {
         }
     }
 
-    /// Dismiss the menu and the entire parent chain.
-    ///
-    /// The submenu is closed together with its parent, same as macOS menus.
+    /// Cancel/ESC action handler. Closes any active submenu first, then
+    /// dismisses the entire menu chain. This ensures ESC works even when a
+    /// hover-opened submenu is visible and the parent retains focus.
     fn dismiss(&mut self, _: &Cancel, window: &mut Window, cx: &mut Context<Self>) {
         self.selected_index = None;
+        let entity_id = cx.entity_id();
+        UiGlobalState::global_mut(cx).remove_menu_bounds(entity_id);
         cx.emit(DismissEvent);
 
         // Focus back to the previous focused handle, unless the item's click
@@ -1169,6 +1208,10 @@ impl PopupMenu {
             Icon::empty()
         };
 
+        // 12px menu glyphs — deliberately SMALLER than Nova's 16px size-4
+        // catch-all: after seeing both rendered, the user prefers the
+        // lighter 12px glyph weight (ruled 2026-07-20, superseding the
+        // brief 16px round).
         Some(icon.xsmall())
     }
 
@@ -1213,21 +1256,30 @@ impl PopupMenu {
 
         let selected = self.selected_index == Some(ix);
         const EDGE_PADDING: Pixels = px(4.);
-        const INNER_PADDING: Pixels = px(8.);
+        // Compact item gutter 6px; standard 8px. Plus the items `p_1` (4px)
+        // content inset that is 10 / 12 to the text. Icon gap stays 6px.
+        const ICON_GAP: Rems = rems(0.375);
 
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
         let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
-        let (item_height, radius) = match self.size {
-            Size::Small => (px(20.), options.radius.half()),
-            _ => (px(26.), options.radius),
+        let item_height = self.size.list_row_height();
+        let compact = matches!(self.size, Size::XSmall | Size::Small);
+        let inner_padding = if compact { rems(0.375) } else { rems(0.5) };
+        let menu_text = self.size.menu_text_size();
+        // Radius is keyed off the popover's own radius, halved only for the
+        // compact `XSmall | Small` tiers.
+        let radius = if compact {
+            options.radius.half()
+        } else {
+            options.radius
         };
 
         let this = MenuItemElement::new(ix, &group_name)
             .relative()
-            .text_sm()
+            .text_size(menu_text)
             .py_0()
-            .px(INNER_PADDING)
+            .px(inner_padding)
             .rounded(radius)
             .items_center()
             .selected(selected)
@@ -1244,19 +1296,30 @@ impl PopupMenu {
             .when_some(item.a11y_label(), |this, label| this.aria_label(label));
 
         match item {
+            // 1px hairline with 4px vertical margins at every size —
+            // measured from the live Nova preview (user-ruled 2026-07-20;
+            // the old 2px Medium/Large rule read as heavy segmentation).
             PopupMenuItem::Separator => this
                 .h_auto()
                 .p_0()
-                .my_0p5()
+                .my_1()
                 .mx_neg_1()
-                .border_b(px(2.))
+                .border_b(px(1.))
                 .border_color(cx.theme().border)
                 .disabled(true),
             PopupMenuItem::Label(label) => this.disabled(true).cursor_default().child(
                 h_flex()
                     .cursor_default()
                     .items_center()
-                    .gap_x_1()
+                    // Nova group-label recipe (`px-1.5 py-1 text-xs
+                    // font-medium text-muted-foreground`): 12px medium
+                    // muted text in a 24px box (16px text-xs line + 2×4px),
+                    // user-ruled 2026-07-20.
+                    .min_h(rems(1.5))
+                    .text_size(Size::Small.text_size())
+                    .font_medium()
+                    .text_color(cx.theme().muted_foreground)
+                    .gap_x(ICON_GAP)
                     .children(Self::render_icon(has_left_icon, false, None, window, cx))
                     .child(div().flex_1().child(label.clone())),
             ),
@@ -1277,7 +1340,7 @@ impl PopupMenu {
                         .flex_1()
                         .min_h(item_height)
                         .items_center()
-                        .gap_x_1()
+                        .gap_x(ICON_GAP)
                         .children(Self::render_icon(
                             has_left_icon,
                             is_left_check,
@@ -1306,8 +1369,12 @@ impl PopupMenu {
                     )
                 })
                 .disabled(*disabled)
+                // Hard height, not min: standard action rows are single-line
+                // and must not stretch when a child (kbd badge, icon) is
+                // taller than the text line (user-ruled 2026-07-20, Nova
+                // 28px rows). Custom/element and submenu arms keep `min_h`.
                 .h(item_height)
-                .gap_x_1()
+                .gap_x(ICON_GAP)
                 .children(Self::render_icon(
                     has_left_icon,
                     is_left_check,
@@ -1354,7 +1421,7 @@ impl PopupMenu {
                         .min_h(item_height)
                         .size_full()
                         .items_center()
-                        .gap_x_1()
+                        .gap_x(ICON_GAP)
                         .children(Self::render_icon(
                             has_left_icon,
                             false,
@@ -1457,10 +1524,12 @@ impl Render for PopupMenu {
         let options = RenderOptions {
             has_left_icon,
             check_side: self.check_side,
-            radius: cx.theme().radius.min(px(8.)),
+            // Dropdown-item rounding: `theme.radius - 2px`, floored at 0 —
+            // at the default 6px theme radius this is 4px.
+            radius: (cx.theme().radius - px(2.)).max(px(0.)),
         };
 
-        v_flex()
+        let surface = v_flex()
             .id("popup-menu")
             .test_support()
             .role(Role::Menu)
@@ -1474,14 +1543,21 @@ impl Render for PopupMenu {
             .on_action(cx.listener(Self::dismiss))
             .on_mouse_down_out(cx.listener(Self::on_mouse_down_out))
             .popover_style(cx)
+            .when_some(self.menu_bg, |this, bg| this.bg(bg))
             .text_color(cx.theme().popover_foreground)
+            // Anchored menus stay in the trigger's element tree, so a
+            // medium/semibold parent (selected tab, bold button) would
+            // otherwise paint every row at that weight.
+            .font_weight(FontWeight::NORMAL)
             .relative()
             .occlude()
             .child(
                 v_flex()
                     .id("items")
                     .p_1()
-                    .gap_y_0p5()
+                    // No inter-item gap — the measured Nova tray stacks rows
+                    // flush (user-ruled 2026-07-20; the old 2px gap_y_0p5
+                    // added ~24px of air across a 13-row menu).
                     .min_w(rems(8.))
                     .when_some(self.min_width, |this, min_width| this.min_w(min_width))
                     .max_w(max_width)
@@ -1498,17 +1574,100 @@ impl Render for PopupMenu {
                             .filter(|(ix, item)| !(*ix + 1 == items_count && item.is_separator()))
                             .map(|(ix, item)| self.render_item(ix, item, options, window, cx)),
                     )
-                    .on_prepaint(move |bounds, _, cx| view.update(cx, |r, _| r.bounds = bounds)),
+                    .on_prepaint(move |bounds, _, cx| {
+                        view.update(cx, |r, _| r.bounds = bounds);
+                        // Keep the open-menu registry current so a Popover's
+                        // mouse-down-out can tell a press inside this menu
+                        // from a genuine outside click.
+                        UiGlobalState::global_mut(cx).update_menu_bounds(view.entity_id(), bounds);
+                    }),
             )
             .when(self.scrollable, |this| {
                 this.vertical_scrollbar(&self.scroll_handle)
-            })
+            });
+
+        Material::new(
+            ("popup-menu-material", cx.entity_id()),
+            MaterialDepth::Overlay,
+            surface,
+        )
+        .corner_radii(Corners::all(cx.theme().radius))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui::{ElementId, point};
+
+    use crate::material::{clear_painted_materials, take_painted_materials};
+
+    struct PopupMenuHarness {
+        menu: Entity<PopupMenu>,
+    }
+
+    impl Render for PopupMenuHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().size_full().child(self.menu.clone())
+        }
+    }
+
+    #[gpui::test]
+    fn material_wrapper_keeps_menu_bounds_and_outside_dismissal_on_the_surface(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|window, cx| PopupMenuHarness {
+            menu: PopupMenu::build(window, cx, |menu, _, _| {
+                menu.item(PopupMenuItem::new("Open"))
+            }),
+        });
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        let menu = view.read_with(cx, |view, _| view.menu.clone());
+        let materials = take_painted_materials();
+        let material_id = ElementId::from(("popup-menu-material", menu.entity_id()));
+        let material = materials
+            .iter()
+            .filter(|material| material.id == material_id)
+            .collect::<Vec<_>>();
+        assert_eq!(material.len(), 1, "PopupMenu mounts one surface Material");
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        let bounds = menu.read_with(cx, |menu, _| menu.bounds);
+        assert!(bounds.size.width > Pixels::ZERO);
+        assert!(bounds.size.height > Pixels::ZERO);
+        assert!(
+            cx.update(|_, cx| {
+                UiGlobalState::global(cx).position_in_open_menu(&bounds.center())
+            })
+        );
+
+        cx.simulate_click(point(px(500.), px(500.)), Default::default());
+        assert!(
+            !cx.update(|_, cx| {
+                UiGlobalState::global(cx).position_in_open_menu(&bounds.center())
+            }),
+            "outside dismissal must remain owned by PopupMenu, not its Material wrapper",
+        );
+    }
+
+    #[gpui::test]
+    fn popup_menu_supports_xsmall_density_and_translucent_background(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            let popover = gpui::hsla(210. / 360., 0.2, 0.3, 1.);
+            crate::Theme::global_mut(cx).popover = popover;
+            // Former overlay_menu recipe: compact density + translucent popover tint.
+            let menu = PopupMenu::new(cx)
+                .xsmall()
+                .menu_bg(cx.theme().popover.opacity(0.92));
+            assert_eq!(menu.size, crate::Size::XSmall);
+            assert_eq!(menu.menu_bg, Some(popover.opacity(0.92)));
+        });
+    }
 
     #[gpui::test]
     fn popup_menu_item_a11y_label_uses_visible_label(cx: &mut gpui::TestAppContext) {

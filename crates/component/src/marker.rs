@@ -1,3 +1,4 @@
+use crate::Size;
 use crate::{
     ActiveTheme as _, RoleOverride, Sizable as _, StyledExt as _, h_flex,
     shimmer::{ShimmerStyle, ShimmerText},
@@ -214,7 +215,7 @@ impl RenderOnce for Marker {
             .w_full()
             .min_h(rems(1.))
             .gap_2()
-            .text_sm()
+            .text_size(Size::Small.text_size())
             .line_height(relative(1.5))
             .text_color(tokens.colors.muted_foreground)
             .map(|this| match alignment {

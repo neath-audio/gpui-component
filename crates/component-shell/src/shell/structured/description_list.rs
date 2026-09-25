@@ -1,7 +1,7 @@
 use super::common::positive_usize;
 use super::require_child;
 use super::{Carrier, take};
-use gpui_component::{
+use gpui_neath::{
     Sizable as _, Size,
     description_list::{DescriptionItem, DescriptionList},
 };

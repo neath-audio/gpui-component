@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::text::Text;
+use gpui_neath::text::Text;
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,
@@ -45,7 +45,7 @@ pub(super) fn register(registry: &mut ComponentRegistry) -> Result<(), RegistryE
         )])
 .with_methods(vec![])
 .with_documentation(
-            "Plain gpui-component Text content in a styleable shell wrapper. Text accepts no children.",
+            "Plain gpui-neath Text content in a styleable shell wrapper. Text accepts no children.",
         ))?;
     Ok(())
 }

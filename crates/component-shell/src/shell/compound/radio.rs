@@ -1,4 +1,4 @@
-use gpui_component::{Sizable as _, Size, radio::Radio};
+use gpui_neath::{Sizable as _, Size, radio::Radio};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentCallbackArgument,
     ComponentDescriptor, ComponentMaterializer, ComponentPayload, ComponentRegistry,

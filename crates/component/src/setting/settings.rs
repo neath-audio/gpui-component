@@ -138,6 +138,7 @@ impl Settings {
     ) -> impl IntoElement {
         let selected_index = state.read(cx).selected_index;
         let search_input = state.read(cx).search_input.clone();
+        let size = self.size;
 
         Sidebar::new("settings-sidebar")
             .w(relative(1.))
@@ -146,10 +147,11 @@ impl Settings {
             .collapsible(false)
             .collapsed(false)
             .header(
-                div()
-                    .w_full()
-                    .refine_style(&self.header_style)
-                    .child(Input::new(&search_input).prefix(IconName::Search)),
+                div().w_full().refine_style(&self.header_style).child(
+                    Input::new(&search_input)
+                        .with_size(size)
+                        .prefix(IconName::Search),
+                ),
             )
             .child(
                 SidebarMenu::new().children(filter.visible_pages().map(|page_ix| {
@@ -158,6 +160,7 @@ impl Settings {
                     let is_page_active = selected_index.page_ix == page_ix
                         && (selected_index.group_ix.is_none() || groups.len() == 1);
                     SidebarMenuItem::new(page.title.clone())
+                        .text_size(size.control_text_size())
                         .click_to_open(true)
                         .when_some(page.icon.clone(), |this, icon| this.icon(icon))
                         .default_open(page.default_open)
@@ -187,19 +190,23 @@ impl Settings {
                                             && selected_index.group_ix == Some(group_ix);
                                         let title = group.title.clone().unwrap_or_default();
 
-                                        SidebarMenuItem::new(title).active(is_active).on_click({
-                                            let state = state.clone();
-                                            move |_, _, cx| {
-                                                state.update(cx, |state, cx| {
-                                                    state.selected_index = SelectIndex {
-                                                        page_ix,
-                                                        group_ix: Some(group_ix),
-                                                    };
-                                                    state.deferred_scroll_group_ix = Some(group_ix);
-                                                    cx.notify();
-                                                })
-                                            }
-                                        })
+                                        SidebarMenuItem::new(title)
+                                            .text_size(size.control_text_size())
+                                            .active(is_active)
+                                            .on_click({
+                                                let state = state.clone();
+                                                move |_, _, cx| {
+                                                    state.update(cx, |state, cx| {
+                                                        state.selected_index = SelectIndex {
+                                                            page_ix,
+                                                            group_ix: Some(group_ix),
+                                                        };
+                                                        state.deferred_scroll_group_ix =
+                                                            Some(group_ix);
+                                                        cx.notify();
+                                                    })
+                                                }
+                                            })
                                     }),
                             )
                         })

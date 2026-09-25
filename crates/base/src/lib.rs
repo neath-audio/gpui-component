@@ -2,7 +2,7 @@
 //!
 //! Primitives deliberately avoid presentation styles. Layout, positioning,
 //! colors, sizing, and motion belong to applications or the
-//! `gpui-component` façade.
+//! `gpui-neath` façade.
 
 mod accordion;
 pub mod actions;

@@ -75,7 +75,7 @@ fn mount(
 fn public_host_api_mounts_and_materializes_registered_component_js(cx: &mut TestAppContext) {
     let source = r#"
 import { div, View } from "gpui-kit";
-import { Spinner } from "gpui-component";
+import { Spinner } from "gpui-neath";
 
 export default class ComponentApp extends View {
   render() {
@@ -109,7 +109,7 @@ export default class ComponentApp extends View {
 fn registered_component_argument_errors_are_reported_during_render(cx: &mut TestAppContext) {
     let source = r#"
 import { View } from "gpui-kit";
-import { Spinner } from "gpui-component";
+import { Spinner } from "gpui-neath";
 
 export default class InvalidComponentApp extends View {
   render() {
@@ -151,7 +151,7 @@ import {
   Calendar, CalendarState, ColorPicker, ColorPickerState,
   DatePicker, DatePickerState, Input, InputState, NumberInput,
   OtpInput, OtpState, Slider, SliderState,
-} from "gpui-component";
+} from "gpui-neath";
 export default class RetainedForms extends View {
   init() {
     this.input = InputState();
@@ -217,7 +217,7 @@ fn retained_otp_rejects_an_ordinary_child_during_public_host_materialization(
 ) {
     let source = r#"
 import { div, View } from "gpui-kit";
-import { OtpInput, OtpState } from "gpui-component";
+import { OtpInput, OtpState } from "gpui-neath";
 export default class InvalidOtp extends View {
   init() { this.otp = OtpState(6); }
   render() { return new OtpInput(this.otp).child(div().child("not allowed")); }
@@ -247,7 +247,7 @@ export default class InvalidOtp extends View {
 fn retained_state_constructor_rejects_rounded_overflow_from_js(cx: &mut TestAppContext) {
     let source = r#"
 import { View } from "gpui-kit";
-import { OtpInput, OtpState } from "gpui-component";
+import { OtpInput, OtpState } from "gpui-neath";
 export default class InvalidOtpState extends View {
   init() { this.otp = OtpState(18446744073709551616); }
   render() { return new OtpInput(this.otp); }
@@ -348,7 +348,7 @@ import { View, div } from "gpui-kit";
 import {
   Accordion, AccordionItem, Radio, RadioGroup,
   Stepper, StepperItem, Tab, TabBar,
-} from "gpui-component";
+} from "gpui-neath";
 export default class TypedCompounds extends View {
   render() {
     return div().v_flex().gap(8)
@@ -406,7 +406,7 @@ fn component_state_exports_do_not_shadow_same_named_gpui_base_exports(cx: &mut T
     let source = r#"
 import { View } from "gpui-kit";
 import { InputState as BaseInputState } from "gpui-base";
-import { Input, InputState as ComponentInputState } from "gpui-component";
+import { Input, InputState as ComponentInputState } from "gpui-neath";
 export default class CoexistingStates extends View {
   init() {
     this.base_state = BaseInputState.new({ placeholder: "Search" });

@@ -125,7 +125,7 @@ fn layout_catalog_has_closed_real_state_and_typed_layout_contracts() {
 fn textarea_state_survives_two_native_draws_with_methods_and_style(cx: &mut TestAppContext) {
     let source = r#"
 import { View } from "gpui-kit";
-import { Textarea, TextareaState } from "gpui-component";
+import { Textarea, TextareaState } from "gpui-neath";
 export default class App extends View {
   init() { this.editor = TextareaState(); }
   render() { return new Textarea(this.editor).appearance(true).bordered(false).readonly(true).aria_label("Notes").disabled(false).p(2).h(120); }
@@ -157,7 +157,7 @@ fn resizable_consumes_two_real_typed_panels_with_methods_style_and_children(
 ) {
     let source = r#"
 import { View, div } from "gpui-kit";
-import { Resizable, ResizablePanel } from "gpui-component";
+import { Resizable, ResizablePanel } from "gpui-neath";
 export default class App extends View { render() { return new Resizable("workspace").axis("horizontal").cross_size(240)
   .child(new ResizablePanel().size(180).size_range(100,260).p(2).child(div().child("Navigation")))
   .child(new ResizablePanel().visible(true).child(div().child("Content"))); } }

@@ -2,19 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Register the complete `gpui-component` catalog with `gpui-shell` from an independent adapter crate and ship a JavaScript Story gallery that exercises every binding.
+**Goal:** Register the complete `gpui-neath` catalog with `gpui-shell` from an independent adapter crate and ship a JavaScript Story gallery that exercises every binding.
 
-**Architecture:** The existing `gpui-shell` package remains intact, depends on `gpui-base` and `gpui-component`, and owns the engine-neutral registry without implementing concrete bindings. `gpui-component-shell` depends on `gpui-shell`, owns all concrete schemas/state/materializers, and exposes the full-catalog application startup/registration entry point. Runtime JavaScript exports and generated TypeScript declarations are derived from the same descriptors.
+**Architecture:** The existing `gpui-shell` package remains intact, depends on `gpui-base` and `gpui-neath`, and owns the engine-neutral registry without implementing concrete bindings. `gpui-component-shell` depends on `gpui-shell`, owns all concrete schemas/state/materializers, and exposes the full-catalog application startup/registration entry point. Runtime JavaScript exports and generated TypeScript declarations are derived from the same descriptors.
 
-**Tech Stack:** Rust 2024, GPUI, gpui-base, gpui-component, rquickjs, schemars/serde, Cargo workspace tests, JavaScript ES modules.
+**Tech Stack:** Rust 2024, GPUI, gpui-base, gpui-neath, rquickjs, schemars/serde, Cargo workspace tests, JavaScript ES modules.
 
 **Spec:** `docs/superpowers/specs/2026-08-29-gpui-component-shell-design.md`
 
 ## Global Constraints
 
 - The existing `gpui-shell` package and Rust crate name must not be renamed or split.
-- `gpui-shell` must not import or construct concrete `gpui-component` controls in its library implementation.
-- `gpui-shell` depends on `gpui-base` and not on `gpui-component`; the adapter owns the themed dependency and every concrete themed binding.
+- `gpui-shell` must not import or construct concrete `gpui-neath` controls in its library implementation.
+- `gpui-shell` depends on `gpui-base` and not on `gpui-neath`; the adapter owns the themed dependency and every concrete themed binding.
 - `gpui-component-shell` depends on `gpui-shell`; `gpui-shell` never depends back on the adapter.
 - Base-only applications may continue using `gpui-shell`; full component applications use the adapter startup entry point.
 - Existing JavaScript constructor and builder names remain compatible; renamed forms are deprecated aliases with diagnostics.
@@ -257,7 +257,7 @@ git commit -m "shell: generate component APIs from registry"
 
 - [ ] **Step 1: Write failing adapter registration tests**
 
-Create a catalog expectation for every existing concrete `Component` variant (`Button`, `Link`, `Checkbox`, through `VirtualList`) and assert `register` supplies its constructor and materializer. Add a source-boundary test that scans shell Rust sources and fails on `use gpui_component` or imports of concrete `gpui_base` controls in `materialize`.
+Create a catalog expectation for every existing concrete `Component` variant (`Button`, `Link`, `Checkbox`, through `VirtualList`) and assert `register` supplies its constructor and materializer. Add a source-boundary test that scans shell Rust sources and fails on `use gpui_neath` or imports of concrete `gpui_base` controls in `materialize`.
 
 ```rust
 #[test]
@@ -277,7 +277,7 @@ Expected: Cargo reports that package `gpui-component-shell` does not exist.
 
 - [ ] **Step 3: Add the crate and registration entry point**
 
-Declare package `gpui-component-shell`, library name `gpui_component_shell`, and dependencies on workspace `gpui`, `gpui-base`, `gpui-component`, and `gpui-shell`. Implement:
+Declare package `gpui-component-shell`, library name `gpui_component_shell`, and dependencies on workspace `gpui`, `gpui-base`, `gpui-neath`, and `gpui-shell`. Implement:
 
 ```rust
 pub fn register(registry: &mut ComponentRegistry) -> Result<(), RegistryError> {
@@ -310,7 +310,7 @@ gpui_shell::run_with_components(options, components)
 
 Run: `cargo test -p gpui-component-shell && cargo test -p gpui-shell --lib && cargo check -p gpui-shell -p gpui-component-shell && cargo tree -p gpui-component-shell | rg 'gpui-(shell|component|base)'`
 
-Expected: tests/check pass; the final audit shows `gpui-component-shell` consuming `gpui-shell`, `gpui-component`, and `gpui-base`, with no reverse adapter edge.
+Expected: tests/check pass; the final audit shows `gpui-component-shell` consuming `gpui-shell`, `gpui-neath`, and `gpui-base`, with no reverse adapter edge.
 
 - [ ] **Step 7: Commit the adapter migration**
 
@@ -472,7 +472,7 @@ Use stable domain keys supplied by scripts; require explicit row/node IDs where 
 
 - [ ] **Step 4: Implement charts and dock adapters**
 
-Map chart data to gpui-component chart/plot APIs using semantic colors. Move concrete dock renderer/panel integration from shell into adapter while retaining generic storage, capability, and path policy in shell.
+Map chart data to gpui-neath chart/plot APIs using semantic colors. Move concrete dock renderer/panel integration from shell into adapter while retaining generic storage, capability, and path policy in shell.
 
 - [ ] **Step 5: Run complex and existing dock tests**
 
@@ -627,7 +627,7 @@ git commit -m "examples: add JavaScript component story"
 Run:
 
 ```bash
-rg -n "gpui_component::|use gpui_component|materialize/components" crates/shell/src
+rg -n "gpui_neath::|use gpui_neath|materialize/components" crates/shell/src
 cargo tree -p gpui-component-shell | rg "gpui-shell v"
 find crates/component-shell/src/shell -type f -name '*.rs' -print | sort
 ```

@@ -44,7 +44,7 @@ fn combobox_native_click_emits_change_and_confirm_for_stable_value(cx: &mut Test
     fs::write(
         root.join("main.js"),
         r#"import { View, div } from "gpui-kit";
-import { Combobox } from "gpui-component";
+import { Combobox } from "gpui-neath";
 export default class App extends View { render() {
   return div().size_full().child(new Combobox("people", () => [
     {id:"alpha",label:"Alpha"}, {id:"beta",label:"Beta"}

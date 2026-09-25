@@ -319,11 +319,11 @@ Marker::new()
 - [ShimmerStyle]
 - [ShimmerText]
 
-[Marker]: https://docs.rs/gpui-component/latest/gpui_component/marker/struct.Marker.html
-[MarkerVariant]: https://docs.rs/gpui-component/latest/gpui_component/marker/enum.MarkerVariant.html
-[MarkerAlignment]: https://docs.rs/gpui-component/latest/gpui_component/marker/enum.MarkerAlignment.html
-[MarkerLoadingStyle]: https://docs.rs/gpui-component/latest/gpui_component/marker/enum.MarkerLoadingStyle.html
-[MarkerIcon]: https://docs.rs/gpui-component/latest/gpui_component/marker/struct.MarkerIcon.html
-[MarkerContent]: https://docs.rs/gpui-component/latest/gpui_component/marker/struct.MarkerContent.html
-[ShimmerStyle]: https://docs.rs/gpui-component/latest/gpui_component/shimmer/struct.ShimmerStyle.html
-[ShimmerText]: https://docs.rs/gpui-component/latest/gpui_component/shimmer/struct.ShimmerText.html
+[Marker]: https://docs.rs/gpui-neath/latest/gpui_neath/marker/struct.Marker.html
+[MarkerVariant]: https://docs.rs/gpui-neath/latest/gpui_neath/marker/enum.MarkerVariant.html
+[MarkerAlignment]: https://docs.rs/gpui-neath/latest/gpui_neath/marker/enum.MarkerAlignment.html
+[MarkerLoadingStyle]: https://docs.rs/gpui-neath/latest/gpui_neath/marker/enum.MarkerLoadingStyle.html
+[MarkerIcon]: https://docs.rs/gpui-neath/latest/gpui_neath/marker/struct.MarkerIcon.html
+[MarkerContent]: https://docs.rs/gpui-neath/latest/gpui_neath/marker/struct.MarkerContent.html
+[ShimmerStyle]: https://docs.rs/gpui-neath/latest/gpui_neath/shimmer/struct.ShimmerStyle.html
+[ShimmerText]: https://docs.rs/gpui-neath/latest/gpui_neath/shimmer/struct.ShimmerText.html

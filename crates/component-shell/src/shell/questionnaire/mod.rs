@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use gpui_component::questionnaire::{
+use gpui_neath::questionnaire::{
     Questionnaire, QuestionnaireActions, QuestionnaireChoice, QuestionnaireChoiceDefinition,
     QuestionnaireChoices, QuestionnaireDescription, QuestionnaireError, QuestionnaireInput,
     QuestionnaireInputDefinition, QuestionnaireItem, QuestionnaireItemDefinition,
@@ -120,7 +120,7 @@ impl ComponentMaterializer for InputMaterializer {
             .downcast_ref::<InputPayload>()
             .ok_or_else(|| anyhow::anyhow!("QuestionnaireInput received an incompatible payload"))?
             .clone();
-        let state = request.with_state::<gpui::Entity<gpui_component::input::InputState>, _>(
+        let state = request.with_state::<gpui::Entity<gpui_neath::input::InputState>, _>(
             &payload.state,
             Clone::clone,
         )?;

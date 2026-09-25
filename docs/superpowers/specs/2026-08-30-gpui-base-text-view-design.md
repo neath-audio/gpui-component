@@ -3,7 +3,7 @@
 ## Goal
 
 Move the complete reusable `TextView` capability, including HTML and Markdown,
-from `gpui-component` into `gpui-base`. A project that depends only on
+from `gpui-neath` into `gpui-base`. A project that depends only on
 `gpui-base` must be able to render useful rich text, select it with the pointer,
 and copy the selected text without first building its own text component or
 style sheet.
@@ -23,11 +23,11 @@ be named `SelectableText` so the two public APIs are not ambiguous.
 - `TextViewStyle` and a complete neutral `TextViewStyle::default()`;
 - a small `SelectableText` element for ordinary plain text.
 
-`gpui-component` will no longer contain an independent TextView
+`gpui-neath` will no longer contain an independent TextView
 implementation. It will re-export the Base API at its current public paths and
 may add a theme adapter for applications initialized through
-`gpui_component::init`. Compatibility code must not make `gpui-base` depend on
-`gpui-component`.
+`gpui_neath::init`. Compatibility code must not make `gpui-base` depend on
+`gpui-neath`.
 
 ## Default styling
 
@@ -38,7 +38,7 @@ rules, selection highlights, and readable unhighlighted code blocks. Base-only
 applications can render HTML or Markdown without constructing a style.
 
 Defaults use GPUI primitives and Base semantic theme tokens. They must not read
-`gpui-component::Theme`, use component icons, or depend on component-specific
+`gpui-neath::Theme`, use component icons, or depend on component-specific
 tooltip and scrolling implementations. Every field remains overridable, and
 the component facade can derive an adapted style from its active theme to
 preserve the current appearance where practical.
@@ -105,7 +105,7 @@ removed by the move.
 The canonical implementation and types live under `gpui_base::text`.
 `TextView`, `TextViewState`, `TextViewStyle`, `Text`, `SelectionFormat`, the
 Markdown extension types, `markdown`, and `html` are also re-exported from the
-`gpui-base` root. `gpui-component::text`
+`gpui-base` root. `gpui-neath::text`
 keeps re-exporting the same types and the `markdown(...)` and `html(...)`
 helpers, so existing imports continue to compile unless they relied on a
 previously private implementation detail.
@@ -133,16 +133,16 @@ Tests must prove the requested capabilities rather than only compilation:
 - source and plain selection formats produce the expected clipboard text.
 - selection composes across plain `SelectableText` and rich `TextView`
   registrations in one window.
-- current `gpui_component::text` constructors and principal builder APIs still
+- current `gpui_neath::text` constructors and principal builder APIs still
   compile and behave through re-exports.
-- `cargo test -p gpui-base` and the relevant `gpui-component` text tests pass;
-  workspace checks confirm that no Base source imports `gpui-component`.
+- `cargo test -p gpui-base` and the relevant `gpui-neath` text tests pass;
+  workspace checks confirm that no Base source imports `gpui-neath`.
 
 ## Non-goals
 
 - Renaming or changing the meaning of the existing controlled-state
   `Selectable` trait.
-- Moving the full gpui-component theme, icon set, or overlay system into Base.
+- Moving the full gpui-neath theme, icon set, or overlay system into Base.
 - Introducing a second window-level selection coordinator.
 - Requiring every Base consumer to define a TextView style before rendering.
 - Enabling syntax highlighting or bundling language grammars by default.

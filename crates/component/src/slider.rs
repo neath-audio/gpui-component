@@ -89,6 +89,7 @@ pub struct Slider {
     style: StyleRefinement,
     disabled: bool,
     reverse: bool,
+    thumb: bool,
 }
 
 impl Slider {
@@ -100,6 +101,7 @@ impl Slider {
             style: StyleRefinement::default(),
             disabled: false,
             reverse: false,
+            thumb: true,
         }
     }
 
@@ -132,6 +134,12 @@ impl Slider {
     /// range sliders.
     pub fn reverse(mut self) -> Self {
         self.reverse = true;
+        self
+    }
+
+    /// Show or hide the draggable thumb, default: true.
+    pub fn thumb(mut self, thumb: bool) -> Self {
+        self.thumb = thumb;
         self
     }
 }
@@ -302,10 +310,14 @@ impl RenderOnce for Slider {
                                     .bg(bar_color)
                                     .rounded_full_style(cx),
                             )
-                            .when_some(start_ring, |this, ring| {
-                                this.child(thumb(relative(percentage.start), true, ring))
+                            .when(self.thumb && is_range, |this| {
+                                this.when_some(start_ring, |this, ring| {
+                                    this.child(thumb(relative(percentage.start), true, ring))
+                                })
                             })
-                            .child(thumb(relative(percentage.end), false, end_ring)),
+                            .when(self.thumb, |this| {
+                                this.child(thumb(relative(percentage.end), false, end_ring))
+                            }),
                     ),
             )
     }

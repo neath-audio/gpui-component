@@ -163,7 +163,7 @@ Most scripting layers hand a script a set of finished widgets and let it arrange
 
 `gpui-base` controls carry no visual style at all. `Button::new("save")` in Rust has no padding, no background, no radius and no size, and that is the contract. The JavaScript bindings preserve it exactly: `Button.new("save")` with no styling draws nothing but its children.
 
-The consequence is the point. **Because the foundation ships no presentation, the script owns all of it** — every colour, every pixel of spacing, every hover state, every corner radius. That is the same trade a Rust application makes when it builds on `gpui-base` instead of `gpui-component`; the difference is that here the trade is made in a file you can save and see the result of immediately, with no `cargo build` in between.
+The consequence is the point. **Because the foundation ships no presentation, the script owns all of it** — every colour, every pixel of spacing, every hover state, every corner radius. That is the same trade a Rust application makes when it builds on `gpui-base` instead of `gpui-neath`; the difference is that here the trade is made in a file you can save and see the result of immediately, with no `cargo build` in between.
 
 What the script gains in exchange for the extra typing is the whole application layer. Changing a button's radius does not mean going back to Rust.
 
@@ -189,7 +189,7 @@ What the script gains in exchange for the extra typing is the whole application 
   gpui                         elements · styling · rendering · GPU · platform
 ```
 
-`gpui-shell` sits beside `gpui-component` rather than beneath it: both are consumers of `gpui-base`, and both supply a presentation layer that Base does not. `gpui-component` supplies one in Rust, finished and coherent. `gpui-shell` supplies the machinery for a script to supply its own.
+`gpui-shell` sits beside `gpui-neath` rather than beneath it: both are consumers of `gpui-base`, and both supply a presentation layer that Base does not. `gpui-neath` supplies one in Rust, finished and coherent. `gpui-shell` supplies the machinery for a script to supply its own.
 
 ## Read next
 

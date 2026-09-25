@@ -320,4 +320,4 @@ Select 会使用当前主题中的这些 token：
 - `border` - 菜单边框
 - `radius` - 圆角
 
-[SelectItem]: https://docs.rs/gpui-component/latest/gpui_component/select/trait.SelectItem.html
+[SelectItem]: https://docs.rs/gpui-neath/latest/gpui_neath/select/trait.SelectItem.html

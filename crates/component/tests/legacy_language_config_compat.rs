@@ -1,5 +1,5 @@
 // These imports and grammar struct literals were valid in 0.6.0.
-use gpui_component::{highlighter::*, input::*};
+use gpui_neath::{highlighter::*, input::*};
 
 #[test]
 fn grammar_config_remains_unambiguous_with_legacy_glob_imports() {
@@ -25,7 +25,7 @@ fn grammar_config_remains_unambiguous_with_legacy_glob_imports() {
 #[test]
 fn base_imports_do_not_shadow_legacy_grammar_config() {
     use gpui_base::input::*;
-    use gpui_component::highlighter::*;
+    use gpui_neath::highlighter::*;
     let _: Option<LanguageConfig> = None;
     let _: Option<EditorState> = None;
     let _ = language_config::LanguageConfig::default();

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::{
+use gpui_neath::{
     Disableable as _, Selectable as _, Sizable as _,
     button::{Button, ButtonVariants as _, Toggle, ToggleVariants as _},
     checkbox::Checkbox,
@@ -20,7 +20,7 @@ struct IdPayload(String);
 
 #[derive(Clone)]
 enum ButtonOp {
-    Size(gpui_component::Size),
+    Size(gpui_neath::Size),
     Label(String),
     Tooltip(String),
     Loading(bool),
@@ -150,16 +150,16 @@ fn button_size() -> MethodDescriptor {
         |args| match args {
             [ComponentArgument::Enum(value)] => match value.as_str() {
                 "xsmall" => Ok(ComponentPayload::new(ButtonOp::Size(
-                    gpui_component::Size::XSmall,
+                    gpui_neath::Size::XSmall,
                 ))),
                 "small" => Ok(ComponentPayload::new(ButtonOp::Size(
-                    gpui_component::Size::Small,
+                    gpui_neath::Size::Small,
                 ))),
                 "medium" => Ok(ComponentPayload::new(ButtonOp::Size(
-                    gpui_component::Size::Medium,
+                    gpui_neath::Size::Medium,
                 ))),
                 "large" => Ok(ComponentPayload::new(ButtonOp::Size(
-                    gpui_component::Size::Large,
+                    gpui_neath::Size::Large,
                 ))),
                 _ => Err(format!("unsupported Button size `{value}`")),
             },

@@ -481,14 +481,14 @@ These boundaries are deliberate:
 - [`Axis`] — `Horizontal` or `Vertical` from GPUI.
 - [`ShimmerStyle`] — shared loading animation configuration.
 
-[Attachment]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.Attachment.html
-[AttachmentMedia]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentMedia.html
-[AttachmentContent]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentContent.html
-[AttachmentTitle]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentTitle.html
-[AttachmentDescription]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentDescription.html
-[AttachmentActions]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentActions.html
-[AttachmentGroup]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentGroup.html
-[AttachmentStatus]: https://docs.rs/gpui-component/latest/gpui_component/attachment/enum.AttachmentStatus.html
-[Size]: https://docs.rs/gpui-component/latest/gpui_component/enum.Size.html
+[Attachment]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.Attachment.html
+[AttachmentMedia]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentMedia.html
+[AttachmentContent]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentContent.html
+[AttachmentTitle]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentTitle.html
+[AttachmentDescription]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentDescription.html
+[AttachmentActions]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentActions.html
+[AttachmentGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentGroup.html
+[AttachmentStatus]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/enum.AttachmentStatus.html
+[Size]: https://docs.rs/gpui-neath/latest/gpui_neath/enum.Size.html
 [Axis]: https://docs.rs/gpui/latest/gpui/enum.Axis.html
-[ShimmerStyle]: https://docs.rs/gpui-component/latest/gpui_component/shimmer/struct.ShimmerStyle.html
+[ShimmerStyle]: https://docs.rs/gpui-neath/latest/gpui_neath/shimmer/struct.ShimmerStyle.html

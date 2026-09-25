@@ -372,7 +372,7 @@ token 操作返回 `Result<_, InlineTokenError>`，失败时输入保持原样�
 在 `init()` 中创建并保留 `InputState`，渲染时将它传给 Input。JavaScript 范围使用 **UTF-16 字符串偏移**，与 `slice()`、`indexOf()` 一致：
 
 ```javascript
-import { Input, InputState } from "gpui-component";
+import { Input, InputState } from "gpui-neath";
 
 // 在 init() 中：
 this.input = InputState();

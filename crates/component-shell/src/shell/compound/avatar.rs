@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::{Sizable as _, Size, avatar::Avatar};
+use gpui_neath::{Sizable as _, Size, avatar::Avatar};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

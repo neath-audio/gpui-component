@@ -118,8 +118,8 @@ Focus trap 系统主要由三部分组成：
 
 ## API 参考
 
-- [FocusTrapElement](https://docs.rs/gpui-component/latest/gpui_component/trait.FocusTrapElement.html)
-- [FocusTrapContainer](https://docs.rs/gpui-component/latest/gpui_component/struct.FocusTrapContainer.html)
+- [FocusTrapElement](https://docs.rs/gpui-neath/latest/gpui_neath/trait.FocusTrapElement.html)
+- [FocusTrapContainer](https://docs.rs/gpui-neath/latest/gpui_neath/struct.FocusTrapContainer.html)
 
 ## 示例
 
@@ -239,7 +239,7 @@ impl Render for ModalView {
 - [Sheet](/zh-CN/component/sheet)
 - [focus-trap-react](https://github.com/focus-trap/focus-trap-react)
 
-[Root]: https://docs.rs/gpui-component/latest/gpui_component/struct.Root.html
-[FocusTrapElement]: https://docs.rs/gpui-component/latest/gpui_component/trait.FocusTrapElement.html
+[Root]: https://docs.rs/gpui-neath/latest/gpui_neath/struct.Root.html
+[FocusTrapElement]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.FocusTrapElement.html
 [Dialog]: /zh-CN/component/dialog
 [Sheet]: /zh-CN/component/sheet

@@ -161,4 +161,4 @@ v_flex()
     )
 ```
 
-[Checkbox]: https://docs.rs/gpui-component/latest/gpui_component/checkbox/struct.Checkbox.html
+[Checkbox]: https://docs.rs/gpui-neath/latest/gpui_neath/checkbox/struct.Checkbox.html

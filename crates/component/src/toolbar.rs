@@ -149,7 +149,7 @@ impl RenderOnce for ToolbarGroup {
 /// give each toolbar in a window a distinct id.
 ///
 /// ```
-/// # mod gpui_kit { pub extern crate gpui_component as component; }
+/// # mod gpui_kit { pub extern crate gpui_neath as component; }
 /// use gpui_kit::component::toolbar::Toolbar;
 ///
 /// let _ = Toolbar::new("document-toolbar").content("Document");

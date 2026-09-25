@@ -61,7 +61,7 @@ pub type FoldIconRenderer = Rc<dyn Fn(usize, bool) -> AnyElement>;
 
 /// Where in the syntax tree an offset sits, for editing decisions.
 ///
-/// Parser-independent: `gpui-component` answers from tree-sitter, apps may
+/// Parser-independent: `gpui-neath` answers from tree-sitter, apps may
 /// answer heuristically. `None` (no provider installed) means `Code`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SyntaxContext {

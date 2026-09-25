@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::skeleton::Skeleton;
+use gpui_neath::skeleton::Skeleton;
 use gpui_shell::{
     ComponentDescriptor, ComponentMaterializer, ComponentPayload, ComponentRegistry,
     ConstructorDescriptor, MaterializeRequest, MethodDescriptor, RegistryError, anyhow,

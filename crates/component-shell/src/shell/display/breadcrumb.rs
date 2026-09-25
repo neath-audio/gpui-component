@@ -1,4 +1,4 @@
-use gpui_component::breadcrumb::Breadcrumb;
+use gpui_neath::breadcrumb::Breadcrumb;
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

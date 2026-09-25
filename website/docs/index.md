@@ -13,13 +13,13 @@ all reachable through the single `gpui-kit` dependency:
 
 - **`gpui-base`**: Unstyled behavior, controlled state, focus, overlays,
   virtual lists, dock infrastructure, and semantic design tokens.
-- **`gpui-component`**: GPUI Component, the complete styled component library
+- **`gpui-neath`**: GPUI Component, the complete styled component library
   with 75+ documented components and primitives, themes, data tables, dock
   layout, and a code editor.
 - **`gpui-shell`**: Opens a Rust host to JavaScript extensions, one granted
   capability at a time.
 
-Use `gpui-component` for polished controls with one coherent visual language,
+Use `gpui-neath` for polished controls with one coherent visual language,
 or build your own design system on the reusable behavior and infrastructure in
 `gpui-base`. This section covers GPUI Kit setup, shared design and coding guides, and
 application development. For library APIs, see [GPUI Component](/component),

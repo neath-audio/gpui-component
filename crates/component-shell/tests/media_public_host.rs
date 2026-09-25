@@ -70,7 +70,7 @@ impl gpui_shell::ComponentMaterializer for EditorProbe {
             .ok_or_else(|| gpui_shell::anyhow::anyhow!("probe payload"))?
             .0;
         let state = request
-            .with_state::<Entity<gpui_component::input::EditorState>, _>(argument, Clone::clone)?;
+            .with_state::<Entity<gpui_neath::input::EditorState>, _>(argument, Clone::clone)?;
         let observation = request.with_window_app(|_, cx| {
             Ok(format!(
                 "{:?}:{}",
@@ -146,7 +146,7 @@ fn draw(context: &mut VisualTestContext, view: Entity<gpui_shell::ScriptView>) {
 fn local_image_and_retained_editor_cross_the_public_host_and_draw(cx: &mut TestAppContext) {
     let source = r#"
 import { div, View } from "gpui-kit";
-import { Editor, EditorProbe, EditorState, Image } from "gpui-component";
+import { Editor, EditorProbe, EditorState, Image } from "gpui-neath";
 export default class Media extends View {
   init() { this.editor = EditorState("fn main() {}"); }
   render() { return div()
@@ -220,7 +220,7 @@ fn native_image_draw_loads_through_the_installed_application_assets() {
     let app_dir = TempApp::new(
         r#"
 import { View } from "gpui-kit";
-import { Image } from "gpui-component";
+import { Image } from "gpui-neath";
 export default class MediaImage extends View { render() { return new Image("assets/pixel.svg").size(32); } }
 "#,
     );

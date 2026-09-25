@@ -3,7 +3,7 @@
 This is the JavaScript Story gallery scaffold: an auditable, reviewable route
 catalog for the component-shell work.
 
-The gallery imports the registered public `gpui-component` surface through the
+The gallery imports the registered public `gpui-neath` surface through the
 completed public component-shell host. Infrastructure routes remain explicit
 status panels rather than fabricated constructors.
 
@@ -17,7 +17,7 @@ the explicit imports, routes, and `coveredBy` metadata in `stories/coverage.js`:
 node examples/js_story/fixtures/verify-coverage.mjs
 ```
 
-The gallery imports only public `gpui-kit`, `gpui-base`, and `gpui-component`
+The gallery imports only public `gpui-kit`, `gpui-base`, and `gpui-neath`
 script modules. `catalog.js` explicitly imports each family module and every
 route records its Rust Story source. The inventory currently supplies 69 mirrored Story
 entries and 70 tracked catalog surfaces. The check fails if either side changes

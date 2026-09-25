@@ -5,10 +5,8 @@ use gpui::{AppContext as _, TestAppContext};
 #[test]
 fn validation_takes_precedence_over_focus_and_remains_visible_when_disabled() {
     for mode in [crate::ThemeMode::Light, crate::ThemeMode::Dark] {
-        let theme = crate::Theme {
-            mode,
-            ..Default::default()
-        };
+        let mut theme = crate::Theme::default();
+        theme.mode = mode;
         let focused = GroupAppearance::new(&theme, true, false, false);
         assert_eq!(focused.border, theme.ring);
         assert_eq!(focused.ring, Some(theme.ring.opacity(0.5)));

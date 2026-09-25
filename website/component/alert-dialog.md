@@ -600,11 +600,11 @@ AlertDialog::new(cx)
 - [DialogAction] - Wrapper component for confirm/OK buttons
 - [DialogClose] - Wrapper component for cancel/close buttons
 
-[AlertDialog]: https://docs.rs/gpui-component/latest/gpui_component/dialog/struct.AlertDialog.html
-[Dialog]: https://docs.rs/gpui-component/latest/gpui_component/dialog/struct.Dialog.html
-[DialogHeader]: https://docs.rs/gpui-component/latest/gpui_component/dialog/struct.DialogHeader.html
-[DialogTitle]: https://docs.rs/gpui-component/latest/gpui_component/dialog/struct.DialogTitle.html
-[DialogDescription]: https://docs.rs/gpui-component/latest/gpui_component/dialog/struct.DialogDescription.html
-[DialogFooter]: https://docs.rs/gpui-component/latest/gpui_component/dialog/struct.DialogFooter.html
-[DialogAction]: https://docs.rs/gpui-component/latest/gpui_component/dialog/struct.DialogAction.html
-[DialogClose]: https://docs.rs/gpui-component/latest/gpui_component/dialog/struct.DialogClose.html
+[AlertDialog]: https://docs.rs/gpui-neath/latest/gpui_neath/dialog/struct.AlertDialog.html
+[Dialog]: https://docs.rs/gpui-neath/latest/gpui_neath/dialog/struct.Dialog.html
+[DialogHeader]: https://docs.rs/gpui-neath/latest/gpui_neath/dialog/struct.DialogHeader.html
+[DialogTitle]: https://docs.rs/gpui-neath/latest/gpui_neath/dialog/struct.DialogTitle.html
+[DialogDescription]: https://docs.rs/gpui-neath/latest/gpui_neath/dialog/struct.DialogDescription.html
+[DialogFooter]: https://docs.rs/gpui-neath/latest/gpui_neath/dialog/struct.DialogFooter.html
+[DialogAction]: https://docs.rs/gpui-neath/latest/gpui_neath/dialog/struct.DialogAction.html
+[DialogClose]: https://docs.rs/gpui-neath/latest/gpui_neath/dialog/struct.DialogClose.html

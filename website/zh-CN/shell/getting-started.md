@@ -41,7 +41,7 @@ gpui_platform::application()
 
 其中两行承载的是规则而不是机制。
 
-**`runtime.load(...)` 返回窗口的 `ShellRoot`**，作用与 `gpui-component` 窗口中的 `Root` 相同。它持有 dialog 栈、sheet、toast 栈、焦点恢复与 Tab 导航。manifest 负责选择应用入口并记录能力请求，但不会自行批准这些请求。带 manifest 与不带 manifest 的目录都使用 Host 当前的默认 policy；后者采用 `main.js`。
+**`runtime.load(...)` 返回窗口的 `ShellRoot`**，作用与 `gpui-neath` 窗口中的 `Root` 相同。它持有 dialog 栈、sheet、toast 栈、焦点恢复与 Tab 导航。manifest 负责选择应用入口并记录能力请求，但不会自行批准这些请求。带 manifest 与不带 manifest 的目录都使用 Host 当前的默认 policy；后者采用 `main.js`。
 
 **能力默认为空。** `Capabilities::default()` 什么都不授予——没有文件、没有存储、没有剪贴板、没有进程。由 Host 决定，因为只有 Host 知道它对即将运行的这段代码信任到什么程度。见 [Capabilities](./capabilities.md)。
 

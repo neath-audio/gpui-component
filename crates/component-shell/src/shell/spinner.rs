@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::{IconName, Sizable as _, Size, spinner::Spinner, try_parse_color};
+use gpui_neath::{IconName, Sizable as _, Size, spinner::Spinner, try_parse_color};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

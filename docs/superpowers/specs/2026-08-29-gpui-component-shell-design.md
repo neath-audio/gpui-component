@@ -2,14 +2,14 @@
 
 ## Goal
 
-Expose the complete public `gpui-component` component catalog to JavaScript
+Expose the complete public `gpui-neath` component catalog to JavaScript
 applications hosted by `gpui-shell`, without implementing those components in
 the `gpui-shell` crate. Provide a JavaScript gallery comparable to the Rust
 Story application so every binding is visible and exercisable.
 
 The integration will live in a new workspace crate named
 `gpui-component-shell`. This avoids a dependency cycle: the adapter can depend
-on both `gpui-shell` and `gpui-component`, while neither foundational crate
+on both `gpui-shell` and `gpui-neath`, while neither foundational crate
 depends on the adapter library.
 
 ## Crate boundaries
@@ -27,11 +27,11 @@ unchanged. It remains the script runtime and generic host bridge. It owns:
   events, styles, and window operations;
 - dispatch from a described component name to its registered materializer.
 
-It must not import or construct a `gpui-component` control. Existing
+It must not import or construct a `gpui-neath` control. Existing
 `gpui-base` materializers remain part of the base-only host: despite their
 historical `materialize/components` directory name, they implement the generic
 base surface and do not depend on the themed component crate. Only concrete
-`gpui-component` registration and materialization belongs in the adapter. The
+`gpui-neath` registration and materialization belongs in the adapter. The
 shell binary may depend on the adapter to assemble the default executable;
 that composition dependency does not put component implementation in the
 shell library.
@@ -39,7 +39,7 @@ shell library.
 ### `gpui-component-shell`
 
 The new adapter crate depends directly on both `gpui-shell` and
-`gpui-component`; `gpui-shell` depends only on `gpui-base`. Its
+`gpui-neath`; `gpui-shell` depends only on `gpui-base`. Its
 `src/shell/` directory contains one focused module per component family and a
 single public registration entry point:
 
@@ -50,9 +50,9 @@ pub fn register(runtime: &mut gpui_shell::ComponentRegistry);
 The adapter owns:
 
 - component constructors and builder-method schemas exposed to JavaScript;
-- conversion from shell values/specifications to `gpui-component` values;
+- conversion from shell values/specifications to `gpui-neath` values;
 - retained state creation and lookup for stateful components;
-- materialization into real `gpui-component` elements;
+- materialization into real `gpui-neath` elements;
 - component-specific callbacks, slots, validation, diagnostics, and generated
   TypeScript declarations;
 - initialization required by the component library.
@@ -64,7 +64,7 @@ loaded so runtime rendering does not mutate global schemas.
 ### Executable composition
 
 Using arrows from a Cargo consumer to its dependency, the dependency graph is
-`app -> gpui-component-shell -> { gpui-shell, gpui-component }`, with
+`app -> gpui-component-shell -> { gpui-shell, gpui-neath }`, with
 `gpui-shell -> gpui-base` as the base-only path. `gpui-shell` depends on neither
 the adapter nor the themed component crate, so Cargo sees no cycle and a
 base-only host does not link unused themed controls. Concrete component
@@ -89,7 +89,7 @@ data owned through a shell-defined erased payload boundary. The adapter's
 materializer receives the resolved style, behavior, children, named slots,
 window, application context, and access to shell callbacks/entities. This
 keeps recursive arena traversal and snapshot lifetime in `gpui-shell`, while
-all knowledge of concrete `gpui-component` types stays in the adapter.
+all knowledge of concrete `gpui-neath` types stays in the adapter.
 
 Stateful controls use shell entity handles whose payload behavior is supplied
 by the registration. Handle creation, release, generation checking, and script
@@ -115,7 +115,7 @@ constructors.
 The migration starts by moving every existing themed-component binding out of
 `gpui-shell`; base bindings remain the generic host surface. It is not complete
 until searches and dependency checks show that the shell library no longer
-references concrete `gpui-component` controls.
+references concrete `gpui-neath` controls.
 New bindings then cover the remainder of the inventory. Unsupported behavior
 is not silently ignored: registration or materialization reports a precise
 diagnostic naming the component, property, and supported alternative.
@@ -141,7 +141,7 @@ binding on supported platforms.
 
 Existing JavaScript constructor and builder names remain compatible wherever
 the same component already exists. The move changes ownership, not script
-syntax. If an existing name conflicts with the canonical `gpui-component`
+syntax. If an existing name conflicts with the canonical `gpui-neath`
 name, keep a deprecated alias in registry metadata and emit a migration
 warning.
 

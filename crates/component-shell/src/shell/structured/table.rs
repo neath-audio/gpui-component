@@ -2,7 +2,7 @@ use super::Empty;
 use super::common::positive_usize;
 use super::common::{TypedChildElement, take_element};
 use super::require_child;
-use gpui_component::{
+use gpui_neath::{
     Sizable as _, Size,
     table::{
         Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow,

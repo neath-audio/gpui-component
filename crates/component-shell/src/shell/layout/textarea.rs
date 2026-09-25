@@ -1,7 +1,7 @@
 use super::bool_method;
 use std::sync::Arc;
 
-use gpui_component::input::{Textarea, TextareaState};
+use gpui_neath::input::{Textarea, TextareaState};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

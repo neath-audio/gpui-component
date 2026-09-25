@@ -70,7 +70,7 @@ fn retained_data_table_renders_lazy_cells_from_plain_rows(cx: &mut TestAppContex
     data_table::test_probe::reset();
     let source = r#"
 import { View, div } from "gpui-kit";
-import { DataTableState, DataTable } from "gpui-component";
+import { DataTableState, DataTable } from "gpui-neath";
 export default class App extends View { render() { return new DataTable(
   DataTableState(["name", "status"]),
   () => [{name: "Ada", status: "Ready"}, {name: "Lin", status: "Busy"}],
@@ -96,7 +96,7 @@ fn data_table_rejects_non_array_snapshot_without_panicking(cx: &mut TestAppConte
     let (mut context, view) = mount(
         cx,
         r#"
-import { View, div } from "gpui-kit"; import { DataTableState, DataTable } from "gpui-component";
+import { View, div } from "gpui-kit"; import { DataTableState, DataTable } from "gpui-neath";
 export default class App extends View { render() { return new DataTable(DataTableState(["name"]), () => ({name:"Ada"}), () => div()); } }
 "#,
     );

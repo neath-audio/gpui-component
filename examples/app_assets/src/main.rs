@@ -47,7 +47,7 @@ fn main() {
     let app = gpui_kit::application().with_assets(Assets);
 
     app.run(move |cx| {
-        // We must initialize gpui_component before using it.
+        // We must initialize gpui_neath before using it.
         gpui_kit::init(cx);
 
         gpui_kit::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Example))

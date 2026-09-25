@@ -22,7 +22,7 @@ order: -13
 - **app shell：** 组合窗口与 Feature Crate，不承载具体 Feature 逻辑；
 - **feature crate：** 在一个公开边界内组织同一业务能力的 model、service、view、command、dialog 与 workflow；
 - **app component：** 跨 Feature 复用且带有领域语义的模式；
-- **gpui-component：** 带主题的通用 UI；
+- **gpui-neath：** 带主题的通用 UI；
 - **gpui-base：** 不带产品表现的可复用行为与 geometry。
 
 ### 大型应用按业务能力组织 crate

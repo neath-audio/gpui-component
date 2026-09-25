@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, Entity, InteractiveElement as _, IntoElement, ListAlignment, ListOffset,
-    ListState, ParentElement as _, SharedString, StyleRefinement, Styled, Window, div, list,
-    prelude::FluentBuilder as _, px,
+    AnyElement, App, Entity, FontWeight, InteractiveElement as _, IntoElement, ListAlignment,
+    ListOffset, ListState, ParentElement as _, SharedString, StyleRefinement, Styled, Window, div,
+    list, prelude::FluentBuilder as _, px,
 };
 use rust_i18n::t;
 
@@ -131,6 +131,7 @@ impl SettingPage {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
+        let text_size = options.size().control_text_size();
         let search_input = state.read(cx).search_input.clone();
         let query = search_input.read(cx).value();
         let groups = group_indices
@@ -189,13 +190,24 @@ impl SettingPage {
                     .border_b_1()
                     .border_color(cx.theme().border)
                     .refine_style(&self.header_style)
+                    // The page title is the page's one heading — semibold so it
+                    // outranks the group titles below, which stay regular. Size
+                    // is inherited, so `header_style` can re-tier it without
+                    // touching the description (whose Settings size still wins).
                     .child(
                         h_flex()
                             .justify_between()
                             .child(
+                                // Keep the title semibold (fork) while carrying
+                                // upstream's optional suffix slot (e.g. a help
+                                // icon) alongside it in the same header row.
                                 h_flex()
                                     .gap_1()
-                                    .child(self.title.clone())
+                                    .child(
+                                        div()
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .child(self.title.clone()),
+                                    )
                                     .when_some(self.title_suffix.clone(), |this, suffix| {
                                         this.child(suffix(window, cx))
                                     }),
@@ -220,7 +232,7 @@ impl SettingPage {
                     .when_some(self.description.clone(), |this, description| {
                         this.child(
                             Label::new(description)
-                                .text_sm()
+                                .text_size(text_size)
                                 .text_color(cx.theme().muted_foreground),
                         )
                     }),

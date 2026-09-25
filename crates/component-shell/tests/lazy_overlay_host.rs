@@ -64,7 +64,7 @@ fn popover_content_is_lazy_and_open_changes_cross_the_registered_boundary(cx: &m
     let app = TempApp::new(
         r#"
 import { div, View } from "gpui-kit";
-import { Popover } from "gpui-component";
+import { Popover } from "gpui-neath";
 export default class LazyPopover extends View {
   init() { this.open = false; this.hits = 0; }
   render() {
@@ -140,7 +140,7 @@ fn hover_card_builds_lazy_content_only_after_hover_and_reports_lifecycle(cx: &mu
     let app = TempApp::new(
         r#"
 import { div, View } from "gpui-kit";
-import { HoverCard } from "gpui-component";
+import { HoverCard } from "gpui-neath";
 export default class LazyHoverCard extends View {
   init() { this.open = false; this.hits = 0; }
   render() {
@@ -208,7 +208,7 @@ fn dropdown_menu_opens_real_items_and_dispatches_the_selected_callback(cx: &mut 
     let app = TempApp::new(
         r#"
 import { div, View } from "gpui-kit";
-import { DropdownMenu } from "gpui-component";
+import { DropdownMenu } from "gpui-neath";
 export default class LazyMenu extends View {
   init() { this.choice = "none"; }
   render() {

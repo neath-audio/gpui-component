@@ -3,7 +3,7 @@ use gpui::{
     StatefulInteractiveElement as _, Styled as _, blue, green, prelude::FluentBuilder as _, px,
     red,
 };
-use gpui_component::{
+use gpui_neath::{
     AxisExt as _, FocusTrapElement, InteractiveElementExt, LengthExt as _, Placement, Side,
     animation,
 };
@@ -27,15 +27,15 @@ fn legacy_foundation_exports_remain_available() {
 
 #[test]
 fn focus_ring_api_exposes_component_state_without_visual_options() {
-    use gpui_component::FocusableExt as _;
+    use gpui_neath::FocusableExt as _;
 
-    let button = gpui_component::button::Button::new("focus-ring-state").focus_ring(false);
+    let button = gpui_neath::button::Button::new("focus-ring-state").focus_ring(false);
     assert!(!button.is_focus_ring_enabled());
 }
 
 #[test]
 fn base_crate_exports_the_same_foundation_types() {
-    let legacy = gpui_component::Edges::all(1_u8);
+    let legacy = gpui_neath::Edges::all(1_u8);
     let base: gpui_base::Edges<u8> = legacy;
 
     assert_eq!(base.top, 1);
@@ -105,8 +105,8 @@ fn base_dialog_owns_modal_actions_and_alert_defaults() {
     let _ = gpui_base::AlertDialogDescription::new().child("Description");
     let _ = gpui_base::AlertDialogAction::new().child(gpui::div());
     let _ = gpui_base::AlertDialogCancel::new().child(gpui::div());
-    let _: gpui_base::actions::Cancel = gpui_component::dialog::Cancel;
-    let _: gpui_base::actions::Confirm = gpui_component::dialog::Confirm { secondary: false };
+    let _: gpui_base::actions::Cancel = gpui_neath::dialog::Cancel;
+    let _: gpui_base::actions::Confirm = gpui_neath::dialog::Confirm { secondary: false };
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn base_collapsible_uses_normal_child_and_content_slots() {
         .open(true)
         .child("Trigger")
         .content("Content");
-    let _ = gpui_component::collapsible::Collapsible::new()
+    let _ = gpui_neath::collapsible::Collapsible::new()
         .open(true)
         .child("Trigger")
         .content("Content");
@@ -188,14 +188,14 @@ fn legacy_behavior_traits_are_the_base_traits() {
         value
     }
 
-    let _ = selectable(gpui_component::button::Button::new("selectable"));
-    let _ = disableable(gpui_component::button::Button::new("disableable"));
+    let _ = selectable(gpui_neath::button::Button::new("selectable"));
+    let _ = disableable(gpui_neath::button::Button::new("disableable"));
 }
 
 #[test]
 fn legacy_measure_type_is_the_base_type() {
     fn accepts_base(_: gpui_base::Measure) {}
-    accepts_base(gpui_component::Measure::new("compat"));
+    accepts_base(gpui_neath::Measure::new("compat"));
 }
 
 #[test]
@@ -223,7 +223,7 @@ fn base_table_and_toast_accept_application_owned_composition() {
 #[test]
 fn legacy_tree_models_are_base_types() {
     fn accepts_base(_: gpui_base::TreeItem) {}
-    accepts_base(gpui_component::tree::TreeItem::new("id", "Label"));
+    accepts_base(gpui_neath::tree::TreeItem::new("id", "Label"));
 }
 
 #[test]
@@ -256,7 +256,7 @@ fn base_input_frames_accept_application_owned_content() {
     let _ = build_number;
     let _ = gpui_base::NumberInputText::new().child(gpui::div());
 
-    let _: gpui_base::StepAction = gpui_component::input::StepAction::Increment;
+    let _: gpui_base::StepAction = gpui_neath::input::StepAction::Increment;
 }
 
 #[test]
@@ -299,13 +299,13 @@ fn base_input_accepts_application_owned_highlighters() {
 #[test]
 fn legacy_list_settings_are_the_base_type() {
     fn accepts_base(_: gpui_base::ListSettings) {}
-    accepts_base(gpui_component::list::ListSettings::default());
+    accepts_base(gpui_neath::list::ListSettings::default());
 }
 
 #[test]
 fn legacy_global_state_is_the_base_type() {
     fn accepts_base(_: &gpui_base::GlobalState) {}
-    fn through_legacy(state: &gpui_component::GlobalState) {
+    fn through_legacy(state: &gpui_neath::GlobalState) {
         accepts_base(state);
     }
 
@@ -315,7 +315,7 @@ fn legacy_global_state_is_the_base_type() {
 #[test]
 fn legacy_popover_state_is_the_base_type() {
     fn accepts_base(_: &gpui_base::PopoverState) {}
-    fn through_legacy(state: &gpui_component::popover::PopoverState) {
+    fn through_legacy(state: &gpui_neath::popover::PopoverState) {
         accepts_base(state);
     }
 
@@ -325,7 +325,7 @@ fn legacy_popover_state_is_the_base_type() {
 #[test]
 fn legacy_hover_card_state_is_the_base_type() {
     fn accepts_base(_: &gpui_base::HoverCardState) {}
-    fn through_legacy(state: &gpui_component::hover_card::HoverCardState) {
+    fn through_legacy(state: &gpui_neath::hover_card::HoverCardState) {
         accepts_base(state);
     }
 
@@ -338,7 +338,7 @@ fn base_tooltip_positioner_uses_normal_children() {
         .child("Tooltip")
         .child("⌘K");
     let _ = gpui_base::TooltipPositioner::new(gpui::Bounds::default())
-        .placement(gpui_component::Placement::Right)
+        .placement(gpui_neath::Placement::Right)
         .child("Tooltip");
 }
 
@@ -353,17 +353,17 @@ fn transition_ids_accept_strings_and_named_channels() {
 
 #[test]
 fn legacy_styled_and_sizing_exports_remain_available() {
-    use gpui_component::Sizable as _;
+    use gpui_neath::Sizable as _;
 
-    let _: gpui_component::Size = gpui_component::Size::Medium;
-    let _ = gpui_component::StyledExt::font_medium(gpui::div());
-    let _ = gpui_component::h_flex();
-    let _ = gpui_component::v_flex();
-    let _ = gpui_component::box_shadow(0., 0., 0., 0., gpui::hsla(0., 0., 0., 0.));
+    let _: gpui_neath::Size = gpui_neath::Size::Medium;
+    let _ = gpui_neath::StyledExt::font_medium(gpui::div());
+    let _ = gpui_neath::h_flex();
+    let _ = gpui_neath::v_flex();
+    let _ = gpui_neath::box_shadow(0., 0., 0., 0., gpui::hsla(0., 0., 0., 0.));
 
     struct SizedValue;
-    impl gpui_component::Sizable for SizedValue {
-        fn with_size(self, _: impl Into<gpui_component::Size>) -> Self {
+    impl gpui_neath::Sizable for SizedValue {
+        fn with_size(self, _: impl Into<gpui_neath::Size>) -> Self {
             self
         }
     }
@@ -372,10 +372,10 @@ fn legacy_styled_and_sizing_exports_remain_available() {
 
 #[test]
 fn element_ext_is_available_from_base_and_the_legacy_root() {
-    use gpui_component::ElementExt as _;
+    use gpui_neath::ElementExt as _;
 
     fn requires_base<T: gpui_base::ElementExt>() {}
-    fn requires_legacy<T: gpui_component::ElementExt>() {}
+    fn requires_legacy<T: gpui_neath::ElementExt>() {}
     requires_base::<gpui::Div>();
     requires_legacy::<gpui::Div>();
 
@@ -384,13 +384,13 @@ fn element_ext_is_available_from_base_and_the_legacy_root() {
 
 #[test]
 fn legacy_history_path_reexports_the_base_type() {
-    let _: gpui_component::history::History<u8> = gpui_base::History::new();
-    let _: gpui_component::history::UndoHistory<u8> = gpui_base::UndoHistory::new();
+    let _: gpui_neath::history::History<u8> = gpui_base::History::new();
+    let _: gpui_neath::history::UndoHistory<u8> = gpui_base::UndoHistory::new();
 }
 
 #[test]
 fn legacy_auto_scroll_path_reexports_the_base_type() {
-    fn through_legacy_path(scroll: gpui_base::AutoScroll) -> gpui_component::scroll::AutoScroll {
+    fn through_legacy_path(scroll: gpui_base::AutoScroll) -> gpui_neath::scroll::AutoScroll {
         scroll
     }
 
@@ -399,36 +399,36 @@ fn legacy_auto_scroll_path_reexports_the_base_type() {
 
 #[test]
 fn root_resizable_paths_reexport_base_types() {
-    fn state_through_facade(state: gpui_base::ResizableState) -> gpui_component::ResizableState {
+    fn state_through_facade(state: gpui_base::ResizableState) -> gpui_neath::ResizableState {
         state
     }
 
     fn group_through_facade(
         group: gpui_base::ResizablePanelGroup,
-    ) -> gpui_component::ResizablePanelGroup {
+    ) -> gpui_neath::ResizablePanelGroup {
         group
     }
 
-    fn panel_through_facade(panel: gpui_base::ResizablePanel) -> gpui_component::ResizablePanel {
+    fn panel_through_facade(panel: gpui_base::ResizablePanel) -> gpui_neath::ResizablePanel {
         panel
     }
 
     let _ = state_through_facade(gpui_base::ResizableState::default());
     let _ = group_through_facade(gpui_base::ResizablePanelGroup::new("group"));
     let _ = panel_through_facade(gpui_base::resizable_panel());
-    let _ = gpui_component::h_resizable("horizontal");
-    let _ = gpui_component::v_resizable("vertical");
+    let _ = gpui_neath::h_resizable("horizontal");
+    let _ = gpui_neath::v_resizable("vertical");
 }
 
 #[test]
 fn legacy_resizable_module_paths_remain_available() {
     fn panel_through_legacy(
         panel: gpui_base::ResizablePanel,
-    ) -> gpui_component::resizable::ResizablePanel {
+    ) -> gpui_neath::resizable::ResizablePanel {
         panel
     }
 
     let _ = panel_through_legacy(gpui_base::resizable_panel());
-    let _ = gpui_component::resizable::h_resizable("horizontal");
-    let _ = gpui_component::resizable::v_resizable("vertical");
+    let _ = gpui_neath::resizable::h_resizable("horizontal");
+    let _ = gpui_neath::resizable::v_resizable("vertical");
 }

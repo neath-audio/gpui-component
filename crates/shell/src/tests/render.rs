@@ -786,7 +786,7 @@ fn descriptor_drives_runtime_and_typescript(cx: &mut TestAppContext) {
         .unwrap();
     let components = registry.freeze().unwrap();
     let declarations = crate::typings::declarations_with_components(&components);
-    assert!(declarations.contains("declare module \"gpui-component\""));
+    assert!(declarations.contains("declare module \"gpui-neath\""));
     // `disabled`, `selected` and `on_click` join the omission because this
     // descriptor declares none of them, and the runtime refuses them for a
     // registered component that does not.
@@ -808,7 +808,7 @@ fn descriptor_drives_runtime_and_typescript(cx: &mut TestAppContext) {
             "registered.js",
             r#"
 import { View } from "gpui-kit";
-import { TestBox } from "gpui-component";
+import { TestBox } from "gpui-neath";
 export default class Registered extends View {
   render() { return new TestBox("alpha").tone("quiet"); }
 }
@@ -884,7 +884,7 @@ fn registered_method_schema_overrides_legacy_dispatch(cx: &mut TestAppContext) {
             "strict.js",
             r#"
 import { View } from "gpui-kit";
-import { StrictBox } from "gpui-component";
+import { StrictBox } from "gpui-neath";
 export default class Strict extends View { render() { return new StrictBox().disabled("yes"); } }
 "#,
         )
@@ -958,7 +958,7 @@ fn registered_argument_conversion_has_recursive_depth_and_aggregate_budgets(
         ),
     ] {
         let source = format!(
-            "import {{ View }} from 'gpui-kit'; import {{ BudgetBox }} from 'gpui-component'; export default class Budgeted extends View {{ render() {{ {body} }} }}"
+            "import {{ View }} from 'gpui-kit'; import {{ BudgetBox }} from 'gpui-neath'; export default class Budgeted extends View {{ render() {{ {body} }} }}"
         );
         let view_type = runtime.load_source(name, &source).unwrap();
         let object = context
@@ -1046,7 +1046,7 @@ fn failed_registered_factory_does_not_claim_elements_or_persist_callbacks(cx: &m
             "transactional-component.js",
             r#"
 import { View, div } from "gpui-kit";
-import { MethodBox, RejectBox, ValidateBox } from "gpui-component";
+import { MethodBox, RejectBox, ValidateBox } from "gpui-neath";
 export default class Transactional extends View {
   render() {
     const child = div();
@@ -1141,7 +1141,7 @@ fn registered_entity_arguments_validate_the_actual_entity_kind(cx: &mut TestAppC
             r#"
 import { View } from "gpui-kit";
 import { InputState } from "gpui-base";
-import { FocusBox } from "gpui-component";
+import { FocusBox } from "gpui-neath";
 export default class WrongKind extends View {
   init() { this.input = InputState.new(); }
   render() { return new FocusBox(this.input); }
@@ -1224,7 +1224,7 @@ fn materialize_request_resolves_opaque_component_arguments(cx: &mut TestAppConte
             "resolved-component.js",
             r#"
 import { View, div } from "gpui-kit";
-import { ResolvedBox } from "gpui-component";
+import { ResolvedBox } from "gpui-neath";
 export default class Resolved extends View {
   init(_props, cx) { this.focus = cx.focus_handle(); }
   render() {
@@ -1357,7 +1357,7 @@ fn registered_component_state_is_created_once_and_updated_during_materialization
             "stateful.js",
             r#"
 import { View } from "gpui-kit";
-import { CounterState, StatefulBox } from "gpui-component";
+import { CounterState, StatefulBox } from "gpui-neath";
 export default class Stateful extends View {
   init() { this.state = CounterState(); }
   render() { return new StatefulBox(this.state); }
@@ -1402,7 +1402,7 @@ export default class Stateful extends View {
             "forged-state.js",
             r#"
 import { View } from "gpui-kit";
-import { StatefulBox } from "gpui-component";
+import { StatefulBox } from "gpui-neath";
 export default class Forged extends View {
   render() {
     return new StatefulBox({ __componentStateHandle: 0, __componentStateProof: "guessed" });
@@ -1429,7 +1429,7 @@ export default class Forged extends View {
             "wrong-state-kind.js",
             r#"
 import { View } from "gpui-kit";
-import { OtherState, StatefulBox } from "gpui-component";
+import { OtherState, StatefulBox } from "gpui-neath";
 export default class WrongKind extends View {
   init() { this.state = OtherState(); }
   render() { return new StatefulBox(this.state); }
@@ -1481,7 +1481,7 @@ fn failed_registered_state_factory_rolls_back_without_retaining_a_slot(cx: &mut 
             "broken-state.js",
             r#"
 import { View } from "gpui-kit";
-import { BrokenState } from "gpui-component";
+import { BrokenState } from "gpui-neath";
 export default class Broken extends View { init() { BrokenState(() => {}); } render() { return "never"; } }
 "#,
         )
@@ -1529,7 +1529,7 @@ fn failed_application_load_releases_states_created_during_module_evaluation(
     std::fs::write(
         directory.join("main.js"),
         r#"
-import { LoadState } from "gpui-component";
+import { LoadState } from "gpui-neath";
 LoadState();
 throw new Error("module load failed after state creation");
 export default class Never {}
@@ -1591,7 +1591,7 @@ fn successful_application_reload_purges_old_state_and_keeps_new_generation(
     let source = |version| {
         format!(
             r#"
-import {{ ReloadState }} from "gpui-component";
+import {{ ReloadState }} from "gpui-neath";
 ReloadState();
 export default class Reloaded {{ render() {{ return "version {version}"; }} }}
 "#
@@ -1706,7 +1706,7 @@ fn registered_parent_can_inspect_and_materialize_a_registered_typed_child(cx: &m
             "typed-child.js",
             r#"
 import { View } from "gpui-kit";
-import { TypedLeaf, TypedParent } from "gpui-component";
+import { TypedLeaf, TypedParent } from "gpui-neath";
 export default class TypedChildView extends View {
   render() { return new TypedParent().child(new TypedLeaf()); }
 }
@@ -1855,7 +1855,7 @@ fn registered_button_receives_common_parts_and_dispatches_click(cx: &mut TestApp
     cx.update(|cx| runtime.set_global(cx));
     let source = r#"
 import { View, div } from "gpui-kit";
-import { AdapterButton } from "gpui-component";
+import { AdapterButton } from "gpui-neath";
 export default class AdapterButtons extends View {
   init() { this.clicks = 0; }
   render() {
@@ -1882,7 +1882,7 @@ export default class AdapterButtons extends View {
             "refusing-click.js",
             r#"
 import { View } from "gpui-kit";
-import { RejectClick } from "gpui-component";
+import { RejectClick } from "gpui-neath";
 export default class RefusingClick extends View {
   render() { return new RejectClick().on_click(() => {}); }
 }
@@ -1913,7 +1913,7 @@ export default class RefusingClick extends View {
             "undeclared-common.js",
             r#"
 import { View } from "gpui-kit";
-import { AdapterButton } from "gpui-component";
+import { AdapterButton } from "gpui-neath";
 export default class UndeclaredCommon extends View {
   render() { return new AdapterButton("bad").checked(true); }
 }
@@ -2023,7 +2023,7 @@ fn deprecated_alias_constructs_the_same_component_and_warns_once(cx: &mut TestAp
             "alias.js",
             r#"
 import { View } from "gpui-kit";
-import { OldTestBox } from "gpui-component";
+import { OldTestBox } from "gpui-neath";
 export default class Alias extends View { render() { return new OldTestBox(); } }
 "#,
         )

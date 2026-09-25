@@ -4,7 +4,7 @@
 
 ## 结论
 
-建议 `gpui-component` **继续使用 `readonly`**，包括：
+建议 `gpui-neath` **继续使用 `readonly`**，包括：
 
 ```rust
 Input::new(state).readonly(true);
@@ -48,7 +48,7 @@ state.set_readonly(true, cx);
 
 因此，“Rust 一律把 `readOnly` 机械转换成 `read_only`”并不是可靠规则。Rust API Guidelines 的 [C-CASE](https://rust-lang.github.io/api-guidelines/naming.html#c-case) 要求函数和方法使用 `snake_case`；`readonly` 本身不含大写字母，也没有违反该规则，而标准库先例进一步消除了歧义。
 
-## 对 `gpui-component` 的具体建议
+## 对 `gpui-neath` 的具体建议
 
 | 场景 | 推荐 | 不推荐 |
 |---|---|---|

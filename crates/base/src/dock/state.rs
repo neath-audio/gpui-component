@@ -138,7 +138,7 @@ impl Default for PanelState {
 impl PanelState {
     /// Create a new leaf state for a panel with the given name.
     ///
-    /// The base layer has no `Panel` trait yet (`gpui_component::dock::Panel`
+    /// The base layer has no `Panel` trait yet (`gpui_neath::dock::Panel`
     /// is layered above), so this takes the name directly rather than
     /// deriving it from a panel value.
     pub fn new(panel_name: impl Into<String>) -> Self {

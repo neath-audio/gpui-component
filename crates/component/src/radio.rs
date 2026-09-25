@@ -216,13 +216,7 @@ impl RenderOnce for Radio {
             .when(is_focused && self.focus_ring_enabled, |this| {
                 this.focus_ring_style(window, cx)
             })
-            .map(|this| match self.size {
-                Size::XSmall => this.text_xs(),
-                Size::Small => this.text_sm(),
-                Size::Medium => this.text_base(),
-                Size::Large => this.text_lg(),
-                _ => this,
-            })
+            .text_size(self.size.control_text_size())
             .refine_style(&self.style)
             .child(
                 div()

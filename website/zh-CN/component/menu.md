@@ -432,7 +432,7 @@ Button::new("settings")
 7. 使用清晰、动作导向的文案。
 8. 菜单项很多时开启滚动并设置合理高度。
 
-[PopupMenu]: https://docs.rs/gpui-component/latest/gpui_component/menu/struct.PopupMenu.html
-[PopupMenuItem]: https://docs.rs/gpui-component/latest/gpui_component/menu/struct.PopupMenuItem.html
-[context_menu]: https://docs.rs/gpui-component/latest/gpui_component/menu/trait.ContextMenuExt.html#method.context_menu
+[PopupMenu]: https://docs.rs/gpui-neath/latest/gpui_neath/menu/struct.PopupMenu.html
+[PopupMenuItem]: https://docs.rs/gpui-neath/latest/gpui_neath/menu/struct.PopupMenuItem.html
+[context_menu]: https://docs.rs/gpui-neath/latest/gpui_neath/menu/trait.ContextMenuExt.html#method.context_menu
 [Action]: https://docs.rs/gpui/latest/gpui/trait.Action.html

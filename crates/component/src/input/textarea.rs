@@ -17,6 +17,7 @@ pub struct Textarea {
     state: Entity<TextareaState>,
     style: StyleRefinement,
     size: Size,
+    focus_bordered: bool,
     height: Option<DefiniteLength>,
     appearance: bool,
     bordered: bool,
@@ -36,6 +37,18 @@ pub struct Textarea {
 }
 
 impl Textarea {
+    /// Draw the focused border around the text area.
+    pub fn focus_bordered(mut self, bordered: bool) -> Self {
+        self.focus_bordered = bordered;
+        self
+    }
+
+    /// Fill the available height, including after an explicit height was set.
+    pub fn h_full(mut self) -> Self {
+        self.height = Some(gpui::relative(1.));
+        self
+    }
+
     /// The element each atomic inline token renders as, in place of the default
     /// [`InputToken`](super::InputToken); editing and history stay
     /// with the input.
@@ -62,6 +75,7 @@ impl Textarea {
             state: state.clone(),
             style: StyleRefinement::default(),
             size: Size::default(),
+            focus_bordered: true,
             height: None,
             appearance: true,
             bordered: true,
@@ -187,6 +201,7 @@ impl Textarea {
             .tab_index(self.tab_index)
             .role(self.role)
             .with_size(self.size)
+            .focus_bordered(self.focus_bordered)
             .when_some(self.height, |this, height| this.h(height))
             .when_some(self.accessibility_id, |this, id| this.accessibility_id(id))
             .when_some(self.aria_label, |this, label| this.aria_label(label))

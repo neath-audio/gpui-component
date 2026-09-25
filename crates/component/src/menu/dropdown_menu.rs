@@ -47,14 +47,22 @@ impl<T> DropdownMenuPopover<T>
 where
     T: Selectable + IntoElement + 'static,
 {
-    fn new(
-        id: ElementId,
+    /// Create a dropdown-menu popover directly, without going through the
+    /// [`DropdownMenu`] trait.
+    ///
+    /// The trait requires its receiver to be `InteractiveElement` (it reads the
+    /// trigger's own element id), but the popover itself only needs the trigger
+    /// to be `Selectable + IntoElement`. Triggers that are not interactive
+    /// elements — composed rows, custom `RenderOnce` chrome — can construct the
+    /// popover here, supplying the id the trait would have read.
+    pub fn new(
+        id: impl Into<ElementId>,
         anchor: impl Into<Anchor>,
         trigger: T,
         builder: impl Fn(PopupMenu, &mut Window, &mut Context<PopupMenu>) -> PopupMenu + 'static,
     ) -> Self {
         Self {
-            id: SharedString::from(format!("dropdown-menu:{:?}", id)).into(),
+            id: SharedString::from(format!("dropdown-menu:{:?}", id.into())).into(),
             style: StyleRefinement::default(),
             anchor: anchor.into(),
             trigger,
@@ -120,6 +128,7 @@ where
 
         Popover::new(SharedString::from(format!("popover:{}", self.id)))
             .appearance(false)
+            .child_owns_material()
             .overlay_closable(false)
             .trigger(self.trigger)
             .trigger_style(self.style)

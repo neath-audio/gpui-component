@@ -13,9 +13,9 @@ order: 1
 | Use | When |
 | --- | --- |
 | `gpui-base` | You are building a design system and want to own every visual choice. |
-| `gpui-component` | You want a complete set of styled, ready-to-use desktop components. |
+| `gpui-neath` | You want a complete set of styled, ready-to-use desktop components. |
 
-The dependency points one way: `gpui-component` builds on `gpui-base`. Applications can use either layer directly.
+The dependency points one way: `gpui-neath` builds on `gpui-base`. Applications can use either layer directly.
 
 ## Principles
 

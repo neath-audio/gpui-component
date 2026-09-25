@@ -129,6 +129,6 @@ Accordion::new("outer")
     })
 ```
 
-[Accordion]: https://docs.rs/gpui-component/latest/gpui_component/accordion/struct.Accordion.html
-[AccordionItem]: https://docs.rs/gpui-component/latest/gpui_component/accordion/struct.AccordionItem.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
+[Accordion]: https://docs.rs/gpui-neath/latest/gpui_neath/accordion/struct.Accordion.html
+[AccordionItem]: https://docs.rs/gpui-neath/latest/gpui_neath/accordion/struct.AccordionItem.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html

@@ -1,6 +1,6 @@
 use gpui::{
-    AnyElement, App, Div, ElementId, Half as _, Hsla, IntoElement, ParentElement, Pixels, Point,
-    RenderOnce, SharedString, Size, StyleRefinement, Styled, Window, deferred, div, point,
+    AnyElement, App, Corners, Div, ElementId, Half as _, Hsla, IntoElement, ParentElement, Pixels,
+    Point, RenderOnce, SharedString, Size, StyleRefinement, Styled, Window, deferred, div, point,
     prelude::FluentBuilder, px,
 };
 use gpui_base::{
@@ -9,7 +9,7 @@ use gpui_base::{
 };
 
 use crate::ThemeStyled as _;
-use crate::{ActiveTheme, Colorize, StyledExt, h_flex, v_flex};
+use crate::{ActiveTheme, Colorize, Material, MaterialDepth, StyledExt, h_flex, v_flex};
 
 #[derive(Default)]
 pub enum CrossLineAxis {
@@ -638,6 +638,7 @@ impl RenderOnce for Tooltip {
         // Structured content (title + rows) takes precedence over freeform `base` children.
         let content = if title.is_some() || !rows.is_empty() {
             v_flex()
+                .text_size(crate::Size::Small.text_size())
                 .gap_1()
                 .when_some(title, |this, title| {
                     this.child(div().font_semibold().child(title))
@@ -688,7 +689,11 @@ impl RenderOnce for Tooltip {
             // this element's opacity, so the box carries the fade itself.
             .child(deferred(content.map(|mut this| {
                 if !appearance {
-                    return this.size_full().relative().opacity(focus);
+                    return this
+                        .size_full()
+                        .relative()
+                        .opacity(focus)
+                        .into_any_element();
                 }
 
                 // Default min width only applies when the caller hasn't set one, so a
@@ -697,7 +702,8 @@ impl RenderOnce for Tooltip {
 
                 // The box hugs the cursor, flipping toward the center near each edge so it
                 // never overflows the near side.
-                this.absolute()
+                let surface = this
+                    .absolute()
                     .opacity(focus)
                     .when(min_w_unset, |c| c.min_w(px(150.)))
                     .popover_style(cx)
@@ -715,7 +721,11 @@ impl RenderOnce for Tooltip {
                         } else {
                             c.bottom(within.height - cursor.y + gap)
                         }
-                    })
+                    });
+
+                Material::new("plot-tooltip-material", MaterialDepth::Overlay, surface)
+                    .corner_radii(Corners::all(cx.theme().radius))
+                    .into_any_element()
             })))
     }
 }

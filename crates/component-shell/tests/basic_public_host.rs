@@ -79,7 +79,7 @@ fn basic_text_and_dropdown_materialize_through_public_host(cx: &mut TestAppConte
         cx,
         r#"
 import { div, View } from "gpui-kit";
-import { DropdownButton, Text } from "gpui-component";
+import { DropdownButton, Text } from "gpui-neath";
 export default class BasicRemaining extends View {
   init() { this.action_hits = 0; this.menu_hits = 0; }
   render() {

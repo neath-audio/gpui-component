@@ -163,7 +163,7 @@ the two never diverge.
 
 **Do not put document tabs inside the window chrome.** A tab strip in the
 titlebar fights the traffic lights, and a browser-style tab row below it is not
-how gpui-component presents views. View switching uses the library's own
+how gpui-neath presents views. View switching uses the library's own
 **segmented control** (`.segmented`, mapped from `tab_bar.segmented.background`
 and `tab.active.background`), placed in the section heading — outside the
 window, which stays pure chrome.

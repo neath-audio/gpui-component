@@ -40,7 +40,7 @@ fn questionnaire_answers_and_advances_from_script_declared_questions(cx: &mut Te
     let app = TempApp::new(
         r##"
 import { div, View } from "gpui-kit";
-import { Questionnaire, QuestionnaireItem, QuestionnaireChoice } from "gpui-component";
+import { Questionnaire, QuestionnaireItem, QuestionnaireChoice } from "gpui-neath";
 export default class QuestionnaireHost extends View {
   render() {
     return div().w(500).h(400)
@@ -64,7 +64,7 @@ export default class QuestionnaireHost extends View {
             .mount_application(&loaded, window, cx)
             .expect("mount");
         *capture.borrow_mut() = Some(view.clone());
-        gpui_component::Root::new(view, window, cx)
+        gpui_neath::Root::new(view, window, cx)
     });
     let mut context = VisualTestContext::from_window(*window.deref(), cx);
     let view = mounted.borrow().clone().unwrap();

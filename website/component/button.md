@@ -363,11 +363,11 @@ Button::new("btn")
     )
 ```
 
-[Button]: https://docs.rs/gpui-component/latest/gpui_component/button/struct.Button.html
-[ButtonGroup]: https://docs.rs/gpui-component/latest/gpui_component/button/struct.ButtonGroup.html
-[ButtonCustomVariant]: https://docs.rs/gpui-component/latest/gpui_component/button/struct.ButtonCustomVariant.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
-[Spinner]: https://docs.rs/gpui-component/latest/gpui_component/spinner/struct.Spinner.html
-[ProgressCircle]: https://docs.rs/gpui-component/latest/gpui_component/progress/struct.ProgressCircle.html
-[Icon]: https://docs.rs/gpui-component/latest/gpui_component/icon/struct.Icon.html
-[IconName]: https://docs.rs/gpui-component/latest/gpui_component/icon/enum.IconName.html
+[Button]: https://docs.rs/gpui-neath/latest/gpui_neath/button/struct.Button.html
+[ButtonGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/button/struct.ButtonGroup.html
+[ButtonCustomVariant]: https://docs.rs/gpui-neath/latest/gpui_neath/button/struct.ButtonCustomVariant.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html
+[Spinner]: https://docs.rs/gpui-neath/latest/gpui_neath/spinner/struct.Spinner.html
+[ProgressCircle]: https://docs.rs/gpui-neath/latest/gpui_neath/progress/struct.ProgressCircle.html
+[Icon]: https://docs.rs/gpui-neath/latest/gpui_neath/icon/struct.Icon.html
+[IconName]: https://docs.rs/gpui-neath/latest/gpui_neath/icon/enum.IconName.html

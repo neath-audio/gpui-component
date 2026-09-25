@@ -16,7 +16,8 @@ use gpui_base::{
 };
 
 pub use gpui_base::{
-    ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState, resizable_panel,
+    HandleEdge, ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState,
+    resizable_panel, resize_handle,
 };
 
 use crate::theme::ActiveTheme as _;
@@ -133,4 +134,26 @@ pub(crate) fn render_resize_handle(
             })
         })
         .into_any_element()
+}
+
+/// Paint a resize divider only while it is active.
+///
+/// The panel boundary supplies the resting seam. GPUI Base continues to own
+/// the hit area, cursor, and drag interaction; this recipe owns only Neath's
+/// transparent-idle and accent-active presentation.
+pub fn seamless_handle_appearance() -> gpui_base::ResizeHandleRenderer {
+    Rc::new(|handle, _, cx| {
+        let color = if handle.is_active() {
+            cx.theme().drag_border
+        } else {
+            gpui::transparent_black()
+        };
+        let line = div().bg(color);
+        let line = if handle.axis() == gpui::Axis::Horizontal {
+            line.h_full().w(px(1.))
+        } else {
+            line.w_full().h(px(1.))
+        };
+        Some(line.into_any_element())
+    })
 }

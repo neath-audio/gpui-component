@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::{
+use gpui_neath::{
     Disableable as _, FocusableExt as _, Sizable as _, Size,
     button::{ButtonVariant, ButtonVariants as _},
     input::{
@@ -53,7 +53,7 @@ enum Op {
     Tooltip(String),
     Value(String),
     Placeholder(String),
-    ContentType(gpui_component::input::InputContentType),
+    ContentType(gpui_neath::input::InputContentType),
     Layout(TextareaLayout),
     OnChange(ComponentArgument),
 }
@@ -197,7 +197,7 @@ impl ComponentMaterializer for Materializer {
                         Op::Variant(value) => button.with_variant(*value),
                         Op::Label(value) => button.label(value.clone()),
                         Op::Icon(value) => {
-                            button.icon(gpui_component::Icon::default().path(value.clone()))
+                            button.icon(gpui_neath::Icon::default().path(value.clone()))
                         }
                         Op::AriaLabel(value) => button.accessibility_label(value.clone()),
                         Op::Tooltip(value) => button.tooltip(value.clone()),

@@ -8,7 +8,7 @@
 //! module exists: it is a stacking order plus a dismissal order, with the
 //! smallest presentation that makes them visible.
 //!
-//! It is deliberately not `gpui_component::Root`. The shell binds to
+//! It is deliberately not `gpui_neath::Root`. The shell binds to
 //! `gpui-base` only (see `docs/gpui-shell.md` §4.2), so the equivalent
 //! host has to be written here rather than reused.
 
@@ -65,7 +65,7 @@ const TOAST_WIDTH: gpui::Pixels = px(320.);
 /// The window-level overlay host: content, one sheet, a dialog stack, toasts.
 ///
 /// The first view of a shell window is always a `ShellRoot`, the same way the
-/// first view of a `gpui-component` window is always a `Root`. Scripts reach it
+/// first view of a `gpui-neath` window is always a `Root`. Scripts reach it
 /// through [`ShellRoot::update`], never by constructing overlays themselves.
 ///
 /// # Stacking order
@@ -819,7 +819,7 @@ impl Render for ShellRoot {
             // while the components an application builds set their own sizes,
             // so a dense application drawn at 12px got 16px notifications over
             // it. `md` is the base by the library's own convention: it is what
-            // `gpui_component::Theme` already takes its `font_size` from.
+            // `gpui_neath::Theme` already takes its `font_size` from.
             //
             // The default `md` is that same 16px, so a theme that says nothing
             // about type is drawn exactly as it was before this existed.

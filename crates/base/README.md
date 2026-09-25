@@ -6,7 +6,7 @@
 
 `gpui-base` is the reusable foundation of the [GPUI Component](https://github.com/longbridge/gpui-kit) Rust desktop application framework, built on GPUI. It is intended for applications that want to build and own their own design systems. It provides interaction behavior, focus management, accessibility semantics, animation, virtual lists, theme tokens, and other foundational capabilities without imposing a visual style.
 
-> Use [`gpui-component`](https://crates.io/crates/gpui-component) if you want ready-to-use components with a complete visual design. Use `gpui-base` if your application should own its component source and visual styles while reusing stable, shared behavior.
+> Use [`gpui-neath`](https://crates.io/crates/gpui-neath) if you want ready-to-use components with a complete visual design. Use `gpui-base` if your application should own its component source and visual styles while reusing stable, shared behavior.
 
 ## Where It Fits in GPUI Component
 
@@ -15,12 +15,12 @@ architecture has two directly usable layers:
 
 ```text
 application
-├── gpui-component     Complete, styled framework experience
+├── gpui-neath     Complete, styled framework experience
 └── custom UI          Application-owned design system
          └── gpui-base Interaction, state, and infrastructure (this crate)
 ```
 
-Dependencies always point from higher layers toward the foundation: `gpui-base` does not depend on `gpui-component`. Existing applications can continue using `gpui-component`; a direct dependency on `gpui-base` is only necessary when building custom components or a design system.
+Dependencies always point from higher layers toward the foundation: `gpui-base` does not depend on `gpui-neath`. Existing applications can continue using `gpui-neath`; a direct dependency on `gpui-base` is only necessary when building custom components or a design system.
 
 ## Relationship to the shadcn Ecosystem
 
@@ -30,7 +30,7 @@ The GPUI Component ecosystem follows the same layering idea as [shadcn](https://
 | ------------------------------------ | ------------------------------ |
 | GPUI                                 | HTML + Tailwind CSS            |
 | `gpui-base`                          | [Base UI](https://base-ui.com) |
-| `gpui-component`                     | shadcn                         |
+| `gpui-neath`                     | shadcn                         |
 | `crates/component` in GPUI Component | shadcn's default UI            |
 
 ## Design Principles
@@ -274,11 +274,11 @@ Tokens describe design semantics; they do not automatically style unstyled contr
 | `Placement` / `Side`              | Placement and layout direction descriptions                             |
 | `AxisExt` / `LengthExt` / `Edges` | GPUI geometry extensions and serializable edges                         |
 
-## Relationship to gpui-component
+## Relationship to gpui-neath
 
 The crates target different abstraction levels and can be used in the same application:
 
-|                      | `gpui-base`                                                      | `gpui-component`                                           |
+|                      | `gpui-base`                                                      | `gpui-neath`                                           |
 | -------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- |
 | Role                 | Behavior and infrastructure                                      | Complete UI component library                              |
 | Default presentation | None                                                             | Included                                                   |
@@ -286,7 +286,7 @@ The crates target different abstraction levels and can be used in the same appli
 | Best suited for      | Custom design systems, registry components, and foundation reuse | Building complete desktop applications quickly             |
 | Initialization       | `gpui_kit::base::init(cx)`                                       | `gpui_kit::init(cx)`, which includes base initialization   |
 
-Do not migrate from `gpui-component` by mechanically replacing imports. For example, `gpui_kit::component::button::Button` is a fully styled higher-level component, while `gpui_kit::base::Button` requires the caller to provide its children and all presentation styles.
+Do not migrate from `gpui-neath` by mechanically replacing imports. For example, `gpui_kit::component::button::Button` is a fully styled higher-level component, while `gpui_kit::base::Button` requires the caller to provide its children and all presentation styles.
 
 ## Platform Support
 
@@ -325,7 +325,7 @@ style and motion contracts.
 
 - [GPUI Kit repository](https://github.com/longbridge/gpui-kit)
 - [GPUI Kit documentation](https://gpui-kit.com)
-- [`gpui-component` crate](https://crates.io/crates/gpui-component)
+- [`gpui-neath` crate](https://crates.io/crates/gpui-neath)
 - [`gpui-base` API documentation](https://docs.rs/gpui-base)
 - GPUI
 - [Contributing guide](../../CONTRIBUTING.md)

@@ -11,7 +11,7 @@ use gpui::{
     AppContext as _, Modifiers, ParentElement as _, Styled as _, TestAppContext, VisualTestContext,
     point, px,
 };
-use gpui_component::Root;
+use gpui_neath::Root;
 use std::{cell::RefCell, fs, ops::Deref as _, path::PathBuf, rc::Rc};
 
 struct TempApp(PathBuf);
@@ -68,7 +68,7 @@ fn tooltip_uses_the_native_managed_overlay_on_hover(cx: &mut TestAppContext) {
     let app = TempApp::new(
         r#"
 import { View } from "gpui-kit";
-import { Tooltip } from "gpui-component";
+import { Tooltip } from "gpui-neath";
 export default class Example extends View {
   render() { return new Tooltip("help", "Help", "Open documentation"); }
 }
@@ -121,7 +121,7 @@ fn menu_bar_installs_native_and_component_menu_models_after_render(cx: &mut Test
     let app = TempApp::new(
         r#"
 import { View } from "gpui-kit";
-import { MenuBar, Menu, MenuItem, MenuSeparator } from "gpui-component";
+import { MenuBar, Menu, MenuItem, MenuSeparator } from "gpui-neath";
 export default class Example extends View {
   render() {
     return new MenuBar("main-menu").child(
@@ -162,7 +162,7 @@ export default class Example extends View {
     context.run_until_parked();
 
     context.update(|_, cx| {
-        let component_menus = gpui_component::GlobalState::global(cx).app_menus();
+        let component_menus = gpui_neath::GlobalState::global(cx).app_menus();
         assert_eq!(component_menus.len(), 1);
         assert_eq!(component_menus[0].name.as_ref(), "File");
         assert_eq!(component_menus[0].items.len(), 3);

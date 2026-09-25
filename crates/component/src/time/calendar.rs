@@ -118,13 +118,9 @@ impl RenderOnce for Calendar {
                 .flex()
                 .items_center()
                 .justify_center()
-                .when(
-                    state.kind() != CalendarItemKind::Weekday,
-                    |this| match size {
-                        Size::Small => this.text_xs(),
-                        _ => this.text_sm(),
-                    },
-                )
+                .when(state.kind() != CalendarItemKind::Weekday, |this| {
+                    this.text_size(size.control_text_size())
+                })
                 .when(state.kind() == CalendarItemKind::Weekday, |this| {
                     this.text_xs()
                         .font_normal()
@@ -136,7 +132,7 @@ impl RenderOnce for Calendar {
                         state.kind(),
                         CalendarItemKind::MonthToggle | CalendarItemKind::YearToggle
                     ),
-                    |this| this.text_sm().font_medium(),
+                    |this| this.text_size(size.control_text_size()).font_medium(),
                 )
                 .when(
                     matches!(
@@ -201,7 +197,7 @@ impl RenderOnce for Calendar {
             .p_3()
             .gap_0p5()
             .map(|this| match size {
-                Size::Small => this.w(px(220.) * month_count),
+                Size::Small | Size::XSmall => this.w(px(220.) * month_count),
                 Size::Large => this.w(px(304.) * month_count),
                 _ => this.w(px(248.) * month_count),
             })

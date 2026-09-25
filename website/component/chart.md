@@ -1218,9 +1218,9 @@ impl LiveChart {
 }
 ```
 
-[LineChart]: https://docs.rs/gpui-component/latest/gpui_component/chart/struct.LineChart.html
-[BarChart]: https://docs.rs/gpui-component/latest/gpui_component/chart/struct.BarChart.html
-[AreaChart]: https://docs.rs/gpui-component/latest/gpui_component/chart/struct.AreaChart.html
-[PieChart]: https://docs.rs/gpui-component/latest/gpui_component/chart/struct.PieChart.html
-[RadarChart]: https://docs.rs/gpui-component/latest/gpui_component/chart/struct.RadarChart.html
-[CandlestickChart]: https://docs.rs/gpui-component/latest/gpui_component/chart/struct.CandlestickChart.html
+[LineChart]: https://docs.rs/gpui-neath/latest/gpui_neath/chart/struct.LineChart.html
+[BarChart]: https://docs.rs/gpui-neath/latest/gpui_neath/chart/struct.BarChart.html
+[AreaChart]: https://docs.rs/gpui-neath/latest/gpui_neath/chart/struct.AreaChart.html
+[PieChart]: https://docs.rs/gpui-neath/latest/gpui_neath/chart/struct.PieChart.html
+[RadarChart]: https://docs.rs/gpui-neath/latest/gpui_neath/chart/struct.RadarChart.html
+[CandlestickChart]: https://docs.rs/gpui-neath/latest/gpui_neath/chart/struct.CandlestickChart.html

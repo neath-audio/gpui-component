@@ -1,7 +1,7 @@
 use std::path::{Component, Path};
 use std::sync::Arc;
 
-use gpui_component::{Icon, Sizable as _, Size, try_parse_color};
+use gpui_neath::{Icon, Sizable as _, Size, try_parse_color};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

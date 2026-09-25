@@ -166,7 +166,7 @@ v_flex()
 
 `.overflow_scroll()` 同时启用两个方向，`.overflow_x_scroll()` 只启用横向滚动，`.overflow_y_scroll()` 只启用纵向滚动。稳定的 `.id(...)` 会让原生滚动位置在多次脚本 render 之间始终归属于同一个 viewport。
 
-对应的 `.overflow_scrollbar()`、`.overflow_x_scrollbar()` 与 `.overflow_y_scrollbar()` 保持相同的滚动行为，同时绘制 gpui-component 的原生 scrollbar。它们需要稳定的 `.id(...)`，确保每个 viewport 分别保留自己的 scrollbar 与滚动位置状态。
+对应的 `.overflow_scrollbar()`、`.overflow_x_scrollbar()` 与 `.overflow_y_scrollbar()` 保持相同的滚动行为，同时绘制 gpui-neath 的原生 scrollbar。它们需要稳定的 `.id(...)`，确保每个 viewport 分别保留自己的 scrollbar 与滚动位置状态。
 
 ## 主题值
 

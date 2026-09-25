@@ -56,7 +56,7 @@ fn mount(
     let window = cx.add_window(move |window, cx| {
         let view = runtime.mount_application(&loaded, window, cx).unwrap();
         *slot.borrow_mut() = Some(view.clone());
-        gpui_component::Root::new(view, window, cx)
+        gpui_neath::Root::new(view, window, cx)
     });
     let context = VisualTestContext::from_window(*window.deref(), cx);
     let view = mounted.borrow().clone().unwrap();
@@ -98,7 +98,7 @@ fn command_catalog_is_closed() {
 fn retained_command_typed_entries_query_and_confirm_callbacks_are_native(cx: &mut TestAppContext) {
     let source = r#"
 import { View, div } from "gpui-kit";
-import { CommandState, Command, CommandItem, CommandGroup, CommandSeparator } from "gpui-component";
+import { CommandState, Command, CommandItem, CommandGroup, CommandSeparator } from "gpui-neath";
 export default class App extends View {
  init(){this.state=CommandState();this.query="";this.confirm="none";this.actions=0;}
  render(){return div().on_action("open",(_event,cx)=>{this.actions++;cx.notify();})
@@ -167,7 +167,7 @@ export default class App extends View {
 
 const NATIVE_MENU_SOURCE: &str = r#"
 import { View, div } from "gpui-kit";
-import { NativeMenuTrigger, NativeMenuItem, NativeMenuSeparator } from "gpui-component";
+import { NativeMenuTrigger, NativeMenuItem, NativeMenuSeparator } from "gpui-neath";
 export default class App extends View { init(_props,cx){this.hits=0;this.errors=0;this.focus=cx.focus_handle();this.focus.focus();} render(){return div().size_full().track_focus(this.focus).on_action("open",(_event,cx)=>{this.hits++;cx.notify();})
  .child(new NativeMenuTrigger("native","Actions").absolute().left(0).top(0).w(140).h(40).on_effect_error((_message,cx)=>{this.errors+=10;cx.notify();}).on_effect_error((_message,cx)=>{this.errors++;cx.notify();})
   .child(new NativeMenuItem("Open","open")).child(new NativeMenuSeparator()).child(new NativeMenuItem("Disabled","disabled").disabled(true)))

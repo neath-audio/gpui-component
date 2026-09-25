@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::{
+use gpui_neath::{
     Disableable as _, Selectable as _, Sizable as _, Size,
     button::{Button, ButtonVariants as _, DropdownButton},
     menu::PopupMenuItem,

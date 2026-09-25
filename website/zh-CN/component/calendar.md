@@ -197,6 +197,6 @@ Calendar::new(&state)
     .number_of_months(3)
 ```
 
-[Calendar]: https://docs.rs/gpui-component/latest/gpui_component/calendar/struct.Calendar.html
-[CalendarState]: https://docs.rs/gpui-component/latest/gpui_component/calendar/struct.CalendarState.html
-[RangeMatcher]: https://docs.rs/gpui-component/latest/gpui_component/calendar/struct.RangeMatcher.html
+[Calendar]: https://docs.rs/gpui-neath/latest/gpui_neath/calendar/struct.Calendar.html
+[CalendarState]: https://docs.rs/gpui-neath/latest/gpui_neath/calendar/struct.CalendarState.html
+[RangeMatcher]: https://docs.rs/gpui-neath/latest/gpui_neath/calendar/struct.RangeMatcher.html

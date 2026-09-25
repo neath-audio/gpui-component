@@ -232,23 +232,23 @@ Seven things are deliberately absent, and will stay absent:
 
 Against the dependency diagram in [ARCHITECTURE.md](ARCHITECTURE.md),
 `crates/shell` plus a script application occupies the **application-owned UI**
-branch: parallel to `gpui-component`, not downstream of it. The seam is one thin
+branch: parallel to `gpui-neath`, not downstream of it. The seam is one thin
 line in that picture, and everything above it is language-independent (§6.5).
 
 ### 4.2 Why it binds `gpui-base` and `gpui`
 
 **Presentation authority goes to the script, which is the whole point.** Binding
-`gpui-component` would leave a script calling visuals somebody else already
+`gpui-neath` would leave a script calling visuals somebody else already
 decided; changing a button's corner radius would still mean going back to Rust.
 Binding base puts style, state style, spacing, and color entirely in script.
 
 **Layer neutrality.** The shell depends on no product visual system, so any
 host can embed it, including one with its own design system. The moment the
-shell depended on `gpui-component`, it would impose one set of visuals on every
+shell depended on `gpui-neath`, it would impose one set of visuals on every
 embedder.
 
 **A binding surface an order of magnitude smaller.** `gpui_base::Button` has 13
-public functions against `gpui_component::Button`'s 52; base has 18 direct
+public functions against `gpui_neath::Button`'s 52; base has 18 direct
 dependencies against 31. Base's interfaces are narrower and more stable
 precisely because they carry no visuals, which is what makes complete coverage
 possible at all — and a binding layer that covers only part of its target is the
@@ -271,7 +271,7 @@ elements and what this runtime adds, `"gpui-base"` for base's layout helpers,
 components and theme, `"gpui-fps"` for its overlay. A name belongs to exactly one
 of them, which makes the boundary argued for above checkable rather than merely
 intended — a script that reaches for a component says so at the top of the file,
-and the day `gpui-component` becomes bindable it arrives as `"gpui-component"`
+and the day `gpui-neath` becomes bindable it arrives as `"gpui-neath"`
 without a single existing name changing meaning.
 
 ### 4.3 What base-first makes the shell carry
@@ -290,7 +290,7 @@ product palette. The `gpui-shell` binary separately embeds
 after shell initialization (§13.3).
 
 **There is no `Root`, so the shell provides `ShellRoot`.** `Root` lives in
-`crates/component` and belongs to `gpui-component`. Base ships the parts — `Dialog` and
+`crates/component` and belongs to `gpui-neath`. Base ships the parts — `Dialog` and
 `Sheet` each build their own viewport-sized host, `ToastManager` and
 `ToastStackState` own stacking geometry, `FocusTrapElement` owns focus trapping
 — but nothing in base decides what happens when two of them are open at once.
@@ -309,7 +309,7 @@ described in §15, and it is not done.
 
 `crates/base` and `crates/component` are unchanged; `crates/shell` depends on
 `gpui-base` (with its `inspector` feature) and `gpui`, and on neither
-`gpui-component` nor `crates/component`. Consumers who do not add `crates/shell` see no
+`gpui-neath` nor `crates/component`. Consumers who do not add `crates/shell` see no
 change to their build output or dependency tree.
 
 `crates/shell` enables `gpui-base/inspector` unconditionally, which forwards to
@@ -506,7 +506,7 @@ The built-in modules are named after the crate that provides the capability:
 `"gpui-kit"` for GPUI's own elements and what the runtime adds, `"gpui-base"` for
 gpui-base's layout helpers, components and theme, and `"gpui-fps"` for its
 performance overlay. A name belongs to exactly one of them, so an import says
-which layer a script depends on, and a layer added later — `gpui-component` —
+which layer a script depends on, and a layer added later — `gpui-neath` —
 arrives as its own module rather than as more names on `"gpui-kit"`. The Standard
 Runtime also provides the selected bare modules listed in §1.1; every other
 `import` resolves inside the application directory (§19.1). The entry point is `main.js`, and it must
@@ -1746,7 +1746,7 @@ let table: Vec<_> = [
 
 That yields a name → style-method table at runtime. The shell uses the same pair
 of APIs — one from `gpui-base`, one from `gpui`, neither requiring
-`gpui-component` — and exposes **3,148 no-argument style methods** to script:
+`gpui-neath` — and exposes **3,148 no-argument style methods** to script:
 `flex`, `flex_col`, `items_center`, `gap_2`, `rounded_md`, `text_sm`,
 `size_full`, and the rest. When upstream GPUI adds one, script gets it with no
 change here. They are addressed by a `u16` index, so recording a style call
@@ -1928,7 +1928,7 @@ anything that does ship:
 1. it must be script source, replaceable or forkable wholesale;
 2. the Rust side installs no visual decision (§5.6), or the shell becomes a
    third, uncontrolled visual system on top of base;
-3. it is not a reproduction of `gpui-component` and promises no visual parity
+3. it is not a reproduction of `gpui-neath` and promises no visual parity
    with it.
 
 The seam's real cost surfaces here: Rust above the seam is written once, but
@@ -1969,7 +1969,7 @@ three state styles — over 3,148 no-argument and 57 parametric style methods.
 
 That is a small prefix of `gpui-base`. What makes completing it plausible is the
 size difference measured in §4.2: base's `Button` has 13 public functions to
-`gpui-component`'s 52.
+`gpui-neath`'s 52.
 
 ### 14.2 What will and will not be bound
 
@@ -2081,23 +2081,23 @@ The remaining limitation is structural: without the component binding table of
 added to the declarations. A check that every `MODULE_EXPORTS` name appears in
 the output would close that gap.
 
-### 14.6 A `gpui-component` module
+### 14.6 A `gpui-neath` module
 
-The second step was a `gpui-component` binding as a _second registry_ sharing
+The second step was a `gpui-neath` binding as a _second registry_ sharing
 the same render protocol, call scope, event model, and arena. It is built;
 §14.7 describes the registry it is built on.
 
 ```js
 import { text } from "gpui-kit";
 import { v_flex } from "gpui-base"; // base: the script owns presentation
-import { Button } from "gpui-component"; // product visuals, ready-made
+import { Button } from "gpui-neath"; // product visuals, ready-made
 ```
 
 Four points decided it then, and all four held. The protocol is one thing and
 the registries are two, which is exactly what separating the render protocol
 from component bindings bought. The crate dependency stays out of the runtime
 entirely: it lives in `crates/component-shell`, so linking `gpui-shell` alone
-keeps `gpui-component` out of the tree. The two module names are distinct,
+keeps `gpui-neath` out of the tree. The two module names are distinct,
 because both export `Button` with overlapping method names and different
 semantics, and in JavaScript they can be imported into the same file — the
 module name is the only thing that can distinguish them. And migration is a
@@ -2107,7 +2107,7 @@ change, the business logic and the state do not.
 ### 14.7 The component registry
 
 §14.6 described a second registry as the natural next step. It exists.
-`crates/component-shell` registers the `gpui-component` catalog against a
+`crates/component-shell` registers the `gpui-neath` catalog against a
 registry API that `crates/shell` owns and that names no component. The
 dependency runs one way and only one way: the adapter uses both the runtime and
 the component library, and the runtime uses neither. `gpui_shell::init`
@@ -2125,7 +2125,7 @@ than a flag checked at run time.
 The specifier is the adapter's to choose. The runtime holds no opinion about
 which component library it is carrying, so the module name a script imports
 from is data on the registry, not a literal in the engine.
-`DEFAULT_COMPONENT_MODULE` is `"gpui-component"`, which is what the shipped
+`DEFAULT_COMPONENT_MODULE` is `"gpui-neath"`, which is what the shipped
 adapter picks. A registry may not claim one of the runtime's own module names —
 those resolve first, so the catalog would be unreachable rather than overriding.
 
@@ -2372,7 +2372,7 @@ place — which turns those panels into exactly the placeholder case above.
 
 ### 16.1 Base ships the parts, not the host
 
-`Root` belongs to `gpui-component`. Base ships the pieces: `Dialog` and `Sheet`
+`Root` belongs to `gpui-neath`. Base ships the pieces: `Dialog` and `Sheet`
 each build their own viewport-sized host, `ToastManager` and `ToastStackState`
 own stacking geometry and lifecycle, `FocusTrapElement` owns focus trapping,
 `Popup` and `Positioner` own placement and collision. What base does not decide
@@ -2381,7 +2381,7 @@ is what happens when two of them are open at once.
 `ShellRoot` is that decision, and it is the only reason `root.rs` exists: a
 stacking order plus a dismissal order, with the smallest presentation that makes
 them visible. The first view of a shell window is always a `ShellRoot`, the same
-way the first view of a `gpui-component` window is always a `Root`, and a script
+way the first view of a `gpui-neath` window is always a `Root`, and a script
 reaches it only through `ShellRoot::update` — never by constructing overlays
 itself.
 
@@ -2457,7 +2457,7 @@ it. Nothing collides — this runtime has no DOM.
 
 These are on `window` rather than on `cx` because a dialog belongs to the window,
 not to the view that opened it: `cx.notify()` re-renders one view,
-`window.open_dialog()` changes what the user is looking at. `gpui-component`
+`window.open_dialog()` changes what the user is looking at. `gpui-neath`
 draws the same line, so the two halves of an application read as one vocabulary.
 `window` is also somewhere to grow — overlays are what it carries today, and
 `Window` in Rust also answers focus, size and appearance.
@@ -2738,7 +2738,7 @@ capability must fork the host or send a patch — is deliberately retained.
 ```rust,ignore
 gpui_shell::export_module(
     HostModule::new("workspace")
-        .function("project_name", |_| Ok(HostValue::from("gpui-component")))
+        .function("project_name", |_| Ok(HostValue::from("gpui-neath")))
         .function("version", |_| Ok(HostValue::from("0.1.0"))),
 )?;
 ```
@@ -3282,7 +3282,7 @@ zero- and one-argument forwarders are the most direct optimization available and
 are not implemented.
 
 Base-first has its own cost that must be counted: presentation authority in
-script means more operations per node than a `gpui-component` binding would
+script means more operations per node than a `gpui-neath` binding would
 need, where one `.primary()` replaces five or six style calls. And because style
 has exactly one expression (§13.2), there is no batching escape hatch. That
 leaves three levers: reduce `C_op` itself, memoize, and virtualize.
@@ -4269,7 +4269,7 @@ reopened without new information.
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Cross-boundary call cost exceeds the budget.** Base-first raises operations per node and style has no batching form                                                                    | Contained | Measured under budget at 443 nodes (§20.3), and no longer paid per frame (§8.4); the levers if it regresses are specialized call forms, subtree memoization, virtualization, and finer view granularity                                                                                                                                                                                                                                                                                                                                                                        |
 | **Script render couples to frame rate again.** A repaint that enters the VM puts the whole description cost on the frame budget                                                          | Fatal     | Prevented by the snapshot lifecycle (§8.4) and asserted by benchmark C plus `tests/snapshot.rs` (§20.3). It is a regression test rather than a convention precisely because the coupling is easy to reintroduce and invisible until it is a frame-rate problem                                                                                                                                                                                                                                                                                                                 |
-| **Presentation authority in script means uneven interface quality**                                                                                                                      | High      | Mitigated by the default palette and by `examples/js_todolist/ui.js` as a worked example; a shipped preset (§13.4) and a `gpui-component` module (§14.6) are the real answers                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **Presentation authority in script means uneven interface quality**                                                                                                                      | High      | Mitigated by the default palette and by `examples/js_todolist/ui.js` as a worked example; a shipped preset (§13.4) and a `gpui-neath` module (§14.6) are the real answers                                                                                                                                                                                                                                                                                                                                                                                                  |
 | **Bindings drift from upstream**                                                                                                                                                         | High      | The style surface is immune by construction; component bindings have no drift check at all (§14.5)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | **A continuation resumes against the wrong runtime.** Several runtimes can share one UI thread, so consulting a process/thread global after `await` would cross VM and policy boundaries | Fatal     | **Closed.** Tasks retain `Weak<ShellRuntime>` plus their `Policy` and weak view owner. Runtime shutdown filters the task registry by runtime identity; destroying runtime A leaves runtime B's work intact. Scheduler and failed-render continuation tests cover both cases (§12.3)                                                                                                                                                                                                                                                                                            |
 | **Cycles across two collectors leak**                                                                                                                                                    | Medium    | Render-bound callbacks are retired with their snapshot and long-lived ones are owner-bound (§7.4); retained state is a per-runtime `EntityStore` that drops with the runtime. Native module registries live on `Policy`, and runtime-owned persistent values are released before QuickJS is dropped                                                                                                                                                                                                                                                                            |
@@ -4351,7 +4351,7 @@ declared in a manifest. The capability authorization model: prompting,
 persistence, host policy, and re-asking on upgrade. The binding table and the
 rustdoc-JSON drift check. Packaging and distribution. The intrinsic-level
 `Eval` withholding. DevTools and `gc_stats`. State preservation across a
-reload. A shipped preset module. The `gpui-component` binding registry.
+reload. A shipped preset module. The `gpui-neath` binding registry.
 
 Drag and drop is not bound either, and that is a measurement rather than an
 omission: `crates/story`, which is an application written with the library and
@@ -4369,7 +4369,7 @@ of them inside `table`, `list` and `dock`.
    checkbox, field, label, surface, empty state — is the current answer and a
    reasonable starting scope. Whatever ships also has to be written per engine.
 
-2. **Do `ShellRoot` and `Root` eventually merge?** Once `gpui-component` is
+2. **Do `ShellRoot` and `Root` eventually merge?** Once `gpui-neath` is
    bound, `ShellRoot` could delegate to `Root` and reuse its dialog, sheet, and
    notification stacks, or keep its own. `ShellRoot` has since grown decisions
    `Root` does not make — per-dialog dismissal options, only-the-topmost

@@ -6,7 +6,7 @@ order: -1
 
 # Installation
 
-Before you start to build your application with `gpui-component`, you need to install the library.
+Before you start to build your application with `gpui-neath`, you need to install the library.
 
 ## Platform requirements
 
@@ -38,12 +38,12 @@ sudo apt install -y gcc g++ clang libfontconfig-dev libwayland-dev \
 
 ## Rust and Cargo
 
-We use Rust programming language to build the `gpui-component` library. Make sure you have Rust and Cargo installed on your system.
+We use Rust programming language to build the `gpui-neath` library. Make sure you have Rust and Cargo installed on your system.
 
 - Rust 1.90 or later
 - Cargo (comes with Rust)
 
-To install the `gpui-component` library, you can use Cargo, the Rust package manager. Add the following line to your `Cargo.toml` file under the `[dependencies]` section:
+To install the `gpui-neath` library, you can use Cargo, the Rust package manager. Add the following line to your `Cargo.toml` file under the `[dependencies]` section:
 
 ```toml
 gpui-kit = "0.6"
@@ -70,9 +70,9 @@ or workspace:
 ```toml
 [profile.dev.package]
 gpui-pre = { opt-level = 3 }
-gpui-component = { opt-level = 3 }
+gpui-neath = { opt-level = 3 }
 gpui-kit = { opt-level = 3 }
-gpui-kit-assets = { opt-level = 3 }
+gpui-component-assets = { opt-level = 3 }
 gpui-pre-macros = { opt-level = 3 }
 gpui-pre-platform = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }

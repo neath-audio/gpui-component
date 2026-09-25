@@ -60,7 +60,7 @@ Keep each `ElementId` stable across renders so GPUI can preserve element and foc
 `gpui-base` provides readable light and dark semantic palettes through
 `ColorTokens::light()` and `ColorTokens::dark()`. `ColorTokens::default()` uses
 the light palette. Both palettes use `Hsla` values and match the semantic roles
-of the default `gpui-component` themes.
+of the default `gpui-neath` themes.
 
 ```rust
 use gpui_kit::base::{ColorTokens, SemanticThemeTokens, Theme};

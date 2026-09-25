@@ -1,3 +1,4 @@
+use crate::Size;
 use crate::{ActiveTheme, Disableable, Icon, Selectable, Sizable as _, StyledExt, h_flex};
 use gpui::{
     AnyElement, App, ClickEvent, Div, ElementId, InteractiveElement, Interactivity, IntoElement,
@@ -201,7 +202,7 @@ impl RenderOnce for ListItem {
             .gap_x_1()
             .py_1()
             .px_3()
-            .text_base()
+            .text_size(Size::Medium.text_size())
             .text_color(cx.theme().foreground)
             .relative()
             .items_center()

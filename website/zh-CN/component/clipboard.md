@@ -167,4 +167,4 @@ Clipboard 当前主要支持复制文本字符串，内部使用 GPUI 的 `Clipb
 - UTF-8 编码内容
 - 跨平台剪贴板写入
 
-[Clipboard]: https://docs.rs/gpui-component/latest/gpui_component/clipboard/struct.Clipboard.html
+[Clipboard]: https://docs.rs/gpui-neath/latest/gpui_neath/clipboard/struct.Clipboard.html

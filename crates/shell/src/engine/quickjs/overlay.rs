@@ -14,7 +14,7 @@
 //! A dialog belongs to the **window**, not to the view that opened it.
 //! `cx.notify()` re-renders this view; `window.open_dialog()` changes what the
 //! window is showing. Hanging both off one object said they were the same kind
-//! of thing. `gpui-component` draws exactly this line — `window.open_dialog`,
+//! of thing. `gpui-neath` draws exactly this line — `window.open_dialog`,
 //! `window.push_notification` — and the script API spells it the same way, so a
 //! reader moving between the two halves of an application is reading one
 //! vocabulary rather than two.

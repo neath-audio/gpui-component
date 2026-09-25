@@ -9,12 +9,12 @@ use gpui::{
     prelude::*, px,
 };
 use gpui_base::TextSelection;
-use gpui_component::{
+use gpui_kit::test::{TestSupportExt as _, TestWindowExt};
+use gpui_neath::{
     Root, WindowExt as _,
     input::{Input, InputState},
     text::{TextView, TextViewState},
 };
-use gpui_kit::test::{TestSupportExt as _, TestWindowExt};
 
 struct Screen {
     input: Entity<InputState>,
@@ -41,7 +41,7 @@ impl Render for Screen {
 }
 
 fn screen(cx: &mut TestAppContext) -> WindowHandle<Root> {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     common::open_window(cx, None, |window, cx| {
         let view = cx.new(|cx| Screen {
             input: cx.new(|cx| InputState::new(window, cx).default_value("quick select value")),
@@ -107,7 +107,7 @@ impl Render for TallScreen {
 }
 
 fn tall_screen(cx: &mut TestAppContext) -> WindowHandle<Root> {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     common::open_window(cx, None, |_window, cx| {
         let view = cx.new(|cx| TallScreen {
             text: cx.new(|cx| {
@@ -191,7 +191,7 @@ impl Render for SwallowingScreen {
 }
 
 fn swallowing_screen(cx: &mut TestAppContext) -> WindowHandle<Root> {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     common::open_window(cx, None, |_window, cx| {
         let view = cx.new(|cx| SwallowingScreen {
             text: cx.new(|cx| TextViewState::markdown("quick select value", cx)),
@@ -202,7 +202,7 @@ fn swallowing_screen(cx: &mut TestAppContext) -> WindowHandle<Root> {
 }
 
 fn cached_screen(cx: &mut TestAppContext) -> WindowHandle<Root> {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     common::open_window(cx, None, |_window, cx| {
         let view = cx.new(|cx| CachedScreen {
             text: cx.new(|cx| Text {

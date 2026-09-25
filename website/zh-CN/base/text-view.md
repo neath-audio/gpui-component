@@ -8,7 +8,7 @@ exampleKind: base
 
 # TextView
 
-`gpui-base` 现在拥有完整的 `TextView` 实现，可渲染 Markdown 和常用 HTML。解析、链接、图片、列表、表格、代码块、滚动、行数限制、插件、文本选择和复制都不依赖 `gpui-component`。
+`gpui-base` 现在拥有完整的 `TextView` 实现，可渲染 Markdown 和常用 HTML。解析、链接、图片、列表、表格、代码块、滚动、行数限制、插件、文本选择和复制都不依赖 `gpui-neath`。
 
 上方可运行示例只依赖 `gpui-base`。其中 Rust 代码块特意没有着色，因为语法高亮默认不开启。
 
@@ -34,7 +34,7 @@ impl Render for AppView {
 }
 ```
 
-如果应用已经调用 `gpui_kit::component::init`，其中已包含 Base 初始化；`gpui-component::Root` 也会安装窗口选择层。
+如果应用已经调用 `gpui_kit::component::init`，其中已包含 Base 初始化；`gpui-neath::Root` 也会安装窗口选择层。
 
 TextView 默认支持选择。拖动选区靠近视口边缘时，共享选择层会自动滚动相关的 `overflow_*_scroll` 区域，不需要额外设置 TextView 的滚动或选择参数。只有明确需要禁用选择时才使用 `.selectable(false)`。
 
@@ -120,7 +120,7 @@ TextView::markdown("metadata", source)
 
 如果没有匹配的插件，已启用的 YAML frontmatter 会使用现有的 YAML
 code-block fallback。可以通过 `.plugin(...)` 挂载自定义插件；
-`gpui-component` 提供带主题样式的
+`gpui-neath` 提供带主题样式的
 `FrontmatterPlugin`；Base 不依赖该 presentation。
 
 ## Inline plugin
@@ -220,7 +220,7 @@ TextView::new(&document).motion(
 
 `TextViewState::set_range_highlights` 在 `rendered_text()`（与纯文本复制得到的文字一致）的指定范围后面绘制背景，应用可以借此显示搜索结果或引用位置，无需重新解析或修改文档样式。这些范围只参与绘制、不参与排版，因此不会改变布局；规则详见[高亮文本范围](../component/text-view.md#高亮文本范围)。
 
-通过 `SelectionFormat` 可以选择复制渲染文本或 Markdown 源码。链接路由、代码块操作、表格操作、图片和 Markdown 插件继续使用与兼容 API 相同的 builder，详见 [gpui-component TextView 文档](../component/text-view.md)。
+通过 `SelectionFormat` 可以选择复制渲染文本或 Markdown 源码。链接路由、代码块操作、表格操作、图片和 Markdown 插件继续使用与兼容 API 相同的 builder，详见 [gpui-neath TextView 文档](../component/text-view.md)。
 
 ## 可运行源码
 

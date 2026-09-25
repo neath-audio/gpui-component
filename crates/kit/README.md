@@ -16,8 +16,8 @@ reachable by name:
 | `gpui_kit::*`         | `gpui`            | always           |
 | `gpui_kit::platform`  | `gpui_platform`   | always           |
 | `gpui_kit::base`      | `gpui-base`       | always           |
-| `gpui_kit::component` | `gpui-component`  | `component` (on) |
-| `gpui_kit::assets`    | `gpui-kit-assets` | `assets` (on)    |
+| `gpui_kit::component` | `gpui-neath`  | `component` (on) |
+| `gpui_kit::assets`    | `gpui-component-assets` | `assets` (on)    |
 
 `gpui_kit::application()` opens the platform and `gpui_kit::init()`
 initializes the enabled layers:
@@ -43,7 +43,7 @@ fn main() {
 }
 ```
 
-The `gpui-component` features (`inspector`, `decimal`, `tree-sitter`,
+The `gpui-neath` features (`inspector`, `decimal`, `tree-sitter`,
 `tree-sitter-languages`, and each `tree-sitter-<language>`) are available on
 `gpui-kit` under the same names. `test-support` turns on GPUI's test harness
 for `#[gpui_kit::test]`, `TestAppContext`, `VisualTestContext`, and native-platform

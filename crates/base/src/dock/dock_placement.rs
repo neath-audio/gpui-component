@@ -21,6 +21,7 @@ pub struct DockSizing {
     placement: DockPlacement,
     area: Bounds<Pixels>,
     opposite_dock_size: Pixels,
+    min_size: Pixels,
 }
 
 impl DockSizing {
@@ -29,6 +30,7 @@ impl DockSizing {
             placement,
             area: Bounds::default(),
             opposite_dock_size: px(0.),
+            min_size: PANEL_MIN_SIZE,
         }
     }
 
@@ -63,6 +65,12 @@ impl DockSizing {
         self
     }
 
+    /// Floor for this dock. Defaults to [`PANEL_MIN_SIZE`].
+    pub fn with_min_size(mut self, min_size: Pixels) -> Self {
+        self.min_size = min_size;
+        self
+    }
+
     /// The dock size the pointer implies, before clamping.
     ///
     /// `DockPlacement::Center` names the canvas, which has no edge to measure
@@ -81,8 +89,8 @@ impl DockSizing {
     }
 
     /// Clamp a size into the range this dock may occupy: never below
-    /// `PANEL_MIN_SIZE`, and never so large it would squeeze the opposite
-    /// dock (if any) below `PANEL_MIN_SIZE` either. The `.max(PANEL_MIN_SIZE)`
+    /// this dock's minimum, and never so large it would squeeze the opposite
+    /// dock (if any) below `PANEL_MIN_SIZE` either. The `.max(self.min_size)`
     /// on the computed maximum matters when the area itself is narrower than
     /// both minimums combined — it keeps the clamp range non-empty.
     ///
@@ -92,13 +100,12 @@ impl DockSizing {
     pub fn clamp(&self, size: Pixels) -> Pixels {
         let max_size = match self.placement {
             DockPlacement::Left | DockPlacement::Right => {
-                (self.area.size.width - PANEL_MIN_SIZE - self.opposite_dock_size)
-                    .max(PANEL_MIN_SIZE)
+                (self.area.size.width - PANEL_MIN_SIZE - self.opposite_dock_size).max(self.min_size)
             }
-            DockPlacement::Bottom => (self.area.size.height - PANEL_MIN_SIZE).max(PANEL_MIN_SIZE),
+            DockPlacement::Bottom => (self.area.size.height - PANEL_MIN_SIZE).max(self.min_size),
             DockPlacement::Center => return size,
         };
-        size.clamp(PANEL_MIN_SIZE, max_size)
+        size.clamp(self.min_size, max_size)
     }
 }
 
@@ -115,6 +122,7 @@ pub struct Dock {
     collapsible: bool,
     size: Pixels,
     resizing: bool,
+    min_size: Pixels,
 }
 
 impl Dock {
@@ -124,6 +132,7 @@ impl Dock {
             collapsible: true,
             size,
             resizing: false,
+            min_size: PANEL_MIN_SIZE,
         }
     }
 
@@ -147,14 +156,23 @@ impl Dock {
         self.size
     }
 
-    /// Set the dock's size, never below [`PANEL_MIN_SIZE`].
+    pub fn min_size(&self) -> Pixels {
+        self.min_size
+    }
+
+    /// Floor for [`Self::set_size`]. Defaults to [`PANEL_MIN_SIZE`].
+    pub fn set_min_size(&mut self, min_size: Pixels) {
+        self.min_size = min_size;
+    }
+
+    /// Set the dock's size, never below [`Self::min_size`].
     ///
     /// The floor is here rather than at the call sites because
     /// `DockArea::set_dock_size` is public and unclamped: a smaller value
     /// would collapse the dock to nothing, the skin clips the resize handle
     /// that would drag it back out, and the collapsed size persists.
     pub fn set_size(&mut self, size: Pixels) {
-        self.size = size.max(PANEL_MIN_SIZE);
+        self.size = size.max(self.min_size);
     }
 
     pub fn is_resizing(&self) -> bool {
@@ -246,5 +264,39 @@ mod dock_tests {
         assert!(dock.is_collapsible());
         assert_eq!(dock.size(), px(240.));
         assert!(!dock.is_resizing());
+    }
+
+    /// Hosts can lower the floor below [`PANEL_MIN_SIZE`] so a product
+    /// compact height (e.g. 80px) can land through `set_dock_size`.
+    #[test]
+    fn a_dock_honors_a_product_minimum_below_panel_min_size() {
+        let mut dock = Dock::new(px(240.));
+        dock.set_min_size(px(80.));
+        dock.set_size(px(80.));
+        assert_eq!(dock.size(), px(80.));
+
+        dock.set_size(px(60.));
+        assert_eq!(
+            dock.size(),
+            px(80.),
+            "the product floor still rejects sizes below it"
+        );
+    }
+
+    #[test]
+    fn clamp_honors_a_product_minimum_below_panel_min_size() {
+        let sizing = DockSizing::new(DockPlacement::Bottom)
+            .with_area_height(px(800.))
+            .with_min_size(px(80.));
+
+        assert_eq!(sizing.clamp(px(80.)), px(80.));
+        assert_eq!(sizing.clamp(px(1.)), px(80.));
+        assert_eq!(
+            DockSizing::new(DockPlacement::Bottom)
+                .with_area_height(px(800.))
+                .clamp(px(80.)),
+            PANEL_MIN_SIZE,
+            "the default floor stays PANEL_MIN_SIZE"
+        );
     }
 }

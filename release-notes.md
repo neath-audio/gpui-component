@@ -6,7 +6,7 @@
 
 #### Root owns window overlays
 
-`gpui_component::Root` now always mounts the dialog, sheet and notification
+`gpui_neath::Root` now always mounts the dialog, sheet and notification
 layers above application content. Opening a dialog, sheet or notification no
 longer depends on the application's view rendering its layer. Notifications use
 the Root's full bounds, and cached content does not duplicate or suppress layers.
@@ -24,7 +24,7 @@ default draws — while the other pages keep the global variant.
 
 #### Breaking changes
 
-The following `gpui-component` APIs have been removed:
+The following `gpui-neath` APIs have been removed:
 
 - `Root::render_dialog_layer`
 - `Root::render_sheet_layer`
@@ -65,7 +65,7 @@ helper always wraps content in `gpui_base::Root`, independent of Cargo features.
 The helper is defined only in Kit. `component::Root` re-exports the Base type.
 
 Base owns the root, content, overlay hosting, keyboard traversal and selection
-copying. Explicit `gpui_component::init` registers a per-window extension for
+copying. Explicit `gpui_neath::init` registers a per-window extension for
 styled dialogs, sheets, notifications, tooltips, menus, touch selection and
 window presentation. Base does not depend on Component or its theme. Plugins
 must be registered before creating windows; they do not retrofit existing roots.

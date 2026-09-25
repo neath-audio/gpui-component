@@ -124,8 +124,8 @@ The following components have focus trap functionality built-in and don't requir
 
 ## API Reference
 
-- [FocusTrapElement](https://docs.rs/gpui-component/latest/gpui_component/trait.FocusTrapElement.html)
-- [FocusTrapContainer](https://docs.rs/gpui-component/latest/gpui_component/struct.FocusTrapContainer.html)
+- [FocusTrapElement](https://docs.rs/gpui-neath/latest/gpui_neath/trait.FocusTrapElement.html)
+- [FocusTrapContainer](https://docs.rs/gpui-neath/latest/gpui_neath/struct.FocusTrapContainer.html)
 
 ## Examples
 
@@ -250,7 +250,7 @@ impl Render for ModalView {
 - [Sheet](/component/sheet) - Uses focus trap automatically
 - [focus-trap-react](https://github.com/focus-trap/focus-trap-react) - Similar concept for React applications
 
-[Root]: https://docs.rs/gpui-component/latest/gpui_component/struct.Root.html
-[FocusTrapElement]: https://docs.rs/gpui-component/latest/gpui_component/trait.FocusTrapElement.html
+[Root]: https://docs.rs/gpui-neath/latest/gpui_neath/struct.Root.html
+[FocusTrapElement]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.FocusTrapElement.html
 [Dialog]: /component/dialog
 [Sheet]: /component/sheet

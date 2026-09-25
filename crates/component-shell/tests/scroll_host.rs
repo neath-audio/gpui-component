@@ -108,7 +108,7 @@ fn catalog_exposes_state_and_two_closed_surfaces_only() {
 fn shared_native_handle_scrolls_and_preserves_offset_across_refresh(cx: &mut TestAppContext) {
     let source = r#"
 import { View, div } from "gpui-kit";
-import { ScrollbarHandle, Scroll, Scrollbar } from "gpui-component";
+import { ScrollbarHandle, Scroll, Scrollbar } from "gpui-neath";
 export default class App extends View {
   init() { this.scroll = ScrollbarHandle(); }
   render() { return div().relative().w(160).h(100)
@@ -149,7 +149,7 @@ export default class App extends View {
 fn invalid_errors(cx: &mut TestAppContext, expression: &str) -> Vec<String> {
     let source = format!(
         r#"import {{ View, div }} from "gpui-kit";
-import {{ ScrollbarHandle, Scrollbar }} from "gpui-component";
+import {{ ScrollbarHandle, Scrollbar }} from "gpui-neath";
 export default class App extends View {{ init() {{ this.h = ScrollbarHandle(); }} render() {{ return {expression}; }} }}"#
     );
     let (mut context, _view, _app) = mount(cx, &source);

@@ -87,8 +87,12 @@ struct SelectOptions {
     search_placeholder: Option<SharedString>,
     menu_width: Length,
     menu_max_h: Length,
+    menu_bg: Option<Hsla>,
+    menu_border: Option<Hsla>,
+    menu_accent: Option<Hsla>,
     disabled: bool,
     appearance: bool,
+    trigger_ghost: bool,
     focus_ring_enabled: bool,
 }
 
@@ -104,8 +108,12 @@ impl Default for SelectOptions {
             title_prefix: None,
             menu_width: Length::Auto,
             menu_max_h: rems(20.).into(),
+            menu_bg: None,
+            menu_border: None,
+            menu_accent: None,
             disabled: false,
             appearance: true,
+            trigger_ghost: false,
             focus_ring_enabled: true,
             search_placeholder: None,
         }
@@ -521,6 +529,7 @@ where
         self.state.list.update(cx, |list, cx| {
             list.set_searchable(searchable, cx);
             list.delegate_mut().size = self.state.size;
+            list.delegate_mut().accent = self.state.menu_accent;
         });
 
         div().size_full().relative().child(
@@ -546,6 +555,16 @@ where
                                 .when(self.state.disabled, |this| this.opacity(0.5))
                                 .border_color(cx.theme().input)
                                 .rounded(cx.theme().radius)
+                        })
+                        .when(self.state.trigger_ghost && !self.state.disabled, |this| {
+                            this.rounded(cx.theme().radius).map(|this| {
+                                if self.state.open {
+                                    this.bg(cx.theme().foreground.opacity(0.2))
+                                } else {
+                                    this.hover(|this| this.bg(cx.theme().foreground.opacity(0.12)))
+                                        .active(|this| this.bg(cx.theme().foreground.opacity(0.2)))
+                                }
+                            })
                         })
                         .input_size(self.state.size)
                         .input_text_size(self.state.size)
@@ -616,6 +635,10 @@ where
                                     Length::Definite(w) => this.w(w),
                                 })
                                 .popover_style(cx)
+                                .when_some(self.state.menu_bg, |this, bg| this.bg(bg))
+                                .when_some(self.state.menu_border, |this, border| {
+                                    this.border_color(border)
+                                })
                                 .child(
                                     List::new(&self.state.list)
                                         .when_some(
@@ -735,6 +758,31 @@ where
         self.options.appearance = appearance;
         self
     }
+
+    /// Override the dropdown menu background.
+    pub fn menu_bg(mut self, bg: impl Into<Hsla>) -> Self {
+        self.options.menu_bg = Some(bg.into());
+        self
+    }
+
+    /// Override the dropdown menu border.
+    pub fn menu_border(mut self, border: impl Into<Hsla>) -> Self {
+        self.options.menu_border = Some(border.into());
+        self
+    }
+
+    /// Override selected and hovered row accents in the dropdown.
+    pub fn menu_accent(mut self, accent: impl Into<Hsla>) -> Self {
+        self.options.menu_accent = Some(accent.into());
+        self
+    }
+
+    /// Borderless trigger with ghost Button hover/press tints.
+    pub fn ghost(mut self) -> Self {
+        self.options.appearance = false;
+        self.options.trigger_ghost = true;
+        self
+    }
 }
 
 impl<D> Sizable for Select<D>
@@ -821,8 +869,12 @@ where
             this.state.search_placeholder = opts.search_placeholder;
             this.state.menu_width = opts.menu_width;
             this.state.menu_max_h = opts.menu_max_h;
+            this.state.menu_bg = opts.menu_bg;
+            this.state.menu_border = opts.menu_border;
+            this.state.menu_accent = opts.menu_accent;
             this.state.disabled = opts.disabled;
             this.state.appearance = opts.appearance;
+            this.state.trigger_ghost = opts.trigger_ghost;
             this.focus_ring_enabled = opts.focus_ring_enabled;
             this.icon = opts.icon;
             this.title_prefix = opts.title_prefix;

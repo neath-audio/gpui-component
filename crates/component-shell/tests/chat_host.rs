@@ -56,7 +56,7 @@ import { div, View } from "gpui-kit";
 import {
   Attachment, Bubble, Marker, Message, MessageScroller,
   MessageScrollerState, ShimmerText,
-} from "gpui-component";
+} from "gpui-neath";
 
 export default class ChatHost extends View {
   init() { this.scroller = MessageScrollerState(2); }

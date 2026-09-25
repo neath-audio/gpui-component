@@ -25,12 +25,12 @@ natural Chinese rather than word-for-word translation.
 
 ## Project Overview
 
-GPUI Kit is a Rust desktop application framework built on GPUI, published at <https://gpui-kit.com>. It ships as three crates: `gpui-base` (unstyled behavior and infrastructure), `gpui-shell` (JavaScript extensions for a Rust host), and `gpui-component` (GPUI Component, the styled component library with 60+ cross-platform desktop UI components, inspired by macOS/Windows controls and combined with shadcn/ui design). Applications depend on the umbrella crate `gpui-kit` (`crates/kit`), which pins the matching `gpui-pre-*` snapshot of GPUI and puts GPUI at its root (`use gpui_kit::*;`) with `gpui_kit::platform`, `gpui_kit::base`, `gpui_kit::component` and `gpui_kit::assets` reachable by name, so they never list GPUI itself. `gpui-shell` is not part of `gpui-kit` and is not published yet (its `llrt_*` dependencies are git-only); use it as a git dependency.
+GPUI Kit is a Rust desktop application framework built on GPUI, published at <https://gpui-kit.com>. It ships as three crates: `gpui-base` (unstyled behavior and infrastructure), `gpui-shell` (JavaScript extensions for a Rust host), and `gpui-neath` (GPUI Component, the styled component library with 60+ cross-platform desktop UI components, inspired by macOS/Windows controls and combined with shadcn/ui design). Applications depend on the umbrella crate `gpui-kit` (`crates/kit`), which pins the matching `gpui-pre-*` snapshot of GPUI and puts GPUI at its root (`use gpui_kit::*;`) with `gpui_kit::platform`, `gpui_kit::base`, `gpui_kit::component` and `gpui_kit::assets` reachable by name, so they never list GPUI itself. `gpui-shell` is not part of `gpui-kit` and is not published yet (its `llrt_*` dependencies are git-only); use it as a git dependency.
 
 This is a Rust workspace project with the following main crates:
 
 - `crates/kit` - Umbrella crate applications depend on (published as `gpui-kit`)
-- `crates/component` - Core UI component library (published as `gpui-component`)
+- `crates/component` - Core UI component library (published as `gpui-neath`)
 - `crates/story` - Gallery application for showcasing and testing components
 - `crates/story-web` - Web version of the story gallery (using WebAssembly)
 - `crates/component-macros` - Procedural macros (`IntoPlot` derive)
@@ -79,10 +79,10 @@ interaction, data flow, or prevents a meaningful regression.
 cargo test --all
 
 # Run tests for a specific crate
-cargo test -p gpui-component
+cargo test -p gpui-neath
 
 # Run doc tests
-cargo test -p gpui-component --doc
+cargo test -p gpui-neath --doc
 ```
 
 ### Performance Profiling
@@ -108,7 +108,7 @@ implementing this architecture:
   change. By default, implement component behavior and visual styling in
   `crates/component` or the application layer.
 
-- Keep GPUI Kit as the ecosystem and product brand; `gpui-component` is its
+- Keep GPUI Kit as the ecosystem and product brand; `gpui-neath` is its
   styled component layer, alongside `gpui-base` and `gpui-shell`.
 - Name the foundation crate `gpui-base`.
 - Follow the ownership boundary: the framework owns behavior and infrastructure;
@@ -188,7 +188,7 @@ presentation skin (`DockSkin`) over it. See `docs/ARCHITECTURE.md`.
   cache of container entities keyed by `NodeId`
 - **`TabGroup`**: The `Tabs` container entity
 - **`Panel`**: Split at the seam — `gpui_base::dock::Panel` for behavior,
-  `gpui_component::dock::Panel` for presentation; a panel implements both
+  `gpui_neath::dock::Panel` for presentation; a panel implements both
 - **`PanelRegistry`**: Resolves a persisted `panel_name` back to a panel type
 
 The Dock system supports:
@@ -327,7 +327,7 @@ This project has custom Claude Code skills to assist with common development tas
 
 - **gpui-kit** (`skills/`) - Building applications on the `gpui-kit` crate: setup, component catalog, stateless/stateful patterns, theming, GPUI mechanics (actions, async, contexts, custom elements, entities, events, focus, global state, layout, `ElementId`, testing), and the normative Coding Guides
 - **gpui-kit-design-guides** (`skills/`) - The normative Design Guides; load before any UI, layout, interaction, or interface-copy work
-- **gpui-component-dev** (`.claude/skills/`) - Contributing to gpui-component: creating new components, writing stories, writing documentation, writing PR descriptions
+- **gpui-component-dev** (`.claude/skills/`) - Contributing to gpui-neath: creating new components, writing stories, writing documentation, writing PR descriptions
 
 When working on tasks related to these areas, Claude Code will automatically use the appropriate skill to provide specialized guidance and patterns.
 

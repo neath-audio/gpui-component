@@ -32,7 +32,7 @@ Use these boundaries:
 - **feature crate:** keep one capability's model, services, views, commands, dialogs,
   and workflow behind one public boundary;
 - **app component:** a repeated domain-aware pattern;
-- **gpui-component:** themed, general-purpose UI;
+- **gpui-neath:** themed, general-purpose UI;
 - **gpui-base:** reusable behavior and geometry without product presentation.
 
 ### Organize large applications by capability

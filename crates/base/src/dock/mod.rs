@@ -69,7 +69,7 @@
 //! It simply draws nothing but the panels themselves.
 //!
 //! [`Panel`] splits at the same seam: this trait covers behavior, and a
-//! presentation layer — `gpui_component::dock::Panel` — extends it with
+//! presentation layer — `gpui_neath::dock::Panel` — extends it with
 //! titles, toolbars, and menus. A panel type implements both.
 //!
 //! Every hook is optional in the same way: a renderer that declines one gets
@@ -179,7 +179,7 @@ mod tab_group;
 #[cfg(test)]
 pub(crate) mod test_support;
 
-pub use dock_area::{DockArea, DockAreaRenderer, DockContext, DockEvent};
+pub use dock_area::{DockArea, DockAreaRenderer, DockContext, DockEvent, DockRegions};
 pub use dock_placement::{Dock, DockSizing};
 pub use drag::{AnyDrag, DragPanel, DropIndicator, DropPlaceholderBounds, DropTarget};
 // `split_placement_at` stays internal for the same reason: where a drop lands

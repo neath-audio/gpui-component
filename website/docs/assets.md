@@ -8,9 +8,9 @@ order: -7
 
 The [IconName] and [Icon] in GPUI Component provide a comprehensive set of icons and assets that can be easily integrated into your GPUI applications.
 
-But for minimal size applications, **we have not embedded any icon assets by default** in `gpui-component` crate.
+But for minimal size applications, **we have not embedded any icon assets by default** in `gpui-neath` crate.
 
-We split the icon assets into a separate crate [gpui-kit-assets] to allow developers to choose whether to include the icon assets in their applications or if you don't need the icons at all, you can build your own assets.
+We split the icon assets into a separate crate [gpui-component-assets] to allow developers to choose whether to include the icon assets in their applications or if you don't need the icons at all, you can build your own assets.
 
 
 :::note NOTE — Depending on the crate does not embed every icon
@@ -69,14 +69,14 @@ explicitly register `AllAssets` to use the complete bundle.
 
 ## Use default bundled assets
 
-The [gpui-kit-assets] crate provides a default bundled assets implementation that embeds the original 101 component icons listed in `crates/assets/default-icons.txt`.
+The [gpui-component-assets] crate provides a default bundled assets implementation that embeds the original 101 component icons listed in `crates/assets/default-icons.txt`.
 
-To use the default bundled assets, you need to add the `gpui-kit-assets` crate as a dependency in your `Cargo.toml`:
+To use the default bundled assets, you need to add the `gpui-component-assets` crate as a dependency in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-gpui-component = { git = "https://github.com/longbridge/gpui-kit" }
-gpui-kit-assets = { git = "https://github.com/longbridge/gpui-kit" }
+gpui-neath = { git = "https://github.com/longbridge/gpui-kit" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-kit" }
 ```
 
 Then we need call the `with_assets` method when creating the GPUI application to register the asset source:
@@ -149,7 +149,7 @@ fn main() {
     let app = gpui_kit::application().with_assets(Assets);
 
     app.run(move |cx| {
-        // We must initialize gpui_component before using it.
+        // We must initialize gpui_neath before using it.
         gpui_kit::init(cx);
 
         gpui_kit::open_window(WindowOptions::default(), cx, |_, cx| {
@@ -203,7 +203,7 @@ loading icons, and custom icon types.
 - [Lucide Icons](https://lucide.dev/) - The icon set used in GPUI Component is based on the open-source Lucide Icons library, which provides a wide range of customizable SVG icons.
 
 [rust-embed]: https://docs.rs/rust-embed/latest/rust_embed/
-[IconName]: https://docs.rs/gpui-kit-assets/latest/gpui_kit_assets/enum.IconName.html
-[Icon]: https://docs.rs/gpui_component/latest/gpui_component/icon/struct.Icon.html
+[IconName]: https://docs.rs/gpui-component-assets/latest/gpui_component_assets/enum.IconName.html
+[Icon]: https://docs.rs/gpui_neath/latest/gpui_neath/icon/struct.Icon.html
 [assets]: https://github.com/longbridge/gpui-kit/tree/main/crates/assets/assets/
-[gpui-kit-assets]: https://crates.io/crates/gpui-kit-assets
+[gpui-component-assets]: https://crates.io/crates/gpui-component-assets

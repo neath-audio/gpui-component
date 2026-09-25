@@ -276,7 +276,7 @@ SettingItem::new(
     "Documentation",
     SettingField::element(...)
 )
-.description(markdown("Rust doc for the `gpui-component` crate."))
+.description(markdown("Rust doc for the `gpui-neath` crate."))
 ```
 
 ### Disabled
@@ -606,12 +606,12 @@ Settings::new("app-settings")
     ])
 ```
 
-[Settings]: https://docs.rs/gpui-component/latest/gpui_component/setting/struct.Settings.html
-[SettingPage]: https://docs.rs/gpui-component/latest/gpui_component/setting/struct.SettingPage.html
-[SettingGroup]: https://docs.rs/gpui-component/latest/gpui_component/setting/struct.SettingGroup.html
-[SettingItem]: https://docs.rs/gpui-component/latest/gpui_component/setting/struct.SettingItem.html
-[SettingField]: https://docs.rs/gpui-component/latest/gpui_component/setting/enum.SettingField.html
-[SettingFieldElement]: https://docs.rs/gpui-component/latest/gpui_component/setting/trait.SettingFieldElement.html
-[NumberFieldOptions]: https://docs.rs/gpui-component/latest/gpui_component/setting/struct.NumberFieldOptions.html
+[Settings]: https://docs.rs/gpui-neath/latest/gpui_neath/setting/struct.Settings.html
+[SettingPage]: https://docs.rs/gpui-neath/latest/gpui_neath/setting/struct.SettingPage.html
+[SettingGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/setting/struct.SettingGroup.html
+[SettingItem]: https://docs.rs/gpui-neath/latest/gpui_neath/setting/struct.SettingItem.html
+[SettingField]: https://docs.rs/gpui-neath/latest/gpui_neath/setting/enum.SettingField.html
+[SettingFieldElement]: https://docs.rs/gpui-neath/latest/gpui_neath/setting/trait.SettingFieldElement.html
+[NumberFieldOptions]: https://docs.rs/gpui-neath/latest/gpui_neath/setting/struct.NumberFieldOptions.html
 [GroupBox]: ./group-box.md
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html

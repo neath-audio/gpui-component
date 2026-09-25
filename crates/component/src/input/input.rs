@@ -2,10 +2,10 @@ use std::rc::Rc;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AccessibleAction, AnyElement, App, DefiniteLength, Edges, ElementId, Entity, Hsla,
-    InteractiveElement as _, IntoElement, ParentElement as _, Rems, RenderOnce, Role, SharedString,
-    StatefulInteractiveElement as _, StyleRefinement, Styled, TextAlign, TouchPhase, Window, div,
-    px, relative,
+    AbsoluteLength, AccessibleAction, AnyElement, App, DefiniteLength, Edges, ElementId, Entity,
+    Hsla, InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Rems, RenderOnce, Role,
+    SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, TextAlign, TouchPhase,
+    Window, div, px, relative,
 };
 
 use crate::button::{Button, ButtonRounded, ButtonVariants as _};
@@ -503,6 +503,36 @@ impl Input {
     }
 }
 
+/// Multi-line inset lives on the editor, not the chrome wrapper. Style
+/// padding (`.pl_0()`, `.px_2()`, …) overrides the Size defaults so a
+/// borderless Textarea can flush to the same gutter as a single-line Input.
+fn multi_line_editor_paddings(
+    size: Size,
+    style: &StyleRefinement,
+    rem_size: Pixels,
+    code_editor: bool,
+) -> Edges<Pixels> {
+    let default_px = size.input_px();
+    let default_py = size.input_py();
+    let resolve = |side: Option<DefiniteLength>, fallback: Pixels| {
+        side.map(|len| len.to_pixels(AbsoluteLength::Pixels(fallback), rem_size))
+            .unwrap_or(fallback)
+    };
+    Edges {
+        top: resolve(style.padding.top, default_py),
+        right: resolve(style.padding.right, default_px),
+        bottom: resolve(style.padding.bottom, default_py),
+        left: resolve(
+            style.padding.left,
+            if code_editor {
+                default_px.min(px(6.))
+            } else {
+                default_px
+            },
+        ),
+    }
+}
+
 impl Styled for Input {
     fn style(&mut self) -> &mut StyleRefinement {
         &mut self.style
@@ -564,18 +594,20 @@ impl RenderOnce for Input {
             },
             cx,
         );
+        // Multi-line inset lives on the editor (scrollbar stays on the
+        // chrome edge). Style padding (`.pl_0()`, `.px_2()`, …) must
+        // override that inset — applying it only on the wrapper leaves
+        // the Size defaults (Small = 8px sides) around the text, which
+        // is why a borderless Textarea read looser than an Input with
+        // the same `.pl_0().pr_0()`.
         state.set_editor_paddings(
             if state.presentation(cx).is_multi_line() {
-                Edges {
-                    top: self.size.input_py(),
-                    right: self.size.input_px(),
-                    bottom: self.size.input_py(),
-                    left: if state.presentation(cx).is_code_editor() {
-                        self.size.input_px().min(px(6.))
-                    } else {
-                        self.size.input_px()
-                    },
-                }
+                multi_line_editor_paddings(
+                    self.size,
+                    &self.style,
+                    window.rem_size(),
+                    state.presentation(cx).is_code_editor(),
+                )
             } else {
                 Edges::default()
             },
@@ -649,6 +681,12 @@ impl RenderOnce for Input {
         let content_type = self.content_type;
         let disabled = self.disabled;
         let is_multi_line = presentation.is_multi_line();
+        // Padding refinements already went into editor_paddings. Drop them
+        // from the wrapper so `.px_2()` does not inset the text twice.
+        let mut style = self.style;
+        if is_multi_line {
+            style.padding = Default::default();
+        }
         let accessibility_role = accessibility_role(is_multi_line, content_type, self.role);
         let accessibility_state = state.clone();
         // Tests read the same accessibility value as assistive technology.
@@ -756,7 +794,7 @@ impl RenderOnce for Input {
             })
             .items_center()
             .gap(gap_x)
-            .refine_style(&self.style)
+            .refine_style(&style)
             .when(
                 focused && self.appearance && self.bordered && self.focus_bordered,
                 |this| this.focus_ring_style(window, cx),
@@ -773,7 +811,7 @@ impl RenderOnce for Input {
                 this.child(state.clone().into_any_element())
             })
             .when(has_suffix, |this| {
-                this.pr(self.size.input_px()).child(
+                this.child(
                     h_flex()
                         .id("suffix")
                         .gap(gap_x)
@@ -1115,7 +1153,7 @@ mod tests {
     #[gpui::test]
     fn focused_input_registry_tracks_focus_and_blur(cx: &mut gpui::TestAppContext) {
         use crate::{Root, WindowExt as _};
-        use gpui::{AppContext as _, Render};
+        use gpui::{AppContext as _, Focusable as _, Render};
 
         struct Probe {
             input: Entity<InputState>,
@@ -1123,12 +1161,13 @@ mod tests {
             editor: Entity<crate::input::EditorState>,
             otp: Entity<gpui_base::OtpState>,
             other: gpui::FocusHandle,
+            show_input: bool,
         }
         impl Render for Probe {
             fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
                 div()
                     .child(div().track_focus(&self.other))
-                    .child(Input::new(&self.input))
+                    .when(self.show_input, |this| this.child(Input::new(&self.input)))
                     .child(crate::input::Textarea::new(&self.textarea))
                     .child(crate::input::Editor::new(&self.editor))
                     .child(crate::input::OtpInput::new(&self.otp))
@@ -1141,6 +1180,7 @@ mod tests {
         let mut editor = None;
         let mut other_focus = None;
         let mut otp = None;
+        let mut probe_entity = None;
         let window = cx.update(|cx| {
             cx.open_window(Default::default(), |window, cx| {
                 let state = cx.new(|cx| InputState::new(window, cx));
@@ -1160,7 +1200,9 @@ mod tests {
                     editor: editor_state,
                     otp: otp_state,
                     other,
+                    show_input: true,
                 });
+                probe_entity = Some(probe.clone());
                 cx.new(|cx| Root::new(probe, window, cx))
             })
             .unwrap()
@@ -1170,6 +1212,7 @@ mod tests {
         let editor = editor.unwrap();
         let otp = otp.unwrap();
         let other_focus = other_focus.unwrap();
+        let probe = probe_entity.unwrap();
         let mut cx = gpui::VisualTestContext::from_window(window.into(), cx);
 
         // Focusing each kind of input registers it, and blurring clears it.
@@ -1200,6 +1243,59 @@ mod tests {
             });
             assert_eq!(cx.update(|window, cx| window.focused_input(cx)), None);
         }
+
+        // A focused input can disappear before it ever paints unfocused. The
+        // public registry accessors must validate that state's live focus
+        // handle and lazily clear the stale entry.
+        cx.update(|window, cx| input.focus_handle(cx).focus(window, cx));
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        assert!(cx.update(|window, cx| window.has_focused_input(cx)));
+
+        cx.update(|window, cx| {
+            other_focus.focus(window, cx);
+            probe.update(cx, |probe, cx| {
+                probe.show_input = false;
+                cx.notify();
+            });
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        assert_eq!(
+            cx.update(|window, cx| window.focused_input(cx)),
+            None,
+            "a removed input whose focus handle is inactive must not remain registered"
+        );
+        assert!(
+            !cx.update(|window, cx| window.has_focused_input(cx)),
+            "a removed input whose focus handle is inactive must not own shortcuts"
+        );
+    }
+
+    #[test]
+    fn multi_line_editor_paddings_default_to_size() {
+        let style = StyleRefinement::default();
+        let edges = multi_line_editor_paddings(Size::Small, &style, px(16.), false);
+        assert_eq!(edges.left, Size::Small.input_px());
+        assert_eq!(edges.right, Size::Small.input_px());
+        assert_eq!(edges.top, Size::Small.input_py());
+        assert_eq!(edges.bottom, Size::Small.input_py());
+    }
+
+    #[test]
+    fn multi_line_editor_paddings_honor_pl_pr_zero() {
+        let mut style = StyleRefinement::default();
+        style.padding.left = Some(px(0.).into());
+        style.padding.right = Some(px(0.).into());
+        let edges = multi_line_editor_paddings(Size::Small, &style, px(16.), false);
+        assert_eq!(edges.left, px(0.));
+        assert_eq!(edges.right, px(0.));
+        assert_eq!(edges.top, Size::Small.input_py());
+        assert_eq!(edges.bottom, Size::Small.input_py());
     }
 
     #[gpui::test]

@@ -41,7 +41,7 @@ fn select_native_click_emits_selected_stable_value(cx: &mut TestAppContext) {
     let root = std::env::temp_dir().join(format!("delegate-select-{}", std::process::id()));
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("main.js"), r#"import { View, div } from "gpui-kit";
-import { Select } from "gpui-component";
+import { Select } from "gpui-neath";
 export default class App extends View {
   render() {
     return div().size_full().child(new Select("people", () => [

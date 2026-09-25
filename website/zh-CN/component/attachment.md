@@ -440,11 +440,11 @@ Attachment::new()
 - [AttachmentActions]
 - [AttachmentGroup]
 
-[Attachment]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.Attachment.html
-[AttachmentStatus]: https://docs.rs/gpui-component/latest/gpui_component/attachment/enum.AttachmentStatus.html
-[AttachmentMedia]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentMedia.html
-[AttachmentContent]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentContent.html
-[AttachmentTitle]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentTitle.html
-[AttachmentDescription]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentDescription.html
-[AttachmentActions]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentActions.html
-[AttachmentGroup]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentGroup.html
+[Attachment]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.Attachment.html
+[AttachmentStatus]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/enum.AttachmentStatus.html
+[AttachmentMedia]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentMedia.html
+[AttachmentContent]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentContent.html
+[AttachmentTitle]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentTitle.html
+[AttachmentDescription]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentDescription.html
+[AttachmentActions]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentActions.html
+[AttachmentGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentGroup.html

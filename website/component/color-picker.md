@@ -372,6 +372,6 @@ let _subscription = cx.subscribe(&color_picker, |this, _, ev, _| match ev {
 });
 ```
 
-[ColorPicker]: https://docs.rs/gpui-component/latest/gpui_component/color_picker/struct.ColorPicker.html
-[ColorPickerState]: https://docs.rs/gpui-component/latest/gpui_component/color_picker/struct.ColorPickerState.html
-[ColorPickerEvent]: https://docs.rs/gpui-component/latest/gpui_component/color_picker/enum.ColorPickerEvent.html
+[ColorPicker]: https://docs.rs/gpui-neath/latest/gpui_neath/color_picker/struct.ColorPicker.html
+[ColorPickerState]: https://docs.rs/gpui-neath/latest/gpui_neath/color_picker/struct.ColorPickerState.html
+[ColorPickerEvent]: https://docs.rs/gpui-neath/latest/gpui_neath/color_picker/enum.ColorPickerEvent.html

@@ -2,7 +2,7 @@ use crate::root::WindowState;
 use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
-    Action, AnyElement, AnyView, App, AppContext, Bounds, Context, ElementId, IntoElement,
+    Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Corners, ElementId, IntoElement,
     MouseButton, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement,
     StyleRefinement, Styled, Window, div, prelude::FluentBuilder, px,
 };
@@ -12,9 +12,10 @@ use gpui_base::{
 };
 
 use crate::{
-    ActiveTheme, Placement, StyledExt,
+    ActiveTheme, Material, MaterialDepth, Placement, StyledExt, ThemeStyled as _,
     animation::{EffectTransition, ease_in_out_cubic, ease_out_cubic},
     kbd::Kbd,
+    styled::resolved_corner_radii,
     text::Text,
 };
 
@@ -36,6 +37,7 @@ pub struct Tooltip {
     content: TooltipContext,
     key_binding: Option<Kbd>,
     action: Option<(Box<dyn Action>, Option<SharedString>)>,
+    overlay_anchored: bool,
 }
 
 impl Tooltip {
@@ -46,6 +48,7 @@ impl Tooltip {
             content: TooltipContext::Text(text.into()),
             key_binding: None,
             action: None,
+            overlay_anchored: false,
         }
     }
 
@@ -59,6 +62,7 @@ impl Tooltip {
             style: StyleRefinement::default(),
             key_binding: None,
             action: None,
+            overlay_anchored: false,
             content: TooltipContext::Element(Box::new(move |window, cx| {
                 builder(window, cx).into_any_element()
             })),
@@ -68,6 +72,12 @@ impl Tooltip {
     /// Set Action to display key binding information for the tooltip if it exists.
     pub fn action(mut self, action: &dyn Action, context: Option<&str>) -> Self {
         self.action = Some((action.boxed_clone(), context.map(SharedString::new)));
+        self
+    }
+
+    /// Drop the default margin so a positioner can own the trigger gap.
+    pub fn overlay_anchored(mut self) -> Self {
+        self.overlay_anchored = true;
         self
     }
 
@@ -91,6 +101,11 @@ impl Styled for Tooltip {
 }
 impl Render for Tooltip {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let corner_radii = resolved_corner_radii(
+            Corners::all(cx.theme().radius),
+            &self.style,
+            window.rem_size(),
+        );
         let key_binding = if let Some(key_binding) = &self.key_binding {
             Some(key_binding.clone())
         } else {
@@ -105,23 +120,17 @@ impl Render for Tooltip {
             }
         };
 
-        div().child(
+        let surface =
             // Wrap in a child, to ensure the left margin is applied to the tooltip
             BaseTooltip::new("tooltip-popup")
                 .h_flex()
                 .font_family(cx.theme().font_family.clone())
-                .m_3()
-                .bg(cx.theme().tokens.popover)
-                .text_color(cx.theme().popover_foreground)
-                .bg(cx.theme().tokens.popover)
-                .border_1()
-                .border_color(cx.theme().border)
-                .shadow_md()
-                .rounded(cx.theme().radius)
+                .when(!self.overlay_anchored, |this| this.m_3())
+                .popover_style(cx)
                 .justify_between()
                 .py_0p5()
                 .px_2()
-                .text_sm()
+                .text_xs()
                 .gap_3()
                 .refine_style(&self.style)
                 .map(|this| {
@@ -138,7 +147,15 @@ impl Render for Tooltip {
                             .text_color(cx.theme().muted_foreground)
                             .child(kbd.appearance(false)),
                     )
-                }),
+                });
+
+        div().child(
+            Material::new(
+                ("tooltip-material", cx.entity_id()),
+                MaterialDepth::Overlay,
+                surface,
+            )
+            .corner_radii(corner_radii),
         )
     }
 }
@@ -226,9 +243,7 @@ impl ComponentTooltip {
 
 // ── Internal managed tooltip trait ──────────────────────────────────────────
 
-pub(crate) trait ManagedTooltipExt:
-    StatefulInteractiveElement + crate::ElementExt + Sized
-{
+pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Sized {
     fn managed_tooltip(
         self,
         build_tooltip: impl Fn(&mut Window, &mut App) -> AnyView + 'static,
@@ -293,3 +308,28 @@ pub(crate) trait ManagedTooltipExt:
 }
 
 impl<E: StatefulInteractiveElement + crate::ElementExt> ManagedTooltipExt for E {}
+
+#[cfg(test)]
+mod tests {
+    use gpui::{Corners, TestAppContext, px};
+
+    use super::*;
+    use crate::material::{MaterialDepth, clear_painted_materials, take_painted_materials};
+
+    #[gpui::test]
+    fn material_uses_the_tooltip_surface_custom_corner_radii(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| Tooltip::new("Custom").rounded(px(23.)));
+
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        let material = take_painted_materials()
+            .into_iter()
+            .filter(|material| material.id.to_string().starts_with("tooltip-material"))
+            .collect::<Vec<_>>();
+        assert_eq!(material.len(), 1, "Tooltip mounts one surface Material");
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        assert_eq!(material[0].corner_radii, Corners::all(px(23.)));
+    }
+}

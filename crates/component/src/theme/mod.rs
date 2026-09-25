@@ -1,10 +1,11 @@
+use crate::Size;
 use crate::{
     highlighter::HighlightTheme, list::ListSettings, notification::NotificationSettings,
     scroll::ScrollbarMode, sheet::SheetSettings,
 };
 use gpui::{
     App, Global, Hsla, IsZero as _, Pixels, SharedString, Window, WindowAppearance,
-    prelude::FluentBuilder as _, px,
+    WindowBackgroundAppearance, prelude::FluentBuilder as _, px,
 };
 pub use gpui_base::{
     ColorTokens, RadiusTokens, SemanticThemeTokens, ShadowTokens, SpacingTokens, TextStyleToken,
@@ -54,6 +55,39 @@ impl ActiveTheme for App {
 
 fn default_true() -> bool {
     true
+}
+
+/// Resolved translucency policy for the active theme.
+///
+/// Theme configuration is intentionally reduced to this small value at apply
+/// time so switching to a sparse theme cannot retain a previous theme's glass.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ThemeTranslucency {
+    window: bool,
+    overlay_blur: Pixels,
+    panel_blur: Pixels,
+}
+
+impl ThemeTranslucency {
+    fn resolve(config: &ThemeTranslucencyConfig) -> Self {
+        if !config.window {
+            return Self::default();
+        }
+
+        Self {
+            window: true,
+            overlay_blur: bounded_blur(config.overlay_blur),
+            panel_blur: bounded_blur(config.panel_blur),
+        }
+    }
+}
+
+fn bounded_blur(value: f32) -> Pixels {
+    px(if value.is_finite() {
+        value.clamp(0., 64.)
+    } else {
+        0.
+    })
 }
 
 /// The radius that rounds a shape as far as its own size allows, giving a
@@ -112,6 +146,9 @@ pub struct Theme {
     /// rather than extending this legacy surface.
     #[serde(default)]
     pub tokens: ThemeTokens,
+    #[serde(skip)]
+    #[schemars(skip)]
+    translucency: ThemeTranslucency,
     pub highlight_theme: Arc<HighlightTheme>,
     pub light_theme: Rc<ThemeConfig>,
     pub dark_theme: Rc<ThemeConfig>,
@@ -418,7 +455,7 @@ impl Theme {
     ///
     /// The Base layer holds its own copy of the theme — the semantic tokens
     /// plus the scrollbar and resize-handle styles — because it paints those
-    /// without going through `gpui-component`. [`Theme::change`] refreshes that
+    /// without going through `gpui-neath`. [`Theme::change`] refreshes that
     /// copy, but writing to the theme's public fields directly does not, so a
     /// scrollbar keeps painting with the radius and colors it was last given.
     ///
@@ -445,6 +482,38 @@ impl Theme {
             self.input.mix_oklab(self.transparent, 0.3)
         } else {
             self.background
+        }
+    }
+
+    /// Whether the active theme explicitly enables glass.
+    pub fn glass_active(&self) -> bool {
+        self.translucency.window
+    }
+
+    /// How the platform should composite the window behind theme paint.
+    pub fn window_background_appearance(&self) -> WindowBackgroundAppearance {
+        if self.glass_active() {
+            WindowBackgroundAppearance::Blurred
+        } else {
+            WindowBackgroundAppearance::Opaque
+        }
+    }
+
+    /// The active overlay backdrop blur radius.
+    pub fn overlay_blur(&self) -> Pixels {
+        if self.glass_active() {
+            self.translucency.overlay_blur
+        } else {
+            px(0.)
+        }
+    }
+
+    /// The active panel backdrop blur radius.
+    pub fn panel_blur(&self) -> Pixels {
+        if self.glass_active() {
+            self.translucency.panel_blur
+        } else {
+            px(0.)
         }
     }
 
@@ -551,7 +620,12 @@ impl Theme {
         let mut tokens = TypographyTokens::default();
         tokens.sans = self.font_family.clone();
         tokens.mono = self.mono_font_family.clone();
-        tokens.md.size = self.font_size;
+        tokens.xs.size = Size::XSmall.text_size().to_pixels(self.font_size);
+        tokens.sm.size = Size::Small.text_size().to_pixels(self.font_size);
+        tokens.md.size = Size::Medium.text_size().to_pixels(self.font_size);
+        tokens.lg.size = Size::Large.text_size().to_pixels(self.font_size);
+        // Keep the public xl role compatible without introducing another UI tier.
+        tokens.xl.size = tokens.lg.size;
         tokens.mono_md.size = self.mono_font_size;
         tokens
     }
@@ -599,7 +673,8 @@ impl Theme {
         self.radius_lg = tokens.radius.lg;
         self.font_family = tokens.typography.sans.clone();
         self.mono_font_family = tokens.typography.mono.clone();
-        self.font_size = tokens.typography.md.size;
+        // Medium is body text, while font_size is the rem base for the whole UI.
+        self.font_size = tokens.typography.md.size / Size::Medium.text_size().0;
         self.mono_font_size = tokens.typography.mono_md.size;
         self.shadow = !tokens.shadow.sm.is_empty()
             || !tokens.shadow.md.is_empty()
@@ -738,6 +813,7 @@ impl From<&ThemeColor> for Theme {
             list: ListSettings::default(),
             colors: *colors,
             tokens: ThemeTokens::from(colors),
+            translucency: ThemeTranslucency::default(),
             light_theme: Rc::new(ThemeConfig::default()),
             dark_theme: Rc::new(ThemeConfig::default()),
             highlight_theme: HighlightTheme::default_light(),

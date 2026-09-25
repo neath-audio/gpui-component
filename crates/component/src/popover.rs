@@ -1,16 +1,16 @@
 use gpui::{
-    Anchor, Animation, AnimationExt as _, AnyElement, App, Bounds, Context, Div, ElementId,
-    FocusHandle, InteractiveElement as _, IntoElement, MouseButton, ParentElement, PathBuilder,
-    Pixels, Point, RenderOnce, Stateful, StyleRefinement, Styled, Window, canvas, point,
-    prelude::FluentBuilder as _, px,
+    Anchor, Animation, AnimationExt as _, AnyElement, App, Bounds, Context, Corners, Div,
+    ElementId, FocusHandle, InteractiveElement as _, IntoElement, MouseButton, ParentElement,
+    PathBuilder, Pixels, Point, RenderOnce, Stateful, StyleRefinement, Styled, Window, canvas,
+    point, prelude::FluentBuilder as _, px,
 };
 use std::{cell::Cell, rc::Rc, time::Duration};
 
-use crate::{ActiveTheme as _, ThemeStyled as _};
+use crate::ThemeStyled as _;
 use crate::{
-    Selectable, StyledExt as _,
+    ActiveTheme as _, Material, MaterialDepth, Selectable, StyledExt as _,
     animation::ease_out_cubic,
-    styled::{popover_ring, popover_shadow},
+    styled::{popover_shadow, resolved_corner_radii},
     v_flex,
 };
 use gpui_base::Placement;
@@ -27,25 +27,24 @@ const DROPDOWN_ENTER_DURATION: Duration = Duration::from_millis(150);
 
 /// Where a dropdown starts out, relative to where it comes to rest.
 ///
-/// Negative is above, so the surface slides *down* out of the trigger's edge —
-/// what shadcn/ui expresses as `data-[side=bottom]:slide-in-from-top-2`. Its
-/// `2` is `0.5rem`, which is 8px at the default root size.
-const DROPDOWN_ENTER_OFFSET: Pixels = px(-8.);
+/// Negative is above, so the surface slides *down* out of the trigger's edge.
+/// Kept to 4px so the resting gap and the slide stay in the same range as the
+/// previous `mt_1` / `mt_1p5` popup inset (user ruling 2026-08-20).
+const DROPDOWN_ENTER_OFFSET: Pixels = px(-4.);
 
 fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
     gpui_base::Positioner::side(bounds)
         .placement(gpui_base::Placement::Bottom)
         .align(gpui_base::Align::Start)
-        .offset(px(6.))
+        .offset(px(4.))
         .margin(px(8.))
 }
 
 /// Positions a dropdown surface under its trigger and animates it in.
 ///
-/// This is the shared open motion for Select, Combobox and DatePicker, modelled
-/// on shadcn/ui: over 150ms the surface fades up from nothing while sliding the
-/// last 8px out of the trigger's edge, on an ease-out curve so it decelerates
-/// into place.
+/// This is the shared open motion for Select, Combobox and DatePicker: over
+/// 150ms the surface fades up from nothing while sliding the last 4px out of
+/// the trigger's edge, on an ease-out curve so it decelerates into place.
 ///
 /// `surface` must be the panel itself — the element carrying
 /// [`ThemeStyled::popover_style`] — and not a wrapper around it. GPUI takes a
@@ -60,8 +59,8 @@ fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
 /// element out of `inset` shadows — so a translucent panel does not hide its own
 /// shadow, and mid-fade the shadow shows straight through the panel as a dark
 /// slab. Ramping the ink by the cube of the fade keeps it out of sight until the
-/// panel is opaque enough to cover it, and still lands on the resting shadow
-/// [`popover_shadow`] gives every other popup.
+/// panel is opaque enough to cover it, and still lands on the resting native
+/// `shadow-md` every other popup uses.
 ///
 /// # Departures from shadcn
 ///
@@ -76,7 +75,7 @@ fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
 /// - The slide always comes from above. [`gpui_base::Positioner`] resolves the
 ///   side the surface actually lands on during layout and does not report it
 ///   back, so a dropdown that flips above its trigger for want of room below
-///   slides the opposite way — 8px over 150ms, in the rare case where it
+///   slides the opposite way — 4px over 150ms, in the rare case where it
 ///   happens.
 ///
 /// Reduced motion needs no handling here: GPUI's animation element adopts the
@@ -87,20 +86,26 @@ pub(crate) fn dropdown_popup(
     surface: impl IntoElement + Styled + 'static,
     cx: &App,
 ) -> gpui_base::Positioner {
+    let id = id.into();
     let travel: f32 = DROPDOWN_ENTER_OFFSET.into();
-    // Read out here: the animation runs long after `cx` is gone.
-    let ring = popover_ring(cx);
 
-    dropdown_positioner(bounds).child(surface.with_animation(
-        id,
-        Animation::new(DROPDOWN_ENTER_DURATION).with_easing(ease_out_cubic),
-        move |surface, delta| {
-            surface
-                .top(px(travel * (1. - delta)))
-                .opacity(delta)
-                .shadow(popover_shadow(ring, delta * delta * delta))
-        },
-    ))
+    dropdown_positioner(bounds).child(
+        Material::new(
+            (id.clone(), "material"),
+            MaterialDepth::Overlay,
+            surface.with_animation(
+                id,
+                Animation::new(DROPDOWN_ENTER_DURATION).with_easing(ease_out_cubic),
+                move |surface, delta| {
+                    surface
+                        .top(px(travel * (1. - delta)))
+                        .opacity(delta)
+                        .shadow(popover_shadow(delta * delta * delta))
+                },
+            ),
+        )
+        .corner_radii(Corners::all(cx.theme().radius)),
+    )
 }
 
 /// A popover element that can be triggered by a button or any other element.
@@ -127,6 +132,7 @@ pub struct Popover {
     trigger_style: Option<StyleRefinement>,
     mouse_button: MouseButton,
     appearance: bool,
+    child_owns_material: bool,
     overlay_closable: bool,
     on_open_change: Option<Rc<dyn Fn(&bool, &mut Window, &mut App)>>,
 }
@@ -147,6 +153,7 @@ impl Popover {
             children: vec![],
             mouse_button: MouseButton::Left,
             appearance: true,
+            child_owns_material: false,
             overlay_closable: true,
             default_open: false,
             open: None,
@@ -268,6 +275,16 @@ impl Popover {
         self
     }
 
+    /// Skip Popover's material when the content is itself the adopted floating surface.
+    ///
+    /// This is distinct from [`Self::appearance`]: a custom-styled Popover still owns a real
+    /// surface and keeps its material. Use this only for content such as [`crate::PopupMenu`]
+    /// that already paints its own material.
+    pub fn child_owns_material(mut self) -> Self {
+        self.child_owns_material = true;
+        self
+    }
+
     /// Bind the focus handle to receive focus when the popover is opened.
     /// If you not set this, a new focus handle will be created for the popover to
     ///
@@ -291,22 +308,19 @@ impl Styled for Popover {
 }
 
 impl Popover {
-    pub(crate) fn render_popover_content(
-        anchor: Anchor,
-        appearance: bool,
-        _: &mut Window,
-        cx: &mut App,
-    ) -> Stateful<Div> {
+    pub(crate) fn render_popover_surface(appearance: bool, cx: &mut App) -> Stateful<Div> {
         v_flex()
             .id("content")
-            .occlude()
             .tab_group()
             .when(appearance, |this| this.popover_style(cx).p_3())
-            .map(|this| match anchor {
-                Anchor::TopLeft | Anchor::TopCenter | Anchor::TopRight => this.top_1(),
-                Anchor::BottomLeft | Anchor::BottomCenter | Anchor::BottomRight => this.bottom_1(),
-                Anchor::LeftCenter | Anchor::RightCenter => this.top_1(), // Fallback for centered
-            })
+    }
+
+    pub(crate) fn offset_popover_surface(surface: Stateful<Div>, anchor: Anchor) -> Stateful<Div> {
+        surface.map(|this| match anchor {
+            Anchor::TopLeft | Anchor::TopCenter | Anchor::TopRight => this.top_1(),
+            Anchor::BottomLeft | Anchor::BottomCenter | Anchor::BottomRight => this.bottom_1(),
+            Anchor::LeftCenter | Anchor::RightCenter => this.top_1(), // Fallback for centered
+        })
     }
 }
 
@@ -328,9 +342,11 @@ impl RenderOnce for Popover {
             .as_ref()
             .and_then(gpui::Fill::color)
             .unwrap_or_else(|| cx.theme().popover.into());
-        let ring = popover_ring(cx);
+        let ring = cx.theme().border_strong;
         let radius = cx.theme().radius;
         let appearance = self.appearance;
+        let child_owns_material = self.child_owns_material;
+        let material_id = (self.id.clone(), "material");
         let style = self.style;
         let children = self.children;
         let content = self.content;
@@ -343,7 +359,16 @@ impl RenderOnce for Popover {
             .default_open(self.default_open)
             .overlay_closable(self.overlay_closable)
             .content(move |state, window, cx| {
-                v_flex()
+                let corner_radii = resolved_corner_radii(
+                    if appearance {
+                        Corners::all(cx.theme().radius)
+                    } else {
+                        Corners::default()
+                    },
+                    &style,
+                    window.rem_size(),
+                );
+                let surface = v_flex()
                     .id("content")
                     .occlude()
                     .tab_group()
@@ -395,7 +420,14 @@ impl RenderOnce for Popover {
                             .inset_0()
                             .size_full(),
                         )
-                    })
+                    });
+                if child_owns_material {
+                    surface.into_any_element()
+                } else {
+                    Material::new(material_id, MaterialDepth::Overlay, surface)
+                        .corner_radii(corner_radii)
+                        .into_any_element()
+                }
             })
             .when_some(self.trigger, |this, trigger| this.trigger_with(trigger))
             .when_some(self.open, |this, open| this.open(open))
@@ -493,6 +525,8 @@ mod tests {
     use gpui::{Bounds, Context, MouseButton, Point, Render, div, point, px, size};
     use gpui_base::Popup as BasePopup;
     use std::{cell::RefCell, rc::Rc};
+
+    use crate::material::{clear_painted_materials, take_painted_materials};
 
     #[test]
     fn test_popover_builder_chaining() {
@@ -803,9 +837,12 @@ mod tests {
     }
 
     impl Render for PopoverHarness {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let changes = self.changes.clone();
             Popover::new("runtime-popover")
+                .appearance(false)
+                .bg(cx.theme().popover)
+                .rounded(px(17.))
                 .trigger(Button::new("runtime-trigger").label("Open").size(px(100.)))
                 .content(|_, _, _| {
                     div()
@@ -832,8 +869,17 @@ mod tests {
         cx.update(|window, cx| window.draw(cx).clear(cx));
 
         cx.simulate_click(point(px(20.), px(20.)), Default::default());
+        clear_painted_materials();
         cx.update(|window, cx| window.draw(cx).clear(cx));
         assert!(cx.debug_bounds("runtime-popover-content").is_some());
+        let materials = take_painted_materials();
+        let material = materials
+            .iter()
+            .filter(|material| material.id.to_string() == "runtime-popover-material")
+            .collect::<Vec<_>>();
+        assert_eq!(material.len(), 1, "the styled Popover surface mounts once");
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        assert_eq!(material[0].corner_radii, Corners::all(px(17.)));
 
         cx.simulate_click(point(px(300.), px(300.)), Default::default());
         cx.update(|window, cx| window.draw(cx).clear(cx));
@@ -871,6 +917,52 @@ mod tests {
         assert!(cx.debug_bounds("default-open-content").is_some());
     }
 
+    struct ChildOwnedSurfaceHarness;
+
+    impl Render for ChildOwnedSurfaceHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            Popover::new("child-owned-popover")
+                .default_open(true)
+                .appearance(false)
+                .child_owns_material()
+                .trigger(Button::new("child-owned-trigger").label("Open"))
+                .child(Material::new(
+                    "owned-child-material",
+                    MaterialDepth::Overlay,
+                    div()
+                        .debug_selector(|| "owned-child-surface".into())
+                        .size(px(24.)),
+                ))
+        }
+    }
+
+    #[gpui::test]
+    fn explicit_child_ownership_skips_only_the_popover_material(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| ChildOwnedSurfaceHarness);
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        assert!(cx.debug_bounds("owned-child-surface").is_some());
+        let materials = take_painted_materials();
+        assert_eq!(
+            materials
+                .iter()
+                .filter(|material| material.id.to_string() == "owned-child-material")
+                .count(),
+            1,
+        );
+        assert_eq!(
+            materials
+                .iter()
+                .filter(|material| material.id.to_string() == "child-owned-popover-material")
+                .count(),
+            0,
+            "the child-owned opt-out must skip only the redundant Popover material",
+        );
+    }
+
     struct Harness {
         open: bool,
     }
@@ -904,8 +996,20 @@ mod tests {
         // rather than stepped. Several times the duration leaves room for a
         // loaded machine.
         std::thread::sleep(DROPDOWN_ENTER_DURATION * 4);
+        clear_painted_materials();
         window.update(|window, cx| window.draw(cx).clear(cx));
         let settled = window.debug_bounds("surface").unwrap().origin;
+        let materials = take_painted_materials();
+        let material = materials
+            .iter()
+            .filter(|material| material.id.to_string() == "dropdown-material")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            material.len(),
+            1,
+            "the shared Select/Combobox/DatePicker popup mount wraps once",
+        );
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
 
         assert!(
             opening.y < settled.y,

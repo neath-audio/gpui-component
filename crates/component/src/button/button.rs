@@ -851,6 +851,7 @@ impl RenderOnce for Button {
             } else if let Some((tooltip, action)) = self.tooltip {
                 this.managed_tooltip_with_placement(tooltip_placement, move |window, cx| {
                     Tooltip::new(tooltip.clone())
+                        .overlay_anchored()
                         .when_some(action.clone(), |this, (action, context)| {
                             this.action(
                                 action.boxed_clone().as_ref(),
@@ -1153,14 +1154,9 @@ impl ButtonVariant {
                 }
             }
             Self::Custom(colors) => colors.hover.into(),
-            Self::Ghost => {
-                let accent: Background = cx.theme().tokens.accent.into();
-                if cx.theme().mode.is_dark() {
-                    accent.opacity(0.5)
-                } else {
-                    accent
-                }
-            }
+            // A foreground scrim preserves the hue of every host surface and
+            // naturally moves in the right direction in both theme modes.
+            Self::Ghost => cx.theme().foreground.opacity(0.12).into(),
             Self::Link => cx.theme().transparent.into(),
             Self::Text => cx.theme().transparent.into(),
         };
@@ -1208,7 +1204,7 @@ impl ButtonVariant {
                     cx.theme().tokens.button_secondary_active.into()
                 }
             }
-            Self::Ghost => cx.theme().tokens.button_active.into(),
+            Self::Ghost => cx.theme().foreground.opacity(0.2).into(),
             Self::Danger => {
                 if outline {
                     self.outline_background(ButtonStyleState::Active, cx)

@@ -1,4 +1,4 @@
-//! The gpui-component appearance for the dock.
+//! The gpui-neath appearance for the dock.
 //!
 //! The layout tree, the persisted schema, the drag geometry, the active-panel
 //! state machine and the container entities all live in
@@ -47,11 +47,11 @@ pub use gpui_base::dock::PanelView as BasePanelView;
 /// it. A skin reads a dock through [`DockContext`].
 pub use gpui_base::dock::{
     AnyDrag, DockArea, DockAreaRenderer, DockAreaState, DockContext, DockEvent, DockLayout,
-    DockPlacement, DockSizing, DockState, DragPanel, DropIndicator, DropPlaceholderBounds,
-    DropTarget, EditResult, InsertTarget, NodeId, PaneNode, PaneRef, PaneTree, PanelBuildContext,
-    PanelBuilder, PanelEvent, PanelId, PanelInfo, PanelRegistry, PanelSource, PanelState, RootKind,
-    TabGroup, TabGroupConstraints, TabGroupContext, TabGroupEvent, TabGroupRenderer,
-    register_panel,
+    DockPlacement, DockRegions, DockSizing, DockState, DragPanel, DropIndicator,
+    DropPlaceholderBounds, DropTarget, EditResult, InsertTarget, NodeId, PaneNode, PaneRef,
+    PaneTree, PanelBuildContext, PanelBuilder, PanelEvent, PanelId, PanelInfo, PanelRegistry,
+    PanelSource, PanelState, RootKind, TabGroup, TabGroupConstraints, TabGroupContext,
+    TabGroupEvent, TabGroupRenderer, register_panel,
 };
 pub use panel::*;
 pub use tab_panel::DragPanelPreview;
@@ -62,7 +62,7 @@ pub(crate) fn init(cx: &mut App) {
     // `gpui_base::dock::PanelRegistry::init` is crate-private, but the global
     // it installs is not: `DockArea::new` and `register_panel` both create it
     // on demand, and this keeps the old guarantee that it exists as soon as
-    // `gpui_component::init` has run.
+    // `gpui_neath::init` has run.
     if cx.try_global::<PanelRegistry>().is_none() {
         cx.set_global(PanelRegistry::new());
     }
@@ -108,7 +108,7 @@ impl SkinShared {
     }
 }
 
-/// The gpui-component appearance for a [`DockArea`], and the handle its
+/// The gpui-neath appearance for a [`DockArea`], and the handle its
 /// settings are changed through.
 ///
 /// Install it at construction, where the area's own weak handle is available:
@@ -197,7 +197,7 @@ impl DockSkin {
 #[cfg(test)]
 mod tests {
     /// Every name `gpui_base::dock` exports has to be reachable from
-    /// `gpui_component::dock`, or an application cannot write its own skin
+    /// `gpui_neath::dock`, or an application cannot write its own skin
     /// without depending on the foundation crate directly.
     ///
     /// This reads both export lists rather than naming them, because the way
@@ -266,7 +266,7 @@ mod tests {
 
         assert!(
             missing.is_empty(),
-            "gpui_base::dock exports these, and gpui_component::dock does not \
+            "gpui_base::dock exports these, and gpui_neath::dock does not \
              re-export them: {missing:?}. Add them to the list, or add the \
              name to `omitted` with the reason on the re-export block."
         );

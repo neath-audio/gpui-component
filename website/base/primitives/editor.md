@@ -120,14 +120,14 @@ div()
 
 A relative `line_height` keeps the rows in step with the glyphs at any size; an
 absolute one stays put. For a ready-made monospace treatment, see the
-[`gpui-component` Editor](../../component/editor.md).
+[`gpui-neath` Editor](../../component/editor.md).
 
 ## Presentation
 
 The application owns editor colors, gutter appearance, fold icons, and overlay
 content. Use `InputEditorStyle`, `FoldIconRenderer`, and the provider traits to
 connect those adapters. For the repository's ready-made visual treatment, see
-the [`gpui-component` Editor](../../component/editor.md).
+the [`gpui-neath` Editor](../../component/editor.md).
 
 ## Runnable example
 

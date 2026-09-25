@@ -211,6 +211,8 @@ impl SettingItem {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
+        // A field-level size (set via `Sizable`) overrides the page-wide size.
+        let options = options.with_size(field.size().unwrap_or(options.size()));
         let field_type = field.field_type();
         let style = field.style().clone();
         let type_id = field.deref().type_id();
@@ -252,6 +254,7 @@ impl SettingItem {
         window: &mut Window,
         cx: &mut App,
     ) -> Stateful<Div> {
+        let text_size = options.size().control_text_size();
         div()
             .id(SharedString::from(format!("item-{}", options.item_ix())))
             .w_full()
@@ -290,12 +293,13 @@ impl SettingItem {
                                         this.w_full()
                                     }
                                 })
-                                .child(Label::new(title).text_sm())
+                                .gap_1()
+                                .child(Label::new(title).text_size(text_size))
                                 .when_some(description, |this, description| {
                                     this.child(
                                         div()
                                             .size_full()
-                                            .text_sm()
+                                            .text_size(text_size)
                                             .text_color(cx.theme().muted_foreground)
                                             .child(description),
                                     )

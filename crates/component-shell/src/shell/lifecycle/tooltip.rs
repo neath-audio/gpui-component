@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::button::Button;
+use gpui_neath::button::Button;
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,
@@ -69,9 +69,7 @@ pub(super) fn register(registry: &mut ComponentRegistry) -> Result<(), RegistryE
                 },
             )])
             .with_methods(vec![])
-            .with_documentation(
-                "A real gpui-component Button trigger with a managed text tooltip.",
-            ),
+            .with_documentation("A real gpui-neath Button trigger with a managed text tooltip."),
     )?;
     Ok(())
 }

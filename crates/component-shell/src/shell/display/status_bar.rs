@@ -1,4 +1,4 @@
-use gpui_component::status_bar::StatusBar;
+use gpui_neath::status_bar::StatusBar;
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

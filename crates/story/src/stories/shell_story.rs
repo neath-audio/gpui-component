@@ -1,6 +1,6 @@
 //! One window, two languages, one ticking quote board.
 //!
-//! The left panel is ordinary Rust built from `gpui-component`. The right panel
+//! The left panel is ordinary Rust built from `gpui-neath`. The right panel
 //! is a `gpui-shell` script view whose JavaScript lives in
 //! `crates/story/js/quotes/` and is read from disk when the story opens. A
 //! separate `crates/story/js/motion/` view demonstrates native motion without
@@ -660,7 +660,7 @@ impl ShellStory {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         // `gpui_shell::init` is deliberately not called: it would install the
         // shell's own palette over the Base tokens this gallery projects from
-        // its `gpui-component` theme, and the script has no need of them — it
+        // its `gpui-neath` theme, and the script has no need of them — it
         // reads colors from the render's call-scoped `cx.theme()`. Nothing else in
         // the runtime needs priming; the style reflection table builds itself on
         // first use.

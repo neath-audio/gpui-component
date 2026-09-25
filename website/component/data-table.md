@@ -333,7 +333,7 @@ A table holds one selection at a time: nothing, a row, a column, or a cell.
 is one read and one write:
 
 ```rust
-use gpui_component::table::TableSelection;
+use gpui_neath::table::TableSelection;
 
 match state.read(cx).selection() {
     TableSelection::None => {}
@@ -713,11 +713,11 @@ impl TableDelegate for MyTableDelegate {
 - `ColumnWidthsChanged(Vec<Pixels>)` - Column widths changed
 - `MoveColumn(usize, usize)` - Column moved (from_ix, to_ix)
 
-[DataTable]: https://docs.rs/gpui-component/latest/gpui_component/table/struct.DataTable.html
-[TableState]: https://docs.rs/gpui-component/latest/gpui_component/table/struct.TableState.html
-[TableDelegate]: https://docs.rs/gpui-component/latest/gpui_component/table/trait.TableDelegate.html
-[Column]: https://docs.rs/gpui-component/latest/gpui_component/table/struct.Column.html
-[TableEvent]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.TableEvent.html
-[TableSelection]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.TableSelection.html
-[ColumnSort]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.ColumnSort.html
-[ColumnFixed]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.ColumnFixed.html
+[DataTable]: https://docs.rs/gpui-neath/latest/gpui_neath/table/struct.DataTable.html
+[TableState]: https://docs.rs/gpui-neath/latest/gpui_neath/table/struct.TableState.html
+[TableDelegate]: https://docs.rs/gpui-neath/latest/gpui_neath/table/trait.TableDelegate.html
+[Column]: https://docs.rs/gpui-neath/latest/gpui_neath/table/struct.Column.html
+[TableEvent]: https://docs.rs/gpui-neath/latest/gpui_neath/table/enum.TableEvent.html
+[TableSelection]: https://docs.rs/gpui-neath/latest/gpui_neath/table/enum.TableSelection.html
+[ColumnSort]: https://docs.rs/gpui-neath/latest/gpui_neath/table/enum.ColumnSort.html
+[ColumnFixed]: https://docs.rs/gpui-neath/latest/gpui_neath/table/enum.ColumnFixed.html

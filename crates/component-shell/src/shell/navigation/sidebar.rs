@@ -1,7 +1,7 @@
 use super::Empty;
 use std::sync::Arc;
 
-use gpui_component::{
+use gpui_neath::{
     IconName, Side,
     sidebar::{
         Sidebar, SidebarCollapsible, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem,
@@ -120,7 +120,7 @@ fn require_default_item_style(style: gpui::StyleRefinement) -> anyhow::Result<()
     Ok(())
 }
 
-fn apply_edge_selected<E: gpui_component::Selectable>(edge: E, selected: bool) -> E {
+fn apply_edge_selected<E: gpui_neath::Selectable>(edge: E, selected: bool) -> E {
     edge.selected(selected)
 }
 
@@ -507,7 +507,7 @@ mod tests {
 
     #[test]
     fn common_selected_state_reaches_native_header_and_footer_selection() {
-        use gpui_component::Selectable as _;
+        use gpui_neath::Selectable as _;
 
         let header = apply_edge_selected(SidebarHeader::new(), true);
         let footer = apply_edge_selected(SidebarFooter::new(), true);

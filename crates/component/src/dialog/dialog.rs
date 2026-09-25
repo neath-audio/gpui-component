@@ -1,10 +1,11 @@
 use crate::root::WindowState;
+use crate::styled::resolved_corner_radii;
 use gpui_base::TestSupportExt as _;
 use std::{rc::Rc, sync::LazyLock, time::Duration};
 
 use gpui::{
-    Action, Anchor, Animation, AnimationExt as _, AnyElement, App, BoxShadow, ClickEvent, Edges,
-    FocusHandle, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
+    Action, Anchor, Animation, AnimationExt as _, AnyElement, App, BoxShadow, ClickEvent, Corners,
+    Edges, FocusHandle, Hsla, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
     SharedString, StyleRefinement, Styled, Window, WindowControlArea, anchored, div, hsla, point,
     prelude::FluentBuilder, px,
 };
@@ -12,7 +13,8 @@ use gpui_base::{ElementExt as _, TextSelectionScopeId};
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme as _, IconName, Sizable as _, StyledExt, TITLE_BAR_HEIGHT, WindowExt as _,
+    ActiveTheme as _, IconName, Material, MaterialDepth, Sizable as _, StyledExt, TITLE_BAR_HEIGHT,
+    WindowExt as _,
     animation::cubic_bezier,
     button::{Button, ButtonVariant, ButtonVariants as _},
     dialog::{DialogContent, DialogDispatchAnchor, DialogTitle},
@@ -254,10 +256,7 @@ impl BaseDialogRoot {
         map_base_root!(self, close_on_escape(value))
     }
     fn close_on_backdrop_press(self, value: bool) -> Self {
-        match self {
-            Self::Dialog(root) => Self::Dialog(root.close_on_backdrop_press(value)),
-            Self::AlertDialog(root) => Self::AlertDialog(root),
-        }
+        map_base_root!(self, close_on_backdrop_press(value))
     }
     fn dismiss_below_y(self, value: Pixels) -> Self {
         map_base_root!(self, dismiss_below_y(value))
@@ -552,6 +551,11 @@ impl Dialog {
 
 impl RenderOnce for Dialog {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let corner_radii = resolved_corner_radii(
+            Corners::all(cx.theme().radius_lg),
+            &self.style,
+            window.rem_size(),
+        );
         if let Some(trigger) = self.trigger.take() {
             return self.render_trigger(trigger, window, cx);
         }
@@ -773,7 +777,15 @@ impl RenderOnce for Dialog {
                                                 this.shadow(shadow)
                                             },
                                         )
-                                        .text_selection_scope(selection_scope),
+                                        .text_selection_scope(selection_scope)
+                                        .map(|surface| {
+                                            Material::new(
+                                                ("dialog-material", layer_ix),
+                                                MaterialDepth::Overlay,
+                                                surface,
+                                            )
+                                            .corner_radii(corner_radii)
+                                        }),
                                 )
                                 .with_animation(
                                     "slide-down",

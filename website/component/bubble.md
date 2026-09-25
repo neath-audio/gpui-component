@@ -427,10 +427,10 @@ standalone `BubbleContent` therefore has the default `Filled` treatment.
 - [`BubbleReactionSide`] — `Top` or `Bottom`.
 - [`MessageAlignment`] — `Start` or `End`.
 
-[Bubble]: https://docs.rs/gpui-component/latest/gpui_component/bubble/struct.Bubble.html
-[BubbleContent]: https://docs.rs/gpui-component/latest/gpui_component/bubble/struct.BubbleContent.html
-[BubbleGroup]: https://docs.rs/gpui-component/latest/gpui_component/bubble/struct.BubbleGroup.html
-[BubbleReactions]: https://docs.rs/gpui-component/latest/gpui_component/bubble/struct.BubbleReactions.html
-[BubbleVariant]: https://docs.rs/gpui-component/latest/gpui_component/bubble/enum.BubbleVariant.html
-[BubbleReactionSide]: https://docs.rs/gpui-component/latest/gpui_component/bubble/enum.BubbleReactionSide.html
-[MessageAlignment]: https://docs.rs/gpui-component/latest/gpui_component/message/enum.MessageAlignment.html
+[Bubble]: https://docs.rs/gpui-neath/latest/gpui_neath/bubble/struct.Bubble.html
+[BubbleContent]: https://docs.rs/gpui-neath/latest/gpui_neath/bubble/struct.BubbleContent.html
+[BubbleGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/bubble/struct.BubbleGroup.html
+[BubbleReactions]: https://docs.rs/gpui-neath/latest/gpui_neath/bubble/struct.BubbleReactions.html
+[BubbleVariant]: https://docs.rs/gpui-neath/latest/gpui_neath/bubble/enum.BubbleVariant.html
+[BubbleReactionSide]: https://docs.rs/gpui-neath/latest/gpui_neath/bubble/enum.BubbleReactionSide.html
+[MessageAlignment]: https://docs.rs/gpui-neath/latest/gpui_neath/message/enum.MessageAlignment.html

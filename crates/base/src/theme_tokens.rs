@@ -51,7 +51,7 @@ impl Default for ColorTokens {
 }
 
 impl ColorTokens {
-    /// Default light palette, aligned with gpui-component's Default Light theme.
+    /// Default light palette, aligned with gpui-neath's Default Light theme.
     pub fn light() -> Self {
         Self {
             background: hsla(0., 0., 1., 1.),
@@ -75,7 +75,7 @@ impl ColorTokens {
         }
     }
 
-    /// Default dark palette, aligned with gpui-component's Default Dark theme.
+    /// Default dark palette, aligned with gpui-neath's Default Dark theme.
     pub fn dark() -> Self {
         Self {
             background: hsla(0., 0., 0.039, 1.),

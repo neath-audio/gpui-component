@@ -134,12 +134,12 @@ use gpui::{
 
 pub const COMPONENT_REGISTRY_API_VERSION: u32 = 1;
 
-/// The specifier the shipped `gpui-component` adapter imports under.
+/// The specifier the shipped `gpui-neath` adapter imports under.
 ///
 /// A registry names its own module, because the runtime holds no opinion about
 /// which component library it is carrying. This constant only spares the usual
 /// caller from repeating the usual answer.
-pub const DEFAULT_COMPONENT_MODULE: &str = "gpui-component";
+pub const DEFAULT_COMPONENT_MODULE: &str = "gpui-neath";
 
 #[derive(Clone)]
 /// An owned, repeatable recipe for one element description.
@@ -1807,7 +1807,7 @@ const RUNTIME_MODULE_SPECIFIERS: &[&str] =
 /// Opens the window a catalog's components need.
 ///
 /// Some component libraries reach the window through a view they require to be
-/// its root — `gpui-component`'s overlays find their host with
+/// its root — `gpui-neath`'s overlays find their host with
 /// `window.root::<Root>()` and panic when it is something else. The runtime
 /// installs its own [`crate::ShellRoot`] and cannot name such a type, so a
 /// catalog that needs one opens the window itself: it is handed the options and

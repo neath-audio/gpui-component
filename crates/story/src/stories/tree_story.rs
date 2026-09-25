@@ -37,43 +37,39 @@ pub struct TreeStory {
 #[cfg(target_family = "wasm")]
 fn example_file_items() -> Vec<TreeItem> {
     vec![
-        TreeItem::new("gpui-component", "gpui-component")
+        TreeItem::new("gpui-neath", "gpui-neath")
             .expanded(true)
             .children([
-                TreeItem::new("gpui-component/crates", "crates")
+                TreeItem::new("gpui-neath/crates", "crates")
                     .expanded(true)
                     .children([
-                        TreeItem::new("gpui-component/crates/component", "ui")
+                        TreeItem::new("gpui-neath/crates/component", "ui")
                             .expanded(true)
                             .children([
-                                TreeItem::new("gpui-component/crates/component/src", "src")
-                                    .children([
-                                        TreeItem::new(
-                                            "gpui-component/crates/component/src/tree.rs",
-                                            "tree.rs",
-                                        ),
-                                        TreeItem::new(
-                                            "gpui-component/crates/component/src/list/mod.rs",
-                                            "mod.rs",
-                                        ),
-                                    ]),
+                                TreeItem::new("gpui-neath/crates/component/src", "src").children([
+                                    TreeItem::new(
+                                        "gpui-neath/crates/component/src/tree.rs",
+                                        "tree.rs",
+                                    ),
+                                    TreeItem::new(
+                                        "gpui-neath/crates/component/src/list/mod.rs",
+                                        "mod.rs",
+                                    ),
+                                ]),
                                 TreeItem::new(
-                                    "gpui-component/crates/component/Cargo.toml",
+                                    "gpui-neath/crates/component/Cargo.toml",
                                     "Cargo.toml",
                                 ),
                             ]),
-                        TreeItem::new("gpui-component/crates/story", "story").children([
+                        TreeItem::new("gpui-neath/crates/story", "story").children([
                             TreeItem::new(
-                                "gpui-component/crates/story/src/stories/tree_story.rs",
+                                "gpui-neath/crates/story/src/stories/tree_story.rs",
                                 "tree_story.rs",
                             ),
-                            TreeItem::new(
-                                "gpui-component/crates/story/src/gallery.rs",
-                                "gallery.rs",
-                            ),
+                            TreeItem::new("gpui-neath/crates/story/src/gallery.rs", "gallery.rs"),
                         ]),
                     ]),
-                TreeItem::new("gpui-component/README.md", "README.md"),
+                TreeItem::new("gpui-neath/README.md", "README.md"),
             ]),
     ]
 }

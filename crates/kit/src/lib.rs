@@ -10,8 +10,8 @@
 //! | `gpui_kit::*`   | `gpui`            | always           |
 //! | `platform`      | `gpui_platform`   | desktop / web    |
 //! | [`base`]        | `gpui-base`       | always           |
-//! | [`component`]   | `gpui-component`  | `component` (on) |
-//! | [`assets`]      | `gpui-kit-assets` | `assets` (on)    |
+//! | [`component`]   | `gpui-neath`  | `component` (on) |
+//! | [`assets`]      | `gpui-component-assets` | `assets` (on)    |
 //!
 //! On desktop and web, `application` opens the platform. Mobile applications
 //! supply their backend to `Application::with_platform`. [`init`] initializes the enabled
@@ -130,10 +130,10 @@ pub use gpui_base::is_mobile;
 /// }
 /// ```
 #[cfg(feature = "component")]
-pub use ::gpui_component as component;
+pub use ::gpui_neath as component;
 
 #[cfg(feature = "assets")]
-pub use ::gpui_kit_assets as assets;
+pub use ::gpui_component_assets as assets;
 
 /// Open a window with a Base Root and return the window and application content.
 /// Applications own quit/close actions and confirmation flows.
@@ -165,11 +165,11 @@ pub use ::gpui_platform::application;
 /// Initializes every enabled layer. Call it once, before using anything else.
 ///
 /// With the `component` feature (on by default) this is
-/// `gpui_component::init`, which also initializes `gpui-base`; otherwise it
+/// `gpui_neath::init`, which also initializes `gpui-base`; otherwise it
 /// is `gpui_base::init`.
 pub fn init(cx: &mut App) {
     #[cfg(feature = "component")]
-    gpui_component::init(cx);
+    gpui_neath::init(cx);
     #[cfg(not(feature = "component"))]
     gpui_base::init(cx);
 }

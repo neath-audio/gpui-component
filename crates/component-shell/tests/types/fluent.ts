@@ -1,11 +1,11 @@
 import { div, View, type Element, type NativeElement, type Context } from 'gpui-kit';
-import { Spinner, Separator, Skeleton, HForm, Field, type SpinnerElement } from 'gpui-component';
+import { Spinner, Separator, Skeleton, HForm, Field, type SpinnerElement } from 'gpui-neath';
 import { TextView } from 'gpui-base';
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from 'gpui-component';
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from 'gpui-neath';
 import {
   InputState, TextareaState, InputGroup, InputGroupInput, InputGroupTextarea,
   InputGroupAddon, InputGroupButton, InputGroupText,
-} from 'gpui-component';
+} from 'gpui-neath';
 
 function padded(element: Element): Element {
   return element.p(2).when(true, current => current.p(4));

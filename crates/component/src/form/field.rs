@@ -294,7 +294,7 @@ impl RenderOnce for Field {
                         // Label
                         this.child(
                             wrap_label(label_width)
-                                .text_sm()
+                                .text_size(self.props.size.control_text_size())
                                 .when_some(self.props.label_text_size, |this, size| {
                                     this.text_size(size)
                                 })

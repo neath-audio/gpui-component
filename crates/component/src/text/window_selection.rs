@@ -386,6 +386,9 @@ mod tests {
             div()
                 .track_focus(&self.focus_handle)
                 .size_full()
+                // Selection coordinates below describe this fixture, independently
+                // of the application's body typography.
+                .text_size(px(14.))
                 .pt(self.top_offset)
                 .child(
                     div().h(px(40.)).child(

@@ -5,7 +5,7 @@
 //! that flag: it stays `false` until something sets it. [`init`] reads the
 //! setting when Base initializes and writes it into the flag, so an
 //! application inherits the user's choice by calling `gpui_base::init` or
-//! `gpui_component::init`.
+//! `gpui_neath::init`.
 //!
 //! The setting is read on the platforms below; everywhere else the flag is
 //! left alone.

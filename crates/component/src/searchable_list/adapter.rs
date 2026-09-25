@@ -1,4 +1,6 @@
-use gpui::{AnyElement, App, Context, IntoElement, ParentElement as _, Styled as _, Window, div};
+use gpui::{
+    AnyElement, App, Context, Hsla, IntoElement, ParentElement as _, Styled as _, Window, div,
+};
 
 use crate::{
     ActiveTheme, Disableable as _, Icon, IconName, IndexPath, Sizable as _, Size, StyleSized as _,
@@ -33,6 +35,9 @@ pub(crate) struct SearchableListAdapter<D: SearchableListDelegate + 'static> {
     pub(crate) size: Size,
     /// Override the trailing check icon; defaults to `IconName::Check`.
     pub(crate) check_icon: Option<Icon>,
+    /// Optional tint for the selected/hover row highlight; `None` keeps the
+    /// theme `accent`. Set by the parent state from its `menu_accent` option.
+    pub(crate) accent: Option<Hsla>,
 }
 
 impl<D: SearchableListDelegate + 'static> SearchableListAdapter<D> {
@@ -52,6 +57,7 @@ impl<D: SearchableListDelegate + 'static> SearchableListAdapter<D> {
             on_render_empty: Box::new(on_render_empty),
             size: Size::default(),
             check_icon: None,
+            accent: None,
         }
     }
 
@@ -91,7 +97,7 @@ impl<D: SearchableListDelegate + 'static> ListDelegate for SearchableListAdapter
                 .py_0p5()
                 .px_2()
                 .list_size(self.size)
-                .text_sm()
+                .text_size(Size::Small.text_size())
                 .text_color(cx.theme().muted_foreground)
                 .child(item)
                 .into_any_element(),
@@ -116,9 +122,13 @@ impl<D: SearchableListDelegate + 'static> ListDelegate for SearchableListAdapter
         let size = self.size;
 
         if let Some(el) = self.delegate.render_item(ix, item, is_checked, window, cx) {
+            // Delegate-rendered rows draw their own content as-is: drop the
+            // automatic check icon so it doesn't reserve a trailing column.
             return Some(
                 SearchableListItemElement::new(ix.row)
+                    .check_icon(None)
                     .disabled(disabled)
+                    .highlight(self.accent)
                     .with_size(size)
                     .child(el),
             );
@@ -138,6 +148,7 @@ impl<D: SearchableListDelegate + 'static> ListDelegate for SearchableListAdapter
                 .checked(is_checked)
                 .check_icon(check_icon)
                 .disabled(disabled)
+                .highlight(self.accent)
                 .with_size(size)
                 .child(content.into_any_element()),
         )

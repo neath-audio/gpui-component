@@ -9,12 +9,12 @@ pub(crate) use diagnostic_popover::*;
 pub(crate) use hover_popover::*;
 
 use gpui::{
-    App, Div, ElementId, InteractiveElement as _, SharedString, Stateful, StyleRefinement,
-    Styled as _, Window, div, px, rems,
+    App, Corners, Div, ElementId, InteractiveElement as _, IntoElement, SharedString, Stateful,
+    StyleRefinement, Styled as _, Window, div, px, rems,
 };
 
 use crate::{
-    ActiveTheme, ThemeStyled as _,
+    ActiveTheme, Material, MaterialDepth, ThemeStyled as _,
     text::{TextView, TextViewStyle},
 };
 
@@ -52,4 +52,12 @@ pub(super) fn editor_popover(id: impl Into<ElementId>, cx: &App) -> Stateful<Div
         .shadow_md()
         .text_xs()
         .p_1()
+}
+
+pub(super) fn editor_popover_material(
+    id: impl Into<ElementId>,
+    surface: impl IntoElement,
+    cx: &App,
+) -> Material {
+    Material::new(id, MaterialDepth::Overlay, surface).corner_radii(Corners::all(cx.theme().radius))
 }

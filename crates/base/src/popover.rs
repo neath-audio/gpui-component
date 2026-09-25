@@ -102,7 +102,6 @@ impl PopoverState {
         self.set_open(opening, cx);
 
         if self.open {
-            let state = cx.entity();
             self.tracked_focus_handle
                 .clone()
                 .unwrap_or_else(|| self.focus_handle.clone())
@@ -110,7 +109,7 @@ impl PopoverState {
 
             self.dismiss_subscription =
                 Some(
-                    window.subscribe(&cx.entity(), cx, move |_, _: &DismissEvent, window, cx| {
+                    window.subscribe(&cx.entity(), cx, |state, _: &DismissEvent, window, cx| {
                         state.update(cx, |state, cx| state.dismiss(window, cx));
                         window.refresh();
                     }),
@@ -404,6 +403,27 @@ mod tests {
     struct PopoverHarness {
         changes: Rc<RefCell<Vec<bool>>>,
         default_open: bool,
+    }
+
+    #[gpui::test]
+    fn dismiss_subscription_does_not_keep_removed_popover_alive(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| PopoverHarness {
+            changes: Rc::new(RefCell::new(Vec::new())),
+            default_open: false,
+        });
+        let (state, weak) = cx.update(|window, cx| {
+            let state = cx.new(|cx| PopoverState::new(false, cx));
+            state.update(cx, |state, cx| state.toggle_open(window, cx));
+            assert!(GlobalState::is_in_deferred_context(cx));
+            let weak = state.downgrade();
+            (state, weak)
+        });
+        cx.update(|_, _| drop(state));
+        cx.update(|_, cx| {
+            assert!(weak.upgrade().is_none());
+            assert!(!GlobalState::is_in_deferred_context(cx));
+        });
     }
 
     struct KeyboardPopoverHarness {

@@ -195,8 +195,8 @@ impl Global for AppState {}
 /// crate as an identifier and stringifies it into the namespace key, so the
 /// layer is bound under its crate name here.
 fn extend_component_translations() {
-    use gpui_kit::component as gpui_component;
-    rust_i18n::extend!(gpui_component);
+    use gpui_kit::component as gpui_neath;
+    rust_i18n::extend!(gpui_neath);
 }
 
 pub fn init(cx: &mut App) {
@@ -208,7 +208,7 @@ pub fn init(cx: &mut App) {
             .with(tracing_subscriber::fmt::layer())
             .with(
                 tracing_subscriber::EnvFilter::from_default_env()
-                    .add_directive("gpui_component=trace".parse().unwrap()),
+                    .add_directive("gpui_neath=trace".parse().unwrap()),
             )
             .try_init();
     }
@@ -221,7 +221,7 @@ pub fn init(cx: &mut App) {
             .with(tracing_subscriber::fmt::layer().without_time())
             .with(
                 tracing_subscriber::EnvFilter::from_default_env()
-                    .add_directive("gpui_component=trace".parse().unwrap()),
+                    .add_directive("gpui_neath=trace".parse().unwrap()),
             )
             .try_init();
     }
@@ -234,8 +234,7 @@ pub fn init(cx: &mut App) {
 
     #[cfg(not(target_family = "wasm"))]
     {
-        let http_client =
-            reqwest_client::ReqwestClient::user_agent("gpui-component/story").unwrap();
+        let http_client = reqwest_client::ReqwestClient::user_agent("gpui-neath/story").unwrap();
         cx.set_http_client(std::sync::Arc::new(http_client));
     }
 

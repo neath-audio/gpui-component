@@ -407,4 +407,4 @@ The dropdown respects the current theme and uses the following theme tokens:
 - `border` - Menu border
 - `radius` - Border radius
 
-[SelectItem]: https://docs.rs/gpui-component/latest/gpui_component/select/trait.SelectItem.html
+[SelectItem]: https://docs.rs/gpui-neath/latest/gpui_neath/select/trait.SelectItem.html

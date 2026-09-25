@@ -76,6 +76,6 @@ pub fn init(cx: &mut App) {
 }
 ```
 
-[ActiveTheme]: https://docs.rs/gpui-component/latest/gpui_component/theme/trait.ActiveTheme.html
-[ThemeRegistry]: https://docs.rs/gpui-component/latest/gpui_component/theme/struct.ThemeRegistry.html
+[ActiveTheme]: https://docs.rs/gpui-neath/latest/gpui_neath/theme/trait.ActiveTheme.html
+[ThemeRegistry]: https://docs.rs/gpui-neath/latest/gpui_neath/theme/struct.ThemeRegistry.html
 [App]: https://docs.rs/gpui/latest/gpui/struct.App.html

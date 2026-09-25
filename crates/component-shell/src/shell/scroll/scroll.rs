@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::{
+use gpui_neath::{
     InteractiveElementExt as _,
     scroll::{Scrollbar, ScrollbarAxis, ScrollbarMode},
 };

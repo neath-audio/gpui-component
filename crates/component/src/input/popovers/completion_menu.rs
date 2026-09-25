@@ -15,7 +15,7 @@ use crate::{
     ActiveTheme, IndexPath, Selectable, actions, h_flex,
     input::{
         self, EditorState,
-        popovers::{editor_popover, render_markdown},
+        popovers::{editor_popover, editor_popover_material, render_markdown},
     },
     label::Label,
     list::{List, ListDelegate, ListEvent, ListState},
@@ -397,12 +397,14 @@ impl Render for CompletionMenu {
                 .gap(POPOVER_GAP)
                 .items_start()
                 .when(vertical_layout, |this| this.flex_col())
-                .child(
+                .child(editor_popover_material(
+                    "completion-menu-material",
                     editor_popover("completion-menu", cx)
                         .max_w(max_width)
                         .min_w(px(120.))
                         .child(List::new(&self.list).max_h(MAX_MENU_HEIGHT)),
-                )
+                    cx,
+                ))
                 .when_some(selected_documentation, |this, documentation| {
                     let mut doc = match documentation {
                         lsp_types::Documentation::String(s) => s.clone(),
@@ -413,12 +415,14 @@ impl Render for CompletionMenu {
                     }
 
                     this.child(
-                        div().child(
+                        div().child(editor_popover_material(
+                            "completion-documentation-material",
                             editor_popover("completion-menu", cx)
                                 .w(configured_max)
                                 .px_2()
                                 .child(render_markdown("doc", doc, window, cx)),
-                        ),
+                            cx,
+                        )),
                     )
                 })
                 .on_mouse_down_out(cx.listener(|this, _, _, cx| {

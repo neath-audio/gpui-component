@@ -7,6 +7,7 @@ use crate::{
         Cancel, SelectDown, SelectFirst, SelectLast, SelectNextColumn, SelectPageDown,
         SelectPageUp, SelectPrevColumn, SelectUp,
     },
+    global_state::UiGlobalState,
     h_flex,
     menu::{ContextMenuExt, PopupMenu},
     scroll::{ScrollableMask, Scrollbar},
@@ -537,6 +538,16 @@ where
         cx.notify();
     }
 
+    fn update_right_clicked_row_from_mouse(
+        &mut self,
+        row_ix: Option<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        self.right_clicked_row = row_ix;
+        self.right_clicked_cell = None;
+        cx.emit(TableEvent::RightClickedRow(row_ix));
+    }
+
     /// Returns the selected column index.
     ///
     /// `Some` only when a column itself is selected; a selected cell does not
@@ -778,9 +789,11 @@ where
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.right_clicked_row = row_ix;
-        self.right_clicked_cell = None;
-        cx.emit(TableEvent::RightClickedRow(row_ix));
+        // Stop the right-click from bubbling to the table-body empty-area
+        // handler (below), which would otherwise immediately reset
+        // `right_clicked_row` back to `None` right after a real row set it.
+        cx.stop_propagation();
+        self.update_right_clicked_row_from_mouse(row_ix, cx);
     }
 
     fn on_cell_right_click(
@@ -812,6 +825,10 @@ where
             return;
         }
 
+        // Stop the click from bubbling to the table-body empty-area handler
+        // (below), which would otherwise immediately clear the selection
+        // this click just made.
+        cx.stop_propagation();
         self.set_selected_row(row_ix, cx);
 
         if e.click_count() == 2 {
@@ -1576,15 +1593,15 @@ where
             .h_full()
             .border_r_1()
             .border_color(cx.theme().table_row_border)
-            .bg(cx.theme().tokens.table_head)
             .flex_shrink_0()
             .table_cell_size(self.options.size)
             .when(!is_head, |this| {
-                this.when(self.row_selectable, |this| {
-                    this.on_click(cx.listener(move |table, _, _window, cx| {
-                        table.set_selected_row(row_ix, cx);
-                    }))
-                })
+                this.bg(cx.theme().tokens.table_head)
+                    .when(self.row_selectable, |this| {
+                        this.on_click(cx.listener(move |table, _, _window, cx| {
+                            table.set_selected_row(row_ix, cx);
+                        }))
+                    })
             })
     }
 
@@ -1640,8 +1657,8 @@ where
         let col_group = self.col_groups.get(col_ix).expect("BUG: invalid col index");
 
         let movable = self.col_movable && col_group.column.movable;
-        let paddings = col_group.column.paddings;
         let name = col_group.column.name.clone();
+        let icon = col_group.column.icon.clone();
 
         h_flex()
             .h_full()
@@ -1658,12 +1675,9 @@ where
                             .justify_between()
                             .items_center()
                             .child(self.delegate.render_th(col_ix, window, cx))
-                            .when_some(paddings, |this, paddings| {
-                                // Leave right space for the sort icon, if this column have custom padding
-                                let offset_pr =
-                                    self.options.size.table_cell_padding().right - paddings.right;
-                                this.pr(offset_pr.max(px(0.)))
-                            })
+                            // neath: no extra right inset for custom-padding columns —
+                            // render_cell already applies the column paddings to the th
+                            // wrapper, so the size-arm delta double-padded pinned columns.
                             .children(self.render_sort_icon(col_ix, &col_group, window, cx)),
                     )
                     .when(movable, |this| {
@@ -1672,6 +1686,7 @@ where
                                 entity_id,
                                 col_ix,
                                 name,
+                                icon,
                                 width: col_group.width,
                             },
                             |drag, _, _, cx| {
@@ -1816,6 +1831,8 @@ where
             .h_flex()
             .w_full()
             .flex_shrink_0()
+            // The outer header owns the translucent surface. Painting the
+            // fixed and scrolling panes again compounds authored alpha.
             .bg(cx.theme().tokens.table_head)
             .text_color(cx.theme().table_head_foreground)
             .refine_style(&style)
@@ -1857,7 +1874,6 @@ where
                     h_flex()
                         .relative()
                         .h_full()
-                        .bg(cx.theme().tokens.table_head)
                         .child(v_flex().min_w_full().flex_shrink_0().children(
                             layout.iter().enumerate().map(|(_row_ix, row_cells)| {
                                 h_flex()
@@ -1917,7 +1933,6 @@ where
                     .overflow_scroll()
                     .relative()
                     .track_scroll(&horizontal_scroll_handle)
-                    .bg(cx.theme().tokens.table_head)
                     .child(v_flex().min_w_full().flex_shrink_0().children(
                         layout.iter().enumerate().map(|(row_ix, row_cells)| {
                             let is_leaf_row = row_ix + 1 == layout_len;
@@ -2241,14 +2256,7 @@ where
                         .child(self.delegate.render_last_empty_col(window, cx)),
                 )
                 // Row selected style
-                .when(is_selected, |this| {
-                    let bg = if cx.theme().list.active_highlight {
-                        cx.theme().tokens.table_active
-                    } else {
-                        cx.theme().tokens.accent
-                    };
-                    this.bg(bg)
-                })
+                .when(is_selected, |this| this.bg(cx.theme().tokens.table_active))
                 // Row right click row style
                 .when(self.right_clicked_row == Some(row_ix), |this| {
                     this.border_color(gpui::transparent_white()).child(
@@ -2477,7 +2485,9 @@ where
                             menu.delegate_mut().context_menu(row_ix, this, window, cx)
                         })
                     } else {
-                        this
+                        view.update(cx, |menu, cx| {
+                            menu.delegate_mut().context_menu_empty(this, window, cx)
+                        })
                     }
                 }
             })
@@ -2486,79 +2496,103 @@ where
                     this.children(empty_view)
                 } else {
                     this.child(
-                        h_flex().id("table-body").flex_grow_1().size_full().child(
-                            uniform_list(
-                                "table-uniform-list",
-                                render_rows_count,
-                                cx.processor(
-                                    move |table, visible_range: Range<usize>, window, cx| {
-                                        // Use `col.width` (always up-to-date) rather than
-                                        // `col.bounds.size.width`, which is only set after
-                                        // prepaint and is therefore zero on the first frame.
-                                        let col_sizes: Rc<Vec<gpui::Size<Pixels>>> = Rc::new(
-                                            table
-                                                .col_groups
-                                                .iter()
-                                                .skip(left_columns_count)
-                                                .map(|col| gpui::Size {
-                                                    width: col.width,
-                                                    height: px(0.),
-                                                })
-                                                .collect(),
-                                        );
-
-                                        table.load_more_if_need(
-                                            rows_count,
-                                            visible_range.end,
-                                            window,
-                                            cx,
-                                        );
-                                        table.update_visible_range_if_need(
-                                            visible_range.clone(),
-                                            Axis::Vertical,
-                                            window,
-                                            cx,
-                                        );
-
-                                        if visible_range.end > rows_count {
-                                            table.scroll_to_row(
-                                                std::cmp::min(
-                                                    visible_range.start,
-                                                    rows_count.saturating_sub(1),
-                                                ),
-                                                cx,
-                                            );
-                                        }
-
-                                        let mut items = Vec::with_capacity(
-                                            visible_range.end.saturating_sub(visible_range.start),
-                                        );
-
-                                        // Render fake rows to fill the table
-                                        visible_range.for_each(|row_ix| {
-                                            // Render real rows for available data
-                                            items.push(table.render_table_row(
-                                                row_ix,
-                                                rows_count,
-                                                left_columns_count,
-                                                col_sizes.clone(),
-                                                columns_count,
-                                                is_filled,
-                                                window,
-                                                cx,
-                                            ));
-                                        });
-
-                                        items
-                                    },
-                                ),
-                            )
+                        h_flex()
+                            .id("table-body")
                             .flex_grow_1()
                             .size_full()
-                            .with_sizing_behavior(ListSizingBehavior::Auto)
-                            .track_scroll(&self.vertical_scroll_handle)
-                            .into_any_element(),
-                        ),
+                            // Empty-area clicks: real rows claim their own
+                            // clicks and `cx.stop_propagation()` before they
+                            // bubble here (see `on_row_right_click` /
+                            // `on_row_left_click`), so anything that reaches
+                            // this handler landed below the last row (or on
+                            // a non-interactive fake/fill row) — i.e. empty
+                            // table space.
+                            .on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(|table, e, window, cx| {
+                                    table.on_row_right_click(e, None, window, cx);
+                                }),
+                            )
+                            .on_click(cx.listener(|table, _, _, cx| {
+                                if table.has_selection() {
+                                    table.clear_selection(cx);
+                                }
+                            }))
+                            .child(
+                                uniform_list(
+                                    "table-uniform-list",
+                                    render_rows_count,
+                                    cx.processor(
+                                        move |table, visible_range: Range<usize>, window, cx| {
+                                            // Use `col.width` (always up-to-date) rather than
+                                            // `col.bounds.size.width`, which is only set after
+                                            // prepaint and is therefore zero on the first frame.
+                                            let col_sizes: Rc<Vec<gpui::Size<Pixels>>> = Rc::new(
+                                                table
+                                                    .col_groups
+                                                    .iter()
+                                                    .skip(left_columns_count)
+                                                    .map(|col| gpui::Size {
+                                                        width: col.width,
+                                                        height: px(0.),
+                                                    })
+                                                    .collect(),
+                                            );
+
+                                            table.load_more_if_need(
+                                                rows_count,
+                                                visible_range.end,
+                                                window,
+                                                cx,
+                                            );
+                                            table.update_visible_range_if_need(
+                                                visible_range.clone(),
+                                                Axis::Vertical,
+                                                window,
+                                                cx,
+                                            );
+
+                                            if visible_range.end > rows_count {
+                                                table.scroll_to_row(
+                                                    std::cmp::min(
+                                                        visible_range.start,
+                                                        rows_count.saturating_sub(1),
+                                                    ),
+                                                    cx,
+                                                );
+                                            }
+
+                                            let mut items = Vec::with_capacity(
+                                                visible_range
+                                                    .end
+                                                    .saturating_sub(visible_range.start),
+                                            );
+
+                                            // Render fake rows to fill the table
+                                            visible_range.for_each(|row_ix| {
+                                                // Render real rows for available data
+                                                items.push(table.render_table_row(
+                                                    row_ix,
+                                                    rows_count,
+                                                    left_columns_count,
+                                                    col_sizes.clone(),
+                                                    columns_count,
+                                                    is_filled,
+                                                    window,
+                                                    cx,
+                                                ));
+                                            });
+
+                                            items
+                                        },
+                                    ),
+                                )
+                                .flex_grow_1()
+                                .size_full()
+                                .with_sizing_behavior(ListSizingBehavior::Auto)
+                                .track_scroll(&self.vertical_scroll_handle)
+                                .into_any_element(),
+                            ),
                     )
                 }
             });
@@ -2583,10 +2617,15 @@ where
                         ))
                     })
                     .when(right_clicked_row.is_some(), |this| {
-                        this.on_mouse_down_out(cx.listener(|this, e, window, cx| {
-                            this.on_row_right_click(e, None, window, cx);
-                            cx.notify();
-                        }))
+                        this.on_mouse_down_out(cx.listener(
+                            |this, e: &MouseDownEvent, _window, cx| {
+                                if UiGlobalState::global(cx).position_in_open_menu(&e.position) {
+                                    return;
+                                }
+                                this.update_right_clicked_row_from_mouse(None, cx);
+                                cx.notify();
+                            },
+                        ))
                     })
             })
             .on_prepaint({
@@ -2608,5 +2647,365 @@ where
                         ),
                 )
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{cell::Cell, rc::Rc};
+
+    use crate::menu::PopupMenuItem;
+    use gpui::{App, Entity, Modifiers, TestAppContext, VisualTestContext, point, size};
+
+    /// Minimal delegate: 1 column, `rows` rows, no context menus configured
+    /// (not needed — these tests only exercise `right_clicked_row` /
+    /// `selected_row` state, not the popup itself).
+    struct TestDelegate {
+        rows: usize,
+    }
+
+    impl TableDelegate for TestDelegate {
+        fn columns_count(&self, _cx: &App) -> usize {
+            1
+        }
+
+        fn rows_count(&self, _cx: &App) -> usize {
+            self.rows
+        }
+
+        fn column(&self, _col_ix: usize, _cx: &App) -> Column {
+            Column::new("col", "Col")
+        }
+
+        fn render_td(
+            &mut self,
+            row_ix: usize,
+            _col_ix: usize,
+            _window: &mut Window,
+            _cx: &mut Context<TableState<Self>>,
+        ) -> impl IntoElement {
+            div().child(format!("row {row_ix}"))
+        }
+    }
+
+    struct TranslucentPaintDelegate;
+
+    impl TableDelegate for TranslucentPaintDelegate {
+        fn columns_count(&self, _cx: &App) -> usize {
+            2
+        }
+
+        fn rows_count(&self, _cx: &App) -> usize {
+            1
+        }
+
+        fn column(&self, col_ix: usize, _cx: &App) -> Column {
+            let column =
+                Column::new(format!("col-{col_ix}"), format!("Col {col_ix}")).width(px(150.));
+            if col_ix == 0 {
+                column.fixed_left()
+            } else {
+                column
+            }
+        }
+
+        fn render_td(
+            &mut self,
+            _row_ix: usize,
+            col_ix: usize,
+            _window: &mut Window,
+            _cx: &mut Context<TableState<Self>>,
+        ) -> impl IntoElement {
+            div().child(format!("cell {col_ix}"))
+        }
+    }
+
+    struct TranslucentPaintRoot {
+        table: Entity<TableState<TranslucentPaintDelegate>>,
+    }
+
+    impl TranslucentPaintRoot {
+        fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+            let table = cx.new(|cx| {
+                let mut table =
+                    TableState::new(TranslucentPaintDelegate, window, cx).row_header(false);
+                table.selected_row = Some(0);
+                table
+            });
+            Self { table }
+        }
+    }
+
+    impl Render for TranslucentPaintRoot {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(300.)).h(px(120.)).child(self.table.clone())
+        }
+    }
+
+    struct TestRoot {
+        table: Entity<TableState<TestDelegate>>,
+    }
+
+    impl TestRoot {
+        fn new(rows: usize, window: &mut Window, cx: &mut Context<Self>) -> Self {
+            let table = cx.new(|cx| TableState::new(TestDelegate { rows }, window, cx));
+            Self { table }
+        }
+    }
+
+    impl Render for TestRoot {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            // Tall enough that, with only 3 rows at the default row height,
+            // there is plenty of empty table area below the last row.
+            div().w(px(300.)).h(px(400.)).child(self.table.clone())
+        }
+    }
+
+    struct TestRootWithSibling {
+        table: Entity<TableState<TestDelegate>>,
+    }
+
+    impl TestRootWithSibling {
+        fn new(rows: usize, window: &mut Window, cx: &mut Context<Self>) -> Self {
+            let table = cx.new(|cx| TableState::new(TestDelegate { rows }, window, cx));
+            Self { table }
+        }
+    }
+
+    impl Render for TestRootWithSibling {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            h_flex()
+                .w(px(600.))
+                .h(px(400.))
+                .child(div().w(px(300.)).h_full().child(self.table.clone()))
+                .child(div().id("sibling-panel").w(px(300.)).h_full())
+        }
+    }
+
+    struct TestRootWithSiblingContextMenu {
+        table: Entity<TableState<TestDelegate>>,
+        sibling_context_builds: Rc<Cell<usize>>,
+    }
+
+    impl TestRootWithSiblingContextMenu {
+        fn new(
+            rows: usize,
+            sibling_context_builds: Rc<Cell<usize>>,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> Self {
+            let table = cx.new(|cx| TableState::new(TestDelegate { rows }, window, cx));
+            Self {
+                table,
+                sibling_context_builds,
+            }
+        }
+    }
+
+    impl Render for TestRootWithSiblingContextMenu {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            let sibling_context_builds = self.sibling_context_builds.clone();
+
+            h_flex()
+                .w(px(600.))
+                .h(px(400.))
+                .child(div().w(px(300.)).h_full().child(self.table.clone()))
+                .child(
+                    div()
+                        .id("sibling-context-target")
+                        .w(px(300.))
+                        .h_full()
+                        .context_menu(move |menu, _, _| {
+                            sibling_context_builds.set(sibling_context_builds.get() + 1);
+                            menu.item(PopupMenuItem::new("Sibling"))
+                        }),
+                )
+        }
+    }
+
+    /// Below the last of 3 default-height rows, but still well within the
+    /// 400px-tall table body — i.e. the "empty area" that reproduces the bug.
+    fn empty_area_point() -> Point<Pixels> {
+        point(px(10.), px(350.))
+    }
+
+    /// Inside the first row.
+    fn row_0_point() -> Point<Pixels> {
+        point(px(10.), px(48.))
+    }
+
+    #[gpui::test]
+    fn translucent_header_and_plain_selection_each_have_one_semantic_owner(
+        cx: &mut TestAppContext,
+    ) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            let config = serde_json::from_value::<crate::ThemeConfig>(serde_json::json!({
+                "name": "Table paint ownership",
+                "mode": "dark",
+                "colors": {
+                    "table.head.background": "#12345666",
+                    "table.active.background": "#65432133"
+                }
+            }))
+            .expect("table paint test theme");
+            crate::Theme::global_mut(cx).apply_config(&Rc::new(config));
+            crate::Theme::global_mut(cx).list.active_highlight = false;
+        });
+
+        let (_, cx) = cx.add_window_view(TranslucentPaintRoot::new);
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        let (table_head, table_active, quads) = cx.update(|window, cx| {
+            let _ = window.draw(cx);
+            (
+                cx.theme().tokens.table_head.background,
+                cx.theme().tokens.table_active.background,
+                window.painted_quads(),
+            )
+        });
+
+        assert_eq!(
+            quads
+                .iter()
+                .filter(|quad| quad.background == table_head)
+                .count(),
+            1,
+            "fixed and scrolling header panes must share one translucent surface"
+        );
+        assert_eq!(
+            quads
+                .iter()
+                .filter(|quad| quad.background == table_active)
+                .count(),
+            1,
+            "plain selected rows must use the semantic table-active surface"
+        );
+    }
+
+    /// In the sibling panel, outside the table's bounds but inside the fake
+    /// popup menu bounds registered by the test.
+    fn sibling_menu_point() -> Point<Pixels> {
+        point(px(350.), px(48.))
+    }
+
+    #[gpui::test]
+    fn right_click_on_empty_area_clears_right_clicked_row(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| TestRoot::new(3, window, cx));
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+
+        // Right-click a real row sets `right_clicked_row`.
+        cx.simulate_mouse_down(row_0_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), Some(0));
+
+        // Right-click on empty table area (below the last row) must clear
+        // it — otherwise the routing closure in `render` keeps showing the
+        // row's `context_menu` instead of `context_menu_empty`.
+        cx.simulate_mouse_down(empty_area_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), None);
+    }
+
+    #[gpui::test]
+    fn click_inside_open_menu_bounds_preserves_right_clicked_row(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| TestRootWithSibling::new(3, window, cx));
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+
+        cx.simulate_mouse_down(row_0_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), Some(0));
+
+        cx.update(|_, cx| {
+            crate::global_state::UiGlobalState::global_mut(cx).update_menu_bounds(
+                table.entity_id(),
+                Bounds {
+                    origin: point(px(320.), px(0.)),
+                    size: size(px(180.), px(120.)),
+                },
+            );
+        });
+
+        cx.simulate_mouse_down(
+            sibling_menu_point(),
+            MouseButton::Left,
+            Modifiers::default(),
+        );
+        assert_eq!(
+            table.read_with(cx, |s, _| s.right_clicked_row()),
+            Some(0),
+            "pressing a protruding popup menu item must not clear the table's row-menu state"
+        );
+    }
+
+    #[gpui::test]
+    fn outside_right_click_does_not_swallow_sibling_context_menu(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+
+        let sibling_context_builds = Rc::new(Cell::new(0));
+        let (root, cx) = cx.add_window_view({
+            let sibling_context_builds = sibling_context_builds.clone();
+            move |window, cx| {
+                TestRootWithSiblingContextMenu::new(3, sibling_context_builds, window, cx)
+            }
+        });
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+
+        cx.simulate_mouse_down(row_0_point(), MouseButton::Right, Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), Some(0));
+
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+
+        cx.simulate_mouse_down(
+            sibling_menu_point(),
+            MouseButton::Right,
+            Modifiers::default(),
+        );
+
+        assert_eq!(
+            sibling_context_builds.get(),
+            1,
+            "a table row-menu dismissal must not consume a sibling row's right-click"
+        );
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), None);
+    }
+
+    #[gpui::test]
+    fn left_click_on_empty_area_clears_selection(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| TestRoot::new(3, window, cx));
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+
+        // Left-click a real row selects it.
+        cx.simulate_click(row_0_point(), Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.selected_row()), Some(0));
+
+        // Left-click on empty table area must clear the selection — rows
+        // can otherwise never be deselected by clicking empty space.
+        cx.simulate_click(empty_area_point(), Modifiers::default());
+        assert_eq!(table.read_with(cx, |s, _| s.selected_row()), None);
     }
 }

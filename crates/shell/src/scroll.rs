@@ -2,10 +2,10 @@
 //!
 //! This lives here rather than being imported because the shell is built on
 //! `gpui-base` alone: everything it draws has to be expressible in the base
-//! layer, and a dependency on `gpui-component` would put the product component
+//! layer, and a dependency on `gpui-neath` would put the product component
 //! library underneath a runtime that is supposed to sit beside it. The scrollbar
 //! itself — [`gpui_base::Scrollbar`] — is a base type; only this wrapper had to
-//! come along. `gpui-component` keeps its own copy behind a
+//! come along. `gpui-neath` keeps its own copy behind a
 //! `ScrollableElement` trait; the shell needs one call site, so it names
 //! [`Scrollable`] directly and skips the trait.
 
@@ -155,7 +155,7 @@ fn scroll_handle_for(id: &ElementId, window: &mut Window, cx: &mut App) -> Scrol
 /// participate in the parent's layout the same way the source element would.
 ///
 /// The scrolled axis is marked clipped here for the same reason as in
-/// `gpui_component::scroll::scrollable`: a flex item only drops its
+/// `gpui_neath::scroll::scrollable`: a flex item only drops its
 /// content-based automatic minimum size when its own overflow is not
 /// [`Overflow::Visible`], and the scrolled overflow lives on the inner scroll
 /// area. Without it a scroll region used as a flex item pushes its siblings out

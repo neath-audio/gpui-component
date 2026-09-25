@@ -2,13 +2,13 @@ use crate::input::InputModeKind;
 use std::rc::Rc;
 use std::{cell::RefCell, ops::Range};
 
-use gpui::{Context, Window};
+use gpui::{Context, Pixels, Window};
 use ropey::Rope;
 
 use super::DisplayMap;
 use crate::input::{
     DiagnosticSet, EditorLanguage, InputEdit, InputHighlighter, InputHighlighterFactory,
-    LanguageConfig, RopeExt as _, TabSize,
+    LanguageConfig, RopeExt as _, TabSize, blink_cursor::CURSOR_WIDTH, element::RIGHT_MARGIN,
 };
 
 /// What changed, handed to the syntax highlighter.
@@ -199,6 +199,21 @@ impl LayoutMode {
     #[inline]
     pub(super) fn is_auto_grow(&self) -> bool {
         matches!(self, LayoutMode::AutoGrow { .. })
+    }
+
+    /// Right-edge gap kept ahead of the cursor when left-aligned text overflows.
+    ///
+    /// Single-line inputs use just the cursor width, so the scrolled-to-end text
+    /// stays visually symmetric with the left padding. Multi-line editors keep a
+    /// larger gap to hold lookahead context and to keep the longest line from
+    /// sliding under the overlay scrollbar.
+    #[inline]
+    pub(super) fn scroll_right_margin(&self) -> Pixels {
+        if matches!(self, LayoutMode::PlainText { rows, .. } if *rows <= 1) {
+            CURSOR_WIDTH
+        } else {
+            RIGHT_MARGIN
+        }
     }
 
     pub(super) fn set_rows(&mut self, new_rows: usize) {

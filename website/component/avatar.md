@@ -252,6 +252,6 @@ Avatar::new().name("Bob")      // Gets a different color
 Avatar::new().name("Charlie")  // Gets another color
 ```
 
-[Avatar]: https://docs.rs/gpui-component/latest/gpui_component/avatar/struct.Avatar.html
-[AvatarGroup]: https://docs.rs/gpui-component/latest/gpui_component/avatar/struct.AvatarGroup.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
+[Avatar]: https://docs.rs/gpui-neath/latest/gpui_neath/avatar/struct.Avatar.html
+[AvatarGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/avatar/struct.AvatarGroup.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html

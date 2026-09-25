@@ -38,7 +38,7 @@ fn input_group_retains_text_callbacks_and_routes_addon_actions(cx: &mut TestAppC
         r##"
 import { div, View } from "gpui-kit";
 import { InputGroup, InputGroupInput, InputGroupTextarea, InputGroupAddon,
-  InputGroupButton, InputGroupText, InputState, TextareaState, Button } from "gpui-component";
+  InputGroupButton, InputGroupText, InputState, TextareaState, Button } from "gpui-neath";
 export default class InputGroupHost extends View {
   init() {
     this.input = InputState("Search");
@@ -82,7 +82,7 @@ export default class InputGroupHost extends View {
             .mount_application(&loaded, window, cx)
             .expect("mount");
         *capture.borrow_mut() = Some(view.clone());
-        gpui_component::Root::new(view, window, cx)
+        gpui_neath::Root::new(view, window, cx)
     });
     let mut context = VisualTestContext::from_window(*window.deref(), cx);
     let view = mounted.borrow().clone().unwrap();
@@ -144,7 +144,7 @@ fn input_group_rejects_wrong_part_types_and_invalid_layout_options(cx: &mut Test
     let runtime = gpui_component_shell::new_isolated_runtime().expect("runtime");
     let window = cx.add_window(|window, cx| {
         let empty = cx.new(|_| gpui::Empty);
-        gpui_component::Root::new(empty, window, cx)
+        gpui_neath::Root::new(empty, window, cx)
     });
     let mut context = VisualTestContext::from_window(*window.deref(), cx);
     for (expression, diagnostic) in [
@@ -180,7 +180,7 @@ fn input_group_rejects_wrong_part_types_and_invalid_layout_options(cx: &mut Test
         let app = TempApp::new(&format!(
             "import {{ View, div }} from 'gpui-kit';
              import {{ InputGroup, InputGroupInput, InputGroupTextarea, InputGroupAddon,
-               InputGroupButton, InputGroupText, InputState, TextareaState, Button }} from 'gpui-component';
+               InputGroupButton, InputGroupText, InputState, TextareaState, Button }} from 'gpui-neath';
              export default class Invalid extends View {{
                init() {{ this.input = InputState(); this.textarea = TextareaState(); }}
                render() {{ return {expression}; }}

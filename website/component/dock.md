@@ -8,7 +8,7 @@ example: dock
 
 Dock builds application workspaces from draggable tab groups, nested splits, and collapsible left, right, and bottom docks. It is the layout foundation used by Longbridge in production, not an isolated UI demo.
 
-`gpui-base` owns the data model, layout calculation, and drag-and-drop behavior. `gpui-component` supplies the polished controls and visual language. Use `gpui_kit::component::dock` when you want a Dock ready to fit into a real application.
+`gpui-base` owns the data model, layout calculation, and drag-and-drop behavior. `gpui-neath` supplies the polished controls and visual language. Use `gpui_kit::component::dock` when you want a Dock ready to fit into a real application.
 
 For the renderer-independent architecture and custom-renderer API, see [Dock — gpui-base](/base/dock).
 
@@ -74,7 +74,7 @@ impl Render for FilesPanel {
 }
 ```
 
-Wrap styled panels with `panel_handle`. This preserves the `gpui-component` panel chrome when the base Dock stores the panel behind its renderer-independent handle.
+Wrap styled panels with `panel_handle`. This preserves the `gpui-neath` panel chrome when the base Dock stores the panel behind its renderer-independent handle.
 
 ## Describe the initial layout
 

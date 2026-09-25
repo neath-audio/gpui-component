@@ -19,7 +19,7 @@ fn input_group_comment_story_posts_once_and_cancels_the_next_draft(cx: &mut Test
             .mount_application(&loaded, window, cx)
             .expect("mount Input Group Story");
         *capture.borrow_mut() = Some(view.clone());
-        gpui_component::Root::new(view, window, cx)
+        gpui_neath::Root::new(view, window, cx)
     });
     let mut context = VisualTestContext::from_window(*window.deref(), cx);
     let view = mounted.borrow().clone().unwrap();

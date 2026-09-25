@@ -474,6 +474,10 @@ impl RenderOnce for ColorPicker {
         let focus_handle = self.state.focus_handle(cx);
         let open_state = self.state.clone();
         let popover_state = self.state.clone();
+        // A closed picker only needs its trigger. Building the palette grid and
+        // four slider tracks eagerly is especially costly for schema editors
+        // that render many picker triggers at once.
+        let popup_content = open.then(|| self.render_colors(window, cx).into_any_element());
 
         BaseColorPicker::new(self.id.clone())
             .open(open)
@@ -507,7 +511,7 @@ impl RenderOnce for ColorPicker {
                         icon: self.icon.clone(),
                         selected: false,
                     })
-                    .child(self.render_colors(window, cx)),
+                    .children(popup_content),
             )
     }
 }
@@ -637,7 +641,12 @@ impl RenderOnce for ColorPickerButton {
                         })
                         .when_some(self.tooltip, |this, tooltip| {
                             this.managed_tooltip(move |window, cx| {
-                                Tooltip::new(tooltip.clone()).build(window, cx)
+                                // Overlay-anchored: drop the default margin so the
+                                // bubble isn't offset from the swatch (see
+                                // `Tooltip::overlay_anchored`).
+                                Tooltip::new(tooltip.clone())
+                                    .overlay_anchored()
+                                    .build(window, cx)
                             })
                         }),
                 )

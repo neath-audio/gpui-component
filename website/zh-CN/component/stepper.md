@@ -189,6 +189,6 @@ Stepper::new("stepper")
     ])
 ```
 
-[Stepper]: https://docs.rs/gpui-component/latest/gpui_component/stepper/struct.Stepper.html
-[StepperItem]: https://docs.rs/gpui-component/latest/gpui_component/stepper/struct.StepperItem.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
+[Stepper]: https://docs.rs/gpui-neath/latest/gpui_neath/stepper/struct.Stepper.html
+[StepperItem]: https://docs.rs/gpui-neath/latest/gpui_neath/stepper/struct.StepperItem.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html

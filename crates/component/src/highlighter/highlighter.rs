@@ -1044,8 +1044,7 @@ impl SyntaxHighlighter {
     /// # Example
     ///
     /// ```no_run
-    /// # mod gpui_kit { pub extern crate gpui_component as component; }
-    /// use gpui_kit::component::highlighter::{HighlightTheme, SyntaxHighlighter};
+    /// use gpui_neath::highlighter::{HighlightTheme, SyntaxHighlighter};
     /// use ropey::Rope;
     ///
     /// let code = "fn main() {\n    println!(\"Hello\");\n}";

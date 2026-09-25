@@ -1,4 +1,4 @@
-use gpui_component::{Sizable as _, Size, progress::Progress};
+use gpui_neath::{Sizable as _, Size, progress::Progress};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

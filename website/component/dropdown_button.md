@@ -72,6 +72,6 @@ DropdownButton::new("dropdown")
     })
 ```
 
-[Button]: https://docs.rs/gpui-component/latest/gpui_component/button/struct.Button.html
-[DropdownButton]: https://docs.rs/gpui-component/latest/gpui_component/button/struct.DropdownButton.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
+[Button]: https://docs.rs/gpui-neath/latest/gpui_neath/button/struct.Button.html
+[DropdownButton]: https://docs.rs/gpui-neath/latest/gpui_neath/button/struct.DropdownButton.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html

@@ -210,4 +210,4 @@ Alert::warning(
 .icon(IconName::Shield)
 ```
 
-[Alert]: https://docs.rs/gpui-component/latest/gpui_component/alert/struct.Alert.html
+[Alert]: https://docs.rs/gpui-neath/latest/gpui_neath/alert/struct.Alert.html

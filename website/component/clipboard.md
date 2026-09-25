@@ -167,4 +167,4 @@ The Clipboard component currently supports copying text strings to the clipboard
 - UTF-8 encoded content
 - Cross-platform clipboard integration
 
-[Clipboard]: https://docs.rs/gpui-component/latest/gpui_component/clipboard/struct.Clipboard.html
+[Clipboard]: https://docs.rs/gpui-neath/latest/gpui_neath/clipboard/struct.Clipboard.html

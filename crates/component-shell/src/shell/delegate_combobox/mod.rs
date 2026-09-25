@@ -1,4 +1,4 @@
-use gpui_component::{
+use gpui_neath::{
     IndexPath,
     combobox::{Combobox, ComboboxEvent, ComboboxState},
     searchable_list::{SearchableListDelegate, SearchableListItem},

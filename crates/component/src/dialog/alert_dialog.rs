@@ -16,8 +16,8 @@ use crate::{
 /// and expects a response.
 ///
 /// It is built on top of the Dialog component with opinionated defaults:
-/// - Footer buttons are center-aligned (vs right-aligned in Dialog)
-/// - Icon is optional (disabled by default, enable with `.show_icon(true)`)
+/// - Not closable via overlay click or close button (interruption requires a response)
+/// - Icon is optional (disabled by default, set one with `.icon(...)`)
 /// - Simplified API for common alert scenarios
 /// - Uses declarative DialogHeader, DialogTitle, DialogDescription, and DialogFooter components
 /// - Supports both imperative and declarative API styles
@@ -27,7 +27,7 @@ use crate::{
 /// ## Imperative API (using WindowExt)
 ///
 /// ```ignore
-/// use gpui_kit::component::{AlertDialog, alert::AlertVariant};
+/// use gpui_neath::{AlertDialog, alert::AlertVariant};
 ///
 /// // Using WindowExt trait
 /// window.open_alert_dialog(cx, |alert, _, _| {
@@ -41,7 +41,7 @@ use crate::{
 /// ## Declarative API (using trigger and content)
 ///
 /// ```ignore
-/// use gpui_kit::component::{AlertDialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter};
+/// use gpui_neath::{AlertDialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter};
 ///
 /// AlertDialog::new(cx)
 ///     .trigger(Button::new("delete").label("Delete"))
@@ -229,7 +229,7 @@ impl AlertDialog {
         self
     }
 
-    /// Sets the width of the alert dialog, defaults to 420px.
+    /// Sets the width of the alert dialog, defaults to 448px (the Dialog default).
     pub fn width(mut self, width: impl Into<Pixels>) -> Self {
         self.base = self.base.width(width);
         self
@@ -241,9 +241,11 @@ impl AlertDialog {
         self
     }
 
-    /// Alert dialogs never close from a backdrop press.
-    #[deprecated(note = "AlertDialog backdrop dismissal is disabled by design")]
-    pub fn overlay_closable(self, _: bool) -> Self {
+    /// Set the overlay closable of the alert dialog, defaults to `false`.
+    ///
+    /// When the overlay is clicked, the dialog will be closed.
+    pub fn overlay_closable(mut self, overlay_closable: bool) -> Self {
+        self.base = self.base.overlay_closable(overlay_closable);
         self
     }
 
@@ -311,7 +313,7 @@ impl AlertDialog {
                                 v_flex()
                                     .flex_1()
                                     .min_w_0()
-                                    .gap_1()
+                                    .gap_1p5()
                                     .when_some(self.title, |this, title| {
                                         this.child(DialogTitle::new().child(title))
                                     })
@@ -481,5 +483,109 @@ mod tests {
                 assert_eq!(props.cancel_variant, Some(ButtonVariant::Ghost));
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod material_tests {
+    use super::*;
+    use crate::Root;
+    use gpui::{
+        AppContext as _, Context, Corners, InteractiveElement as _, Modifiers, Render,
+        TestAppContext, VisualTestContext, div, point, px,
+    };
+    use std::{cell::Cell, rc::Rc};
+
+    use crate::material::{MaterialDepth, clear_painted_materials, take_painted_materials};
+
+    struct AlertDialogLayerHarness;
+
+    impl Render for AlertDialogLayerHarness {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            div().size_full()
+        }
+    }
+
+    fn harness(cx: &mut TestAppContext) -> &mut VisualTestContext {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|window, cx| {
+            let view = cx.new(|_| AlertDialogLayerHarness);
+            Root::new(view, window, cx)
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx
+    }
+
+    fn open_alert(cx: &mut VisualTestContext, overlay_closable: Option<bool>) -> Rc<Cell<bool>> {
+        let canceled = Rc::new(Cell::new(false));
+        let canceled_for_builder = canceled.clone();
+        cx.update(|window, cx| {
+            window.open_alert_dialog(cx, move |alert, _, _| {
+                let canceled = canceled_for_builder.clone();
+                let alert = alert
+                    .rounded(px(29.))
+                    .on_cancel(move |_, _, _| {
+                        canceled.set(true);
+                        true
+                    })
+                    .child(
+                        div()
+                            .debug_selector(|| "alert-dialog-surface-content".into())
+                            .size(px(12.)),
+                    );
+                match overlay_closable {
+                    Some(value) => alert.overlay_closable(value),
+                    None => alert,
+                }
+            });
+        });
+        cx.run_until_parked();
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        canceled
+    }
+
+    fn press_safe_backdrop(cx: &mut VisualTestContext) {
+        cx.simulate_click(point(px(20.), px(100.)), Modifiers::default());
+    }
+
+    #[gpui::test]
+    fn explicit_overlay_closable_alert_closes_on_backdrop_press(cx: &mut TestAppContext) {
+        let cx = harness(cx);
+        let canceled = open_alert(cx, Some(true));
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+        assert!(cx.debug_bounds("alert-dialog-surface-content").is_some());
+        let materials = take_painted_materials();
+        let material = materials
+            .iter()
+            .filter(|material| material.id.to_string() == "dialog-material-0")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            material.len(),
+            1,
+            "AlertDialog delegates to Dialog's one popup Material",
+        );
+        assert_eq!(material[0].depth, MaterialDepth::Overlay);
+        assert_eq!(material[0].corner_radii, Corners::all(px(29.)));
+
+        press_safe_backdrop(cx);
+
+        assert!(canceled.get());
+        assert!(!cx.update(|window, cx| window.has_active_dialog(cx)));
+    }
+
+    #[gpui::test]
+    fn default_and_explicit_false_alerts_stay_open_on_backdrop_press(cx: &mut TestAppContext) {
+        let cx = harness(cx);
+        let canceled = open_alert(cx, None);
+        press_safe_backdrop(cx);
+        assert!(!canceled.get());
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
+
+        cx.update(|window, cx| window.close_dialog(cx));
+        let canceled = open_alert(cx, Some(false));
+        press_safe_backdrop(cx);
+        assert!(!canceled.get());
+        assert!(cx.update(|window, cx| window.has_active_dialog(cx)));
     }
 }

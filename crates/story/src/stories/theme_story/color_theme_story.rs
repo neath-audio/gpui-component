@@ -12,7 +12,7 @@ use gpui_kit::component::{
 use gpui_kit::{prelude::FluentBuilder, *};
 use serde::Deserialize;
 
-use crate::stories::theme_story::checkerboard::Checkerboard;
+use gpui_kit::component::checkerboard::Checkerboard;
 
 use std::collections::BTreeMap;
 use std::rc::Rc;

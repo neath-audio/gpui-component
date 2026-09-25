@@ -57,7 +57,7 @@ way of building a system:
 - separate behavior primitives from the styled layer.
 
 GPUI Kit applies those ideas through a Rust library and the split between
-`gpui-base` and `gpui-component`. Applications normally compose or wrap the
+`gpui-base` and `gpui-neath`. Applications normally compose or wrap the
 published components; contributors move genuinely reusable behavior into Base
 and keep visual policy above it.
 

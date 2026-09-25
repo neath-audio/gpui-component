@@ -1,4 +1,4 @@
-//! The gpui-component appearance for the dock area: the outer frame, the
+//! The gpui-neath appearance for the dock area: the outer frame, the
 //! split frames, and one dock's chrome.
 
 use std::{ops::Deref as _, rc::Rc, sync::Arc};
@@ -37,6 +37,13 @@ impl Render for ResizePanel {
 }
 
 impl DockAreaRenderer for DockSkin {
+    fn collapsed_dock_extent(&self, dock: &DockContext, _: &mut Window, _: &mut App) -> Pixels {
+        match dock.placement() {
+            DockPlacement::Bottom => gpui::px(29.),
+            _ => gpui::px(0.),
+        }
+    }
+
     // The row, the fill and the clip are base's now -- applied around whatever
     // these return -- so a skin that has no appearance to add returns a bare
     // frame and still gets a dock area the right shape.

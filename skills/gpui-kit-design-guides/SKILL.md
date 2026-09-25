@@ -1,6 +1,6 @@
 ---
 name: gpui-kit-design-guides
-description: The normative Design Guides for GPUI Kit desktop applications. Read in full before designing or changing any screen, layout, spacing, visual hierarchy, color, density, component choice, interaction state, overlay, motion, data-heavy view, or interface copy in a GPUI Kit (gpui-kit / gpui-component) application, and before reviewing UI work for design quality. Also use when asked what the design rules are, or whether a UI decision follows them.
+description: The normative Design Guides for GPUI Kit desktop applications. Read in full before designing or changing any screen, layout, spacing, visual hierarchy, color, density, component choice, interaction state, overlay, motion, data-heavy view, or interface copy in a GPUI Kit (gpui-kit / gpui-neath) application, and before reviewing UI work for design quality. Also use when asked what the design rules are, or whether a UI decision follows them.
 ---
 
 # GPUI Kit Design Guides

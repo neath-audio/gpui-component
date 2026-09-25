@@ -12,7 +12,7 @@ pub type InputState = InputBaseState<InputMode>;
 /// An unstyled single-line text input.
 ///
 /// Applications that need a fully styled control can wrap this state with
-/// their own presentation or use `gpui-component::Input`.
+/// their own presentation or use `gpui-neath::Input`.
 #[derive(IntoElement)]
 pub struct Input {
     presentation: super::InlineTokenPresentation,

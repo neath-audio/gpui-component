@@ -363,9 +363,9 @@ a newly constructed `Command` during rendering.
 5. Let a hosting Dialog own cancellation after `on_cancel`; use header and footer for application-owned status and hints.
 6. Give each independently rendered palette its own [`CommandState`].
 
-[Command]: https://docs.rs/gpui-component/latest/gpui_component/command/struct.Command.html
-[CommandState]: https://docs.rs/gpui-component/latest/gpui_component/command/struct.CommandState.html
-[CommandGroup]: https://docs.rs/gpui-component/latest/gpui_component/command/struct.CommandGroup.html
-[WindowExt::open_dialog]: https://docs.rs/gpui-component/latest/gpui_component/trait.WindowExt.html#tymethod.open_dialog
+[Command]: https://docs.rs/gpui-neath/latest/gpui_neath/command/struct.Command.html
+[CommandState]: https://docs.rs/gpui-neath/latest/gpui_neath/command/struct.CommandState.html
+[CommandGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/command/struct.CommandGroup.html
+[WindowExt::open_dialog]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.WindowExt.html#tymethod.open_dialog
 [Focusable::focus_handle]: https://docs.rs/gpui/latest/gpui/trait.Focusable.html#tymethod.focus_handle
 [Styled]: https://docs.rs/gpui/latest/gpui/trait.Styled.html

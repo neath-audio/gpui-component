@@ -15,7 +15,7 @@ use gpui_kit::shell::{HostModule, HostValue};
 
 gpui_kit::shell::export_module(
     HostModule::new("workspace")
-        .function("project_name", |_| Ok(HostValue::from("gpui-component")))
+        .function("project_name", |_| Ok(HostValue::from("gpui-neath")))
         .function("version", |_| Ok(HostValue::from("0.1.0"))),
 )?;
 ```
@@ -23,7 +23,7 @@ gpui_kit::shell::export_module(
 ```js
 import { project_name } from "workspace";
 
-project_name(); // "gpui-component"
+project_name(); // "gpui-neath"
 ```
 
 注册好的模块就是一个普通的 ES module，由解析 `gpui-kit` 和 `path` 的同一个 loader 负责。一次调用注册一个模块，重名会替换掉先前那个而不是合并进去——有三个模块的 Host 就调三次 `export_module`。本页余下的部分讲它的代价和它拒绝的东西。

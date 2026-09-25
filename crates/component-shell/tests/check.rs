@@ -79,7 +79,7 @@ fn check_materializes_valid_typed_children_and_preserves_print_spec() {
     let app = CheckApp::new(
         r#"
         import { View, div } from "gpui-kit";
-        import { HForm, Field } from "gpui-component";
+        import { HForm, Field } from "gpui-neath";
         export default class App extends View {
             render() {
                 return new HForm().child(new Field().label("Name").child(div().child("Ada")));
@@ -101,7 +101,7 @@ fn check_rejects_an_ordinary_child_in_a_typed_form() {
     let app = CheckApp::new(
         r#"
         import { View, div } from "gpui-kit";
-        import { HForm } from "gpui-component";
+        import { HForm } from "gpui-neath";
         export default class App extends View {
             render() { return div().child(new HForm().child(div())); }
         }
@@ -122,7 +122,7 @@ fn check_rejects_style_on_a_data_only_component() {
     let app = CheckApp::new(
         r#"
         import { View, div } from "gpui-kit";
-        import { MenuItem } from "gpui-component";
+        import { MenuItem } from "gpui-neath";
         export default class App extends View {
             render() { return div().child(new MenuItem("Open", "open").p(2)); }
         }
@@ -185,12 +185,12 @@ fn runtime_check_preserves_errors_and_clears_them_before_the_next_check(
     let runtime = gpui_component_shell::new_isolated_runtime().unwrap();
     let window = cx.add_window(|window, cx| {
         let empty = cx.new(|_| gpui::Empty);
-        gpui_component::Root::new(empty, window, cx)
+        gpui_neath::Root::new(empty, window, cx)
     });
     let mut context = gpui::VisualTestContext::from_window(*window.deref(), cx);
     let invalid = CheckApp::new(
         r#"import { View, div } from "gpui-kit";
-        import { HForm } from "gpui-component";
+        import { HForm } from "gpui-neath";
         export default class App extends View {
             render() { return new HForm().child(div()); }
         }"#,
@@ -202,7 +202,7 @@ fn runtime_check_preserves_errors_and_clears_them_before_the_next_check(
 
     let valid = CheckApp::new(
         r#"import { View } from "gpui-kit";
-        import { HForm, Field } from "gpui-component";
+        import { HForm, Field } from "gpui-neath";
         export default class App extends View {
             render() {
                 if (this.rendered) throw new Error("check rendered twice");

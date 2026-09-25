@@ -18,7 +18,7 @@
 //! That is a contract about provenance rather than a filing convenience. An
 //! import line says which layer a script depends on, so a script that never
 //! reaches for a component says so, and the next layer to arrive —
-//! `gpui-component`, whose components are the reason the seam exists — needs a
+//! `gpui-neath`, whose components are the reason the seam exists — needs a
 //! list and a `declare module`, not a renaming of everything already here.
 //! Apart from the explicit `"gpui"` alias, names are not re-exported for
 //! convenience, preserving the layer named by each import.
@@ -207,7 +207,7 @@ pub(crate) fn declarations_with_components(components: &crate::FrozenComponentRe
     for descriptor in components.descriptors() {
         let _ = write!(
             out,
-            " | import(\"gpui-component\").{}Element",
+            " | import(\"gpui-neath\").{}Element",
             descriptor.name()
         );
     }
@@ -232,7 +232,7 @@ pub(crate) fn declarations_with_components(components: &crate::FrozenComponentRe
     out.push_str(INLINE_TOKEN_TYPES);
     out.push_str(BASE);
     out.push_str("}\n\n");
-    out.push_str("declare module \"gpui-component\" {\n");
+    out.push_str("declare module \"gpui-neath\" {\n");
     out.push_str("  import { ClickEvent, Context, Element, NativeElement } from \"gpui-kit\";\n");
     out.push_str(INLINE_TOKEN_TYPES);
     for state in components.states() {

@@ -247,7 +247,7 @@ construct 并挂载 `FrontmatterPlugin` 后，顶层 mapping 会渲染为
 `DescriptionList`：
 
 ```rust
-use gpui_component::text::{markdown, FrontmatterPlugin, MarkdownExtensions};
+use gpui_neath::text::{markdown, FrontmatterPlugin, MarkdownExtensions};
 
 let extensions = MarkdownExtensions::default().frontmatter();
 

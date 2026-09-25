@@ -4,9 +4,10 @@ use crate::{InteractiveElementExt as _, StyledExt};
 
 use super::{Scrollbar, ScrollbarAxis, ScrollbarHandle};
 use gpui::{
-    App, Div, Element, ElementId, InteractiveElement, IntoElement, Overflow, ParentElement,
-    PointRefinement, RenderOnce, ScrollHandle, Stateful, StatefulInteractiveElement,
-    StyleRefinement, Styled, Window, div, prelude::FluentBuilder,
+    AnyElement, App, AvailableSpace, Bounds, Div, Edges, Element, ElementId, GlobalElementId,
+    InspectorElementId, InteractiveElement, IntoElement, LayoutId, Overflow, ParentElement, Pixels,
+    PointRefinement, Position, RenderOnce, ScrollHandle, Stateful, StatefulInteractiveElement,
+    Style, StyleRefinement, Styled, Window, div, point, prelude::FluentBuilder, px, size,
 };
 
 /// A trait for elements that can be made scrollable with scrollbars.
@@ -68,6 +69,8 @@ pub struct Scrollable<E: InteractiveElement + Styled + ParentElement + Element> 
     id: ElementId,
     element: E,
     axis: ScrollbarAxis,
+    scroll_handle: Option<ScrollHandle>,
+    sticky: Vec<AnyElement>,
 }
 
 impl<E> Scrollable<E>
@@ -80,6 +83,8 @@ where
             id: caller_id(),
             element,
             axis: axis.into(),
+            scroll_handle: None,
+            sticky: Vec::new(),
         }
     }
 
@@ -89,6 +94,47 @@ where
     /// otherwise share a single scroll position.
     pub fn id(mut self, id: impl Into<ElementId>) -> Self {
         self.id = id.into();
+        self
+    }
+
+    /// Track scrolling with a caller-owned handle instead of the internal one.
+    ///
+    /// By default the handle is created here and keyed on the call site, so
+    /// the caller can never read it. Pass one in when the caller needs the
+    /// live scroll offset itself — to position a [`Self::sticky`] layer, or to
+    /// drive the region programmatically.
+    pub fn track_scroll(mut self, scroll_handle: &ScrollHandle) -> Self {
+        self.scroll_handle = Some(scroll_handle.clone());
+        self
+    }
+
+    /// Add an element painted above the scroll area and beneath the
+    /// scrollbars, positioned against the VIEWPORT rather than the content.
+    ///
+    /// This is how a header pins to the top while content scrolls under it.
+    /// GPUI has no `position: sticky` — taffy's `Position` is `Relative` or
+    /// `Absolute` and nothing else — so the layer positions itself: `top` is
+    /// called during the layer's prepaint on EVERY painted frame, and the
+    /// element is placed at that offset from the viewport top. Prepaint order
+    /// does the synchronising: the scroll area is an earlier sibling, so by
+    /// the time `top` runs, this frame's scroll offset is already clamped
+    /// (`Interactivity::clamp_scroll_position`) — a closure reading the
+    /// handle passed to [`Self::track_scroll`] always agrees with where the
+    /// content paints this frame. No re-render, no lag, no drift.
+    ///
+    /// Do NOT forward wheel events from the layer to the handle: covering the
+    /// viewport does not stop the scroll area from receiving them, so the
+    /// container is already applying the tick and a second write double-scrolls.
+    /// The layer usually wants `block_mouse_except_scroll()` — hover and click
+    /// stop at the layer, the wheel still falls through to the container.
+    pub fn sticky(mut self, top: impl Fn() -> Pixels + 'static, element: impl IntoElement) -> Self {
+        self.sticky.push(
+            StickyLayer {
+                top: Rc::new(top),
+                child: element.into_any_element(),
+            }
+            .into_any_element(),
+        );
         self
     }
 }
@@ -130,7 +176,11 @@ where
     E: InteractiveElement + Styled + ParentElement + Element + 'static,
 {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let scroll_handle = scroll_handle_for(&self.id, window, cx);
+        let scroll_handle = match self.scroll_handle.take() {
+            Some(handle) => handle,
+            None => scroll_handle_for(&self.id, window, cx),
+        };
+        let sticky = std::mem::take(&mut self.sticky);
 
         // Preserve the caller-requested size on the wrapper, while keeping the
         // caller's element as the actual scroll-tracked layout container.
@@ -176,6 +226,9 @@ where
             .refine_style(&root_style)
             .relative()
             .child(scroll_area)
+            // Sticky layers sit between the two: over the scrolling content,
+            // under the scrollbars.
+            .children(sticky)
             .child(render_scrollbar(
                 scrollbar_id,
                 &scroll_handle,
@@ -192,6 +245,86 @@ where
     E: ParentElement + Styled + Element,
     Self: InteractiveElement,
 {
+}
+
+/// The element behind [`Scrollable::sticky`]: an absolute overlay spanning
+/// the scroll viewport whose child is measured and placed during prepaint,
+/// at the top the caller's closure returns for THIS frame.
+struct StickyLayer {
+    top: Rc<dyn Fn() -> Pixels>,
+    child: AnyElement,
+}
+
+impl IntoElement for StickyLayer {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for StickyLayer {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        // The layer itself spans the viewport; the child is laid out by hand
+        // in prepaint, where this frame's top is known.
+        let style = Style {
+            position: Position::Absolute,
+            inset: Edges::all(px(0.).into()),
+            ..Style::default()
+        };
+        (window.request_layout(style, [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        self.child.layout_as_root(
+            size(
+                AvailableSpace::Definite(bounds.size.width),
+                AvailableSpace::MinContent,
+            ),
+            window,
+            cx,
+        );
+        self.child
+            .prepaint_at(bounds.origin + point(px(0.), (self.top)()), window, cx);
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.child.paint(window, cx);
+    }
 }
 
 #[derive(IntoElement)]
@@ -360,6 +493,34 @@ mod tests {
                         }))),
                 )
         }
+    }
+
+    /// A sticky layer must not swallow the wheel, and must not make the
+    /// container apply it twice. Callers reach for `sticky` precisely because
+    /// the layer covers the top of the viewport, so the temptation is to
+    /// forward wheel events to the handle by hand — which double-scrolls,
+    /// because `Window::hit_test` collects EVERY hitbox under the pointer and
+    /// `should_handle_scroll` searches that whole list. The container is
+    /// already handling the tick; this pins that down.
+    #[gpui::test]
+    fn a_sticky_layer_neither_swallows_nor_duplicates_the_wheel(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let handle = ScrollHandle::new();
+        let view_handle = handle.clone();
+        let (_, cx) = cx.add_window_view(|_, _| StickyLayerTest {
+            handle: view_handle,
+        });
+        let cx: &mut VisualTestContext = cx;
+        draw(cx);
+
+        // (10, 10) is inside the 10px-tall sticky layer, not merely near it.
+        scroll(cx, 10., 5., 0., -10.);
+
+        assert_eq!(
+            handle.offset().y,
+            px(-10.),
+            "one tick over a sticky layer must move the content exactly once"
+        );
     }
 
     struct AutoHeightParentTest;
@@ -754,6 +915,83 @@ mod tests {
         scroll(cx, 10., 10., 0., -50.);
 
         assert!(cx.debug_bounds("last-row").unwrap().origin.y < initial_y);
+    }
+
+    struct StickyLayerTest {
+        handle: ScrollHandle,
+    }
+
+    impl Render for StickyLayerTest {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let handle = self.handle.clone();
+            crate::v_flex()
+                .w(px(100.))
+                .h(px(100.))
+                .overflow_y_scrollbar()
+                .track_scroll(&self.handle)
+                .child(plain_row(50.))
+                .child(row("sticky-content-row", 50.))
+                .child(plain_row(50.))
+                .sticky(
+                    // A 30px natural resting place that scrolls away and pins:
+                    // exactly the pinned-header shape callers reach for.
+                    move || (px(30.) + handle.offset().y).max(px(0.)),
+                    div()
+                        .w_full()
+                        .h(px(10.))
+                        .debug_selector(|| "sticky-layer".to_string()),
+                )
+        }
+    }
+
+    /// The layer's position is computed at PREPAINT each painted frame from
+    /// the caller's closure — never baked into a render. Nothing in this test
+    /// ever notifies the view, so any movement of the layer is proof of
+    /// paint-time positioning: it travels 1:1 with the content, pins at the
+    /// viewport top, and returns exactly to rest — no drift, no frame lag.
+    #[gpui::test]
+    fn sticky_layer_tracks_its_closure_each_frame_without_a_rerender(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let handle = ScrollHandle::new();
+        let view_handle = handle.clone();
+        let (_, cx) = cx.add_window_view(|_, _| StickyLayerTest {
+            handle: view_handle,
+        });
+        let cx: &mut VisualTestContext = cx;
+        draw(cx);
+
+        assert_eq!(
+            cx.debug_bounds("sticky-layer").unwrap().top(),
+            px(30.),
+            "at rest the layer sits at its natural place"
+        );
+
+        let content_before = cx.debug_bounds("sticky-content-row").unwrap();
+        scroll(cx, 10., 50., 0., -10.);
+        assert!(
+            handle.offset().y < px(0.),
+            "the caller's handle must see the scroll it tracks"
+        );
+        assert!(cx.debug_bounds("sticky-content-row").unwrap().top() < content_before.top());
+        assert_eq!(
+            cx.debug_bounds("sticky-layer").unwrap().top(),
+            px(20.),
+            "the layer travels 1:1 with the content, same frame, no notify"
+        );
+
+        scroll(cx, 10., 50., 0., -40.);
+        assert_eq!(
+            cx.debug_bounds("sticky-layer").unwrap().top(),
+            px(0.),
+            "pinned exactly at the viewport top — not a sub-pixel below"
+        );
+
+        scroll(cx, 10., 50., 0., 500.);
+        assert_eq!(
+            cx.debug_bounds("sticky-layer").unwrap().top(),
+            px(30.),
+            "overscrolling back to the top returns the layer exactly to rest"
+        );
     }
 
     #[gpui::test]

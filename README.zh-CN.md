@@ -16,7 +16,7 @@ GPUI Kit 是一个综合性的 Rust 桌面应用开发框架。它将生产级 U
 ```text
 gpui-kit             应用唯一需要依赖的 crate
 ├── gpui-base        无样式的行为、状态与基础设施
-└── gpui-component   GPUI Component：完整的带样式 UI 系统
+└── gpui-neath   GPUI Component：完整的带样式 UI 系统
 ```
 
 `gpui-kit` 会固定配套的 GPUI 版本并导出 GPUI、base、component 和 assets，Rust 应用只需声明这一个依赖。JavaScript 扩展宿主另行依赖 `gpui-shell`；`gpui-component-shell` 提供带样式的组件目录。
@@ -43,9 +43,9 @@ gpui-kit             应用唯一需要依赖的 crate
 
 ### 三层架构，一个生态
 
-使用 `gpui-component`，让整个应用保持统一、完整的视觉与交互风格；当产品需要创建并拥有自己的设计系统时，使用 `gpui-base`；当应用需要在交付后仍可被 JavaScript 扩展时，使用 `gpui-shell`。
+使用 `gpui-neath`，让整个应用保持统一、完整的视觉与交互风格；当产品需要创建并拥有自己的设计系统时，使用 `gpui-base`；当应用需要在交付后仍可被 JavaScript 扩展时，使用 `gpui-shell`。
 
-| **`gpui-component`**     | **`gpui-base`**            | **`gpui-shell`**                 |
+| **`gpui-neath`**     | **`gpui-base`**            | **`gpui-shell`**                 |
 | ------------------------ | -------------------------- | -------------------------------- |
 | 完整且带样式的组件       | 无预设样式的行为与基础设施 | 由 Rust 托管的 JavaScript 运行时 |
 | 开箱即用，并支持主题定制 | 完全掌控结构与视觉设计     | 能力逐项授予                     |
@@ -58,7 +58,7 @@ gpui-kit             应用唯一需要依赖的 crate
               │                   │                   │
               ▼                   ▼                   ▼
     ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
-    │  gpui-component  │ │ Your Design      │ │    gpui-shell    │
+    │  gpui-neath  │ │ Your Design      │ │    gpui-shell    │
     │    Styled UI     │ │ System           │ │  JS extensions   │
     └────────┬─────────┘ └────────┬─────────┘ └────────┬─────────┘
              │                    │                    │
@@ -75,7 +75,7 @@ gpui-kit             应用唯一需要依赖的 crate
 
 > **行为属于基础层，呈现属于应用。**
 
-如果希望使用精致、开箱即用且风格统一的控件，请选择 **`gpui-component`**。如果应用需要拥有组件源码、布局、样式和动效，同时复用复杂且可靠的交互行为，请直接构建于 **`gpui-base`**。如果希望贡献者无需 fork、也无需发新版本就能扩展产品，请加入 **`gpui-shell`**。
+如果希望使用精致、开箱即用且风格统一的控件，请选择 **`gpui-neath`**。如果应用需要拥有组件源码、布局、样式和动效，同时复用复杂且可靠的交互行为，请直接构建于 **`gpui-base`**。如果希望贡献者无需 fork、也无需发新版本就能扩展产品，请加入 **`gpui-shell`**。
 
 这种分层方式与 [shadcn](https://ui.shadcn.com) 生态的灵活性来源一致：
 
@@ -83,7 +83,7 @@ gpui-kit             应用唯一需要依赖的 crate
 | ------------------------------------ | ------------------------------ |
 | GPUI                                 | HTML + Tailwind CSS            |
 | [`gpui-base`](crates/base/README.md) | [Base UI](https://base-ui.com) |
-| `gpui-component`                     | shadcn 的完整样式组件层        |
+| `gpui-neath`                     | shadcn 的完整样式组件层        |
 
 [深入了解架构 →](docs/ARCHITECTURE.md)
 
@@ -103,7 +103,7 @@ GPUI Kit 从第一天起就用于构建 [Longbridge Pro](https://longbridge.com/
 gpui-kit = "0.6"
 ```
 
-`gpui-kit` 始终引入 GPUI 和 `gpui-base`；`gpui-component` 和默认图标集默认开启。只想保留部分层时关闭默认 feature 按需选择即可。`gpui-component` 的 feature（`inspector`、`decimal`、`tree-sitter` 及各 `tree-sitter-<language>`）在 `gpui-kit` 上同名可用。
+`gpui-kit` 始终引入 GPUI 和 `gpui-base`；`gpui-neath` 和默认图标集默认开启。只想保留部分层时关闭默认 feature 按需选择即可。`gpui-neath` 的 feature（`inspector`、`decimal`、`tree-sitter` 及各 `tree-sitter-<language>`）在 `gpui-kit` 上同名可用。
 
 ### 基础示例
 
@@ -148,7 +148,7 @@ fn main() {
 
 ### 图标
 
-默认开启的 `assets` feature 会以 `gpui-kit-assets` 的形式内置 [Lucide](https://lucide.dev) 图标集，通过 `gpui_kit::application().with_assets(gpui_kit::assets::Assets)` 交给应用即可。若想使用自己的图标，去掉该 feature，并按照 [IconName](https://github.com/longbridge/gpui-kit/blob/main/crates/component/src/icon.rs#L86) 中的定义命名 SVG 文件。
+默认开启的 `assets` feature 会以 `gpui-component-assets` 的形式内置 [Lucide](https://lucide.dev) 图标集，通过 `gpui_kit::application().with_assets(gpui_kit::assets::Assets)` 交给应用即可。若想使用自己的图标，去掉该 feature，并按照 [IconName](https://github.com/longbridge/gpui-kit/blob/main/crates/component/src/icon.rs#L86) 中的定义命名 SVG 文件。
 
 ## AI 编码 Agent 技能 (Skills)
 

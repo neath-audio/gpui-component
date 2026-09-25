@@ -6,7 +6,7 @@ order: -1
 
 # 安装
 
-在开始使用 `gpui-component` 构建应用之前，需要先准备对应的开发环境并安装依赖。
+在开始使用 `gpui-neath` 构建应用之前，需要先准备对应的开发环境并安装依赖。
 
 实验性的 iOS 支持与 Swift UIView 嵌入方式请参阅[移动端](/zh-CN/docs/mobile)。移动端使用 `gpui-pre-mobile`，应用启动方式与桌面端不同。
 
@@ -40,7 +40,7 @@ sudo apt install -y gcc g++ clang libfontconfig-dev libwayland-dev \
 
 ## Rust 和 Cargo
 
-`gpui-component` 使用 Rust 构建，因此请确保系统已经安装 Rust 和 Cargo。
+`gpui-neath` 使用 Rust 构建，因此请确保系统已经安装 Rust 和 Cargo。
 
 - Rust 1.90 或更高版本
 - Cargo（通常随 Rust 一起安装）
@@ -62,9 +62,9 @@ Rust Debug 构建下，GPUI、组件库、布局和文字渲染相关 crate 基�
 ```toml
 [profile.dev.package]
 gpui-pre = { opt-level = 3 }
-gpui-component = { opt-level = 3 }
+gpui-neath = { opt-level = 3 }
 gpui-kit = { opt-level = 3 }
-gpui-kit-assets = { opt-level = 3 }
+gpui-component-assets = { opt-level = 3 }
 gpui-pre-macros = { opt-level = 3 }
 gpui-pre-platform = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }

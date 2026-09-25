@@ -11,11 +11,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ActiveTheme, IconName, Placement, Sizable, StyledExt as _, WindowExt as _,
+    ActiveTheme, IconName, Material, MaterialDepth, Placement, Sizable, StyledExt as _,
+    WindowExt as _,
     button::{Button, ButtonVariants as _},
     dialog::overlay_color,
     h_flex,
     scroll::ScrollableElement as _,
+    styled::resolved_corner_radii,
     title_bar::TITLE_BAR_HEIGHT,
     v_flex,
 };
@@ -144,6 +146,7 @@ impl RenderOnce for Sheet {
         let top = cx.theme().sheet.margin_top;
         let base_size = window.text_style().font_size;
         let rem_size = window.rem_size();
+        let corner_radii = resolved_corner_radii(gpui::Corners::default(), &self.style, rem_size);
         let mut paddings = Edges::all(px(16.));
         if let Some(pl) = self.style.padding.left {
             paddings.left = pl.to_pixels(base_size, rem_size);
@@ -170,7 +173,7 @@ impl RenderOnce for Sheet {
             .absolute()
             .occlude()
             .bg(cx.theme().tokens.background)
-            .border_color(cx.theme().border)
+            .border_color(cx.theme().border_strong)
             .shadow_xl()
             .refine_style(&self.style)
             .map(|this| {
@@ -255,6 +258,81 @@ impl RenderOnce for Sheet {
             .request_close(|window, cx| window.close_sheet(cx))
             .on_close(move |event, window, cx| (self.on_close)(event, window, cx))
             .overlay(overlay)
-            .surface(surface)
+            .surface(
+                Material::new("sheet-material", MaterialDepth::Panel, surface)
+                    .corner_radii(corner_radii),
+            )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, rc::Rc};
+
+    use gpui::{
+        AppContext as _, Context, Corners, Modifiers, Render, TestAppContext, VisualTestContext,
+        point,
+    };
+
+    use super::*;
+    use crate::Root;
+    use crate::material::{clear_painted_materials, take_painted_materials};
+
+    struct SheetLayerHarness;
+
+    impl Render for SheetLayerHarness {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            div().size_full()
+        }
+    }
+
+    fn harness(cx: &mut TestAppContext) -> &mut VisualTestContext {
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|window, cx| {
+            let view = cx.new(|_| SheetLayerHarness);
+            Root::new(view, window, cx)
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx
+    }
+
+    #[gpui::test]
+    fn panel_material_keeps_content_and_backdrop_dismissal_in_their_existing_hosts(
+        cx: &mut TestAppContext,
+    ) {
+        let cx = harness(cx);
+        let closed = Rc::new(Cell::new(false));
+        let closed_for_builder = closed.clone();
+        cx.update(|window, cx| {
+            window.open_sheet(cx, move |sheet, _, _| {
+                let closed = closed_for_builder.clone();
+                sheet
+                    .rounded(px(31.))
+                    .on_close(move |_, _, _| closed.set(true))
+                    .child(
+                        div()
+                            .debug_selector(|| "sheet-surface-content".into())
+                            .size(px(12.)),
+                    )
+            });
+        });
+        clear_painted_materials();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        assert!(cx.debug_bounds("sheet-surface-content").is_some());
+        assert!(cx.update(|window, cx| window.has_active_sheet(cx)));
+        let materials = take_painted_materials();
+        let material = materials
+            .iter()
+            .filter(|material| material.id.to_string() == "sheet-material")
+            .collect::<Vec<_>>();
+        assert_eq!(material.len(), 1, "Sheet mounts one panel Material");
+        assert_eq!(material[0].depth, MaterialDepth::Panel);
+        assert_eq!(material[0].corner_radii, Corners::all(px(31.)));
+
+        cx.simulate_click(point(px(20.), px(100.)), Modifiers::default());
+
+        assert!(closed.get());
+        assert!(!cx.update(|window, cx| window.has_active_sheet(cx)));
     }
 }

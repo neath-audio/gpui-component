@@ -13,7 +13,10 @@ const MAX_MENU_HEIGHT: Pixels = px(480.);
 
 use crate::{
     ActiveTheme, IndexPath, Selectable, actions, h_flex,
-    input::{self, EditorState, popovers::editor_popover},
+    input::{
+        self, EditorState,
+        popovers::{editor_popover, editor_popover_material},
+    },
     list::{List, ListDelegate, ListEvent, ListState},
 };
 
@@ -313,7 +316,8 @@ impl Render for CodeActionMenu {
 
         let max_width = MAX_MENU_WIDTH.min(window.bounds().size.width - pos.x);
 
-        deferred(
+        deferred(editor_popover_material(
+            "code-action-menu-material",
             editor_popover("code-action-menu", cx)
                 .absolute()
                 .left(pos.x)
@@ -324,7 +328,8 @@ impl Render for CodeActionMenu {
                 .on_mouse_down_out(cx.listener(|this, _, _, cx| {
                     this.hide(cx);
                 })),
-        )
+            cx,
+        ))
         .into_any_element()
     }
 }

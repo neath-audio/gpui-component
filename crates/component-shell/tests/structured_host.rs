@@ -78,7 +78,7 @@ import { View, div } from "gpui-kit";
 import {
   DescriptionItem, DescriptionList, Field, HForm,
   Table, TableBody, TableCaption, TableHeader,
-} from "gpui-component";
+} from "gpui-neath";
 
 export default class StructuredApp extends View {
   render() {

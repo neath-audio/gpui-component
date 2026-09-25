@@ -468,7 +468,7 @@ Create and keep an `InputState` in `init()`, then render an Input with that stat
 JavaScript ranges use **UTF-16 string offsets**, matching `slice()` and `indexOf()`:
 
 ```javascript
-import { Input, InputState } from "gpui-component";
+import { Input, InputState } from "gpui-neath";
 
 // In init():
 this.input = InputState();

@@ -217,6 +217,17 @@ impl ResizableState {
         cx.notify();
     }
 
+    /// Sync the `fixed` flag of each panel from the group's children. Called
+    /// once per render (before the group's prepaint) so [`Self::adjust_to_container_size`]
+    /// sees the up-to-date flags when the container resizes.
+    pub(crate) fn sync_panel_fixed(&mut self, fixed: &[bool]) {
+        for (i, &flag) in fixed.iter().enumerate() {
+            if let Some(panel) = self.panels.get_mut(i) {
+                panel.fixed = flag;
+            }
+        }
+    }
+
     /// Remove the panel at `panel_ix` and redistribute the remaining space.
     pub fn remove_panel(&mut self, panel_ix: usize, cx: &mut Context<Self>) {
         self.panels.remove(panel_ix);
@@ -349,7 +360,9 @@ impl ResizableState {
 
     /// Adjust panel sizes according to the container size.
     ///
-    /// When the container size changes, the panels should take up the same percentage as they did before.
+    /// When the container size changes, non-fixed panels rescale proportionally
+    /// across the leftover space (`container - sum(fixed panel sizes)`); panels
+    /// marked with [`ResizablePanel::fixed`] keep their current pixel size.
     fn adjust_to_container_size(&mut self, cx: &mut Context<Self>) {
         if self.container_size().is_zero() {
             return;
@@ -371,13 +384,32 @@ impl ResizableState {
         if !total.is_finite() || total <= 0. {
             return;
         }
-        let total_size = px(total);
+        let fixed_total = px(self
+            .panels
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.fixed)
+            .map(|(i, _)| self.sizes[i].as_f32())
+            .sum::<f32>());
+        let flex_total = px(self
+            .panels
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| !p.fixed)
+            .map(|(i, _)| self.sizes[i].as_f32())
+            .sum::<f32>());
+        let leftover = (container_size - fixed_total).max(px(0.));
 
         for i in 0..self.panels.len() {
-            let size = self.sizes[i];
-            let ratio = size / total_size;
-            let new_size = container_size * ratio;
-
+            if self.panels[i].fixed {
+                // Fixed panels keep their pixel size across container resize.
+                continue;
+            }
+            if flex_total.is_zero() {
+                continue;
+            }
+            let ratio = self.sizes[i] / flex_total;
+            let new_size = leftover * ratio;
             self.sizes[i] = new_size;
             self.panels[i].size = Some(new_size);
         }
@@ -392,6 +424,9 @@ pub(crate) struct ResizablePanelState {
     pub size: Option<Pixels>,
     pub size_range: Range<Pixels>,
     bounds: Bounds<Pixels>,
+    /// When true, this panel is excluded from [`ResizableState::adjust_to_container_size`]
+    /// — it keeps its pixel size while the rest of the group rescales.
+    fixed: bool,
 }
 
 #[cfg(test)]
@@ -755,6 +790,121 @@ mod tests {
                 ResizeHandleState::Idle,
             ]
         );
+    }
+
+    struct FixedResizableHarness {
+        state: gpui::Entity<ResizableState>,
+        width: gpui::Pixels,
+        fixed_panel_ix: usize,
+    }
+
+    impl Render for FixedResizableHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let first = if self.fixed_panel_ix == 0 {
+                resizable_panel().size(px(180.)).fixed(true)
+            } else {
+                resizable_panel()
+            }
+            .child(
+                div()
+                    .size_full()
+                    .debug_selector(|| "fixed-first-panel".into()),
+            );
+            let second = if self.fixed_panel_ix == 1 {
+                resizable_panel().size(px(180.)).fixed(true)
+            } else {
+                resizable_panel()
+            }
+            .child(
+                div()
+                    .size_full()
+                    .debug_selector(|| "fixed-second-panel".into()),
+            );
+
+            div().w(self.width).h(px(100.)).child(
+                h_resizable("fixed-resizable")
+                    .with_state(&self.state)
+                    .child(first)
+                    .child(second),
+            )
+        }
+    }
+
+    fn assert_fixed_panel_widths(
+        cx: &mut VisualTestContext,
+        first: gpui::Pixels,
+        second: gpui::Pixels,
+    ) {
+        assert_eq!(
+            cx.debug_bounds("fixed-first-panel").unwrap().size.width,
+            first
+        );
+        assert_eq!(
+            cx.debug_bounds("fixed-second-panel").unwrap().size.width,
+            second
+        );
+    }
+
+    /// A drag or programmatic resize makes every slot concrete. The fixed
+    /// policy must still keep the pinned slot in pixels when the container
+    /// later grows or shrinks; `.flex_none()` alone only fixes first layout.
+    #[gpui::test]
+    fn fixed_panels_keep_pixels_after_resize_and_container_reflow(cx: &mut TestAppContext) {
+        for fixed_panel_ix in [0, 1] {
+            let state = cx.update(|cx| cx.new(|_| ResizableState::default()));
+            let (view, window_cx) = cx.add_window_view({
+                let state = state.clone();
+                move |_, _| FixedResizableHarness {
+                    state,
+                    width: px(400.),
+                    fixed_panel_ix,
+                }
+            });
+
+            window_cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                window.draw(cx).clear(cx);
+            });
+
+            window_cx.update(|window, cx| {
+                state.update(cx, |state, cx| {
+                    state.resize_panel(fixed_panel_ix, px(200.), window, cx);
+                });
+                window.draw(cx).clear(cx);
+            });
+            state.read_with(window_cx, |state, _| {
+                assert!(state.panels.iter().all(|panel| panel.size.is_some()));
+            });
+            assert_fixed_panel_widths(window_cx, px(200.), px(200.));
+
+            view.update(window_cx, |view, cx| {
+                view.width = px(600.);
+                cx.notify();
+            });
+            window_cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                window.draw(cx).clear(cx);
+            });
+            if fixed_panel_ix == 0 {
+                assert_fixed_panel_widths(window_cx, px(200.), px(400.));
+            } else {
+                assert_fixed_panel_widths(window_cx, px(400.), px(200.));
+            }
+
+            view.update(window_cx, |view, cx| {
+                view.width = px(340.);
+                cx.notify();
+            });
+            window_cx.update(|window, cx| {
+                window.draw(cx).clear(cx);
+                window.draw(cx).clear(cx);
+            });
+            if fixed_panel_ix == 0 {
+                assert_fixed_panel_widths(window_cx, px(200.), px(140.));
+            } else {
+                assert_fixed_panel_widths(window_cx, px(140.), px(200.));
+            }
+        }
     }
 
     struct SizedGroupHarness;

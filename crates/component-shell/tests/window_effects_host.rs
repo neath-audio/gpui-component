@@ -5,7 +5,7 @@ use gpui::{
     AppContext as _, Modifiers, ParentElement as _, Styled as _, TestAppContext, VisualTestContext,
     point, px,
 };
-use gpui_component::{Root, WindowExt as _};
+use gpui_neath::{Root, WindowExt as _};
 use std::{
     cell::RefCell,
     fs,
@@ -171,7 +171,7 @@ fn real_click_events_open_native_surfaces_and_build_lazy_content(cx: &mut TestAp
     let app = TempApp::new(
         r#"
 import { View, div } from "gpui-kit";
-import { Dialog, AlertDialog, Sheet, Notification, EffectMarker } from "gpui-component";
+import { Dialog, AlertDialog, Sheet, Notification, EffectMarker } from "gpui-neath";
 export default class App extends View {
  init() { this.errors = 0; this.closed = 0; }
  render() { const report = (_message, cx) => { this.errors += 1; cx.notify(); };
@@ -215,8 +215,7 @@ export default class App extends View {
     context.update(|window, cx| window.draw(cx).clear(cx));
     context.update(|window, cx| window.draw(cx).clear(cx));
     assert!(builds().iter().any(|item| item == "dialog-lazy"));
-    context
-        .update(|window, cx| window.dispatch_action(Box::new(gpui_component::dialog::Cancel), cx));
+    context.update(|window, cx| window.dispatch_action(Box::new(gpui_neath::dialog::Cancel), cx));
 
     assert!(!builds().iter().any(|item| item == "sheet-lazy"));
     context.simulate_click(point(px(80.), px(50.)), Modifiers::default());
@@ -231,8 +230,7 @@ export default class App extends View {
 
     context.simulate_click(point(px(80.), px(84.)), Modifiers::default());
     context.update(|window, cx| assert!(window.has_active_dialog(cx)));
-    context
-        .update(|window, cx| window.dispatch_action(Box::new(gpui_component::dialog::Cancel), cx));
+    context.update(|window, cx| window.dispatch_action(Box::new(gpui_neath::dialog::Cancel), cx));
 
     context.simulate_click(point(px(80.), px(118.)), Modifiers::default());
     context.update(|window, cx| assert_eq!(window.notifications(cx).len(), 1));
@@ -268,7 +266,7 @@ fn closed_alert_and_notification_reject_common_named_slots(cx: &mut TestAppConte
     ] {
         let source = format!(
             r#"import {{ View, div }} from "gpui-kit";
-import {{ AlertDialog, Notification }} from "gpui-component";
+import {{ AlertDialog, Notification }} from "gpui-neath";
 export default class App extends View {{ render() {{ return {}; }} }}"#,
             expression
         );
@@ -301,7 +299,7 @@ fn dialog_and_sheet_duplicate_content_is_last_call_wins(cx: &mut TestAppContext)
     ] {
         let source = format!(
             r#"import {{ View }} from "gpui-kit";
-import {{ Dialog, Sheet, EffectMarker }} from "gpui-component";
+import {{ Dialog, Sheet, EffectMarker }} from "gpui-neath";
 export default class App extends View {{ render() {{ return {}; }} }}"#,
             expression
         );
@@ -342,7 +340,7 @@ export default class App extends View {{ render() {{ return {}; }} }}"#,
 #[gpui::test]
 fn failed_factory_and_failed_reporter_are_both_diagnosed(cx: &mut TestAppContext) {
     let source = r#"import { View } from "gpui-kit";
-import { Dialog, EffectMarker } from "gpui-component";
+import { Dialog, EffectMarker } from "gpui-neath";
 export default class App extends View { render() { return new Dialog("fail", "Fail", () => { throw new Error("reporter exploded"); }).content(new EffectMarker("fail")); } }"#;
     cx.update(|cx| {
         gpui_component_shell::init(cx);

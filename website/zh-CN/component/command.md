@@ -313,9 +313,9 @@ Command::new(&state)
 5. 在 `on_cancel` 后让宿主 Dialog 拥有取消行为；使用 header 和 footer 承载应用自有的状态和提示。
 6. 每个独立渲染的面板使用各自的 [`CommandState`]。
 
-[Command]: https://docs.rs/gpui-component/latest/gpui_component/command/struct.Command.html
-[CommandState]: https://docs.rs/gpui-component/latest/gpui_component/command/struct.CommandState.html
-[CommandGroup]: https://docs.rs/gpui-component/latest/gpui_component/command/struct.CommandGroup.html
-[WindowExt::open_dialog]: https://docs.rs/gpui-component/latest/gpui_component/trait.WindowExt.html#tymethod.open_dialog
+[Command]: https://docs.rs/gpui-neath/latest/gpui_neath/command/struct.Command.html
+[CommandState]: https://docs.rs/gpui-neath/latest/gpui_neath/command/struct.CommandState.html
+[CommandGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/command/struct.CommandGroup.html
+[WindowExt::open_dialog]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.WindowExt.html#tymethod.open_dialog
 [Focusable::focus_handle]: https://docs.rs/gpui/latest/gpui/trait.Focusable.html#tymethod.focus_handle
 [Styled]: https://docs.rs/gpui/latest/gpui/trait.Styled.html

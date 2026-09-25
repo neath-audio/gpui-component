@@ -67,7 +67,7 @@ Editor::new(&editor)
 
 ## 字体与表现
 
-Editor 没有独立字体设置，而是使用环境文本样式。可在外层元素设置 `font_family`、`text_size`、字重和行高。应用负责编辑器颜色、行号槽、折叠图标和覆盖层；使用 `InputEditorStyle`、`FoldIconRenderer` 与 provider trait 接入。现成视觉方案参见 [`gpui-component` Editor](../../component/editor.md)。
+Editor 没有独立字体设置，而是使用环境文本样式。可在外层元素设置 `font_family`、`text_size`、字重和行高。应用负责编辑器颜色、行号槽、折叠图标和覆盖层；使用 `InputEditorStyle`、`FoldIconRenderer` 与 provider trait 接入。现成视觉方案参见 [`gpui-neath` Editor](../../component/editor.md)。
 
 ## 可运行示例
 

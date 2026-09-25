@@ -276,7 +276,7 @@ state.update(cx, |state, cx| {
 表格同一时刻只有一个选中状态：未选中、选中一行、选中一列或选中一个单元格。`selection()` 把它作为一个 `TableSelection` 值返回，`set_selection()` 则整体写回，保存和恢复选中状态只需一读一写：
 
 ```rust
-use gpui_component::table::TableSelection;
+use gpui_neath::table::TableSelection;
 
 match state.read(cx).selection() {
     TableSelection::None => {}
@@ -424,11 +424,11 @@ DataTable::new(&state)
 - `movable(bool)`
 - `selectable(bool)`
 
-[DataTable]: https://docs.rs/gpui-component/latest/gpui_component/table/struct.DataTable.html
-[TableState]: https://docs.rs/gpui-component/latest/gpui_component/table/struct.TableState.html
-[TableDelegate]: https://docs.rs/gpui-component/latest/gpui_component/table/trait.TableDelegate.html
-[Column]: https://docs.rs/gpui-component/latest/gpui_component/table/struct.Column.html
-[TableEvent]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.TableEvent.html
-[TableSelection]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.TableSelection.html
-[ColumnSort]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.ColumnSort.html
-[ColumnFixed]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.ColumnFixed.html
+[DataTable]: https://docs.rs/gpui-neath/latest/gpui_neath/table/struct.DataTable.html
+[TableState]: https://docs.rs/gpui-neath/latest/gpui_neath/table/struct.TableState.html
+[TableDelegate]: https://docs.rs/gpui-neath/latest/gpui_neath/table/trait.TableDelegate.html
+[Column]: https://docs.rs/gpui-neath/latest/gpui_neath/table/struct.Column.html
+[TableEvent]: https://docs.rs/gpui-neath/latest/gpui_neath/table/enum.TableEvent.html
+[TableSelection]: https://docs.rs/gpui-neath/latest/gpui_neath/table/enum.TableSelection.html
+[ColumnSort]: https://docs.rs/gpui-neath/latest/gpui_neath/table/enum.ColumnSort.html
+[ColumnFixed]: https://docs.rs/gpui-neath/latest/gpui_neath/table/enum.ColumnFixed.html

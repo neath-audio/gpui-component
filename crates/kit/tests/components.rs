@@ -1,12 +1,12 @@
 mod common;
 use gpui::{AppContext, Context, Entity, TestAppContext, Window, div, prelude::*, px, size};
-use gpui_component::{
+use gpui_kit::test::{TestSupportExt, TestWindowExt};
+use gpui_neath::{
     Disableable,
     button::Button,
     input::{Input, InputState},
     popover::Popover,
 };
-use gpui_kit::test::{TestSupportExt, TestWindowExt};
 
 struct Controls {
     input: Entity<InputState>,
@@ -46,7 +46,7 @@ impl Render for Controls {
 
 #[gpui::test]
 fn kit_controls_use_native_events_and_report_state(cx: &mut TestAppContext) {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     let (handle, handle_content) =
         common::open_window(cx, Some(size(px(600.), px(500.))), |window, cx| {
             cx.new(|cx| Controls {
@@ -86,7 +86,7 @@ impl Render for NamedButton {
 
 #[gpui::test]
 fn button_reports_accessibility_name_without_claiming_visible_text(cx: &mut TestAppContext) {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     let (handle, _) = common::open_window(cx, None, |_, cx| cx.new(|_| NamedButton));
     cx.update_window(handle.into(), |_, window, cx| {
         window.draw(cx).clear(cx);
@@ -100,7 +100,7 @@ struct ScrollFocus {
 }
 impl Render for ScrollFocus {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        use gpui_component::scroll::ScrollableElement as _;
+        use gpui_neath::scroll::ScrollableElement as _;
         div()
             .id("original")
             .test_support()
@@ -112,7 +112,7 @@ impl Render for ScrollFocus {
 }
 #[gpui_kit::test]
 fn scrollable_elements_forward_observed_focus_binding(cx: &mut TestAppContext) {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     let (handle, handle_content) = common::open_window(cx, None, |_, cx| {
         cx.new(|cx| ScrollFocus {
             focus: cx.focus_handle(),

@@ -28,7 +28,7 @@ back to back — a full layout and paint per frame, charged to the application.
 Right-click switches it to `FPS`, frames actually presented per second; click
 collapses the HUD to a tag. The reasoning is in the [FPS Monitor docs].
 
-It does not depend on `gpui-component`, so it works in any GPUI application.
+It does not depend on `gpui-neath`, so it works in any GPUI application.
 
 [FPS Monitor docs]: https://gpui-kit.com/docs/fps
 

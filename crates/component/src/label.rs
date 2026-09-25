@@ -5,7 +5,7 @@ use gpui::{
     Styled, StyledText, Window, div, prelude::FluentBuilder, rems,
 };
 
-use crate::{ActiveTheme, StyledExt};
+use crate::{ActiveTheme, Sizable, Size, StyledExt};
 
 const MASKED: &'static str = "•";
 
@@ -52,6 +52,7 @@ impl From<SharedString> for HighlightsMatch {
 #[derive(IntoElement)]
 pub struct Label {
     style: StyleRefinement,
+    size: Size,
     label: SharedString,
     secondary: Option<SharedString>,
     masked: bool,
@@ -64,6 +65,7 @@ impl Label {
         let label: SharedString = label.into();
         Self {
             style: Default::default(),
+            size: Size::Medium,
             label,
             secondary: None,
             masked: false,
@@ -195,6 +197,13 @@ impl Styled for Label {
     }
 }
 
+impl Sizable for Label {
+    fn with_size(mut self, size: impl Into<Size>) -> Self {
+        self.size = size.into();
+        self
+    }
+}
+
 impl RenderOnce for Label {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let mut text = self.full_text();
@@ -208,6 +217,7 @@ impl RenderOnce for Label {
 
         div()
             .line_height(rems(1.25))
+            .text_size(self.size.control_text_size())
             .text_color(cx.theme().foreground)
             .refine_style(&self.style)
             .child(

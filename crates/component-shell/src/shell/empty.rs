@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::empty::{
+use gpui_neath::empty::{
     Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle,
 };
 use gpui_shell::{

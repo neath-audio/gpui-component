@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Both `History<T>` and `UndoHistory<T>` are public from `gpui-base` and the legacy `gpui-component::history` path.
+- Both `History<T>` and `UndoHistory<T>` are public from `gpui-base` and the legacy `gpui-neath::history` path.
 - Remove `HistoryItem` and the old overloaded API without deprecated aliases.
 - `History::back` and `History::forward` return the destination entry.
 - `History::back` never removes the root.
@@ -148,8 +148,8 @@ entries, limit eviction, zero capacity, replace, remove, retain on both stacks,
 and clear. In `base_compat.rs`, compile both legacy re-exports:
 
 ```rust
-let _: gpui_component::history::History<u8> = gpui_base::History::new();
-let _: gpui_component::history::UndoHistory<u8> = gpui_base::UndoHistory::new();
+let _: gpui_neath::history::History<u8> = gpui_base::History::new();
+let _: gpui_neath::history::UndoHistory<u8> = gpui_base::UndoHistory::new();
 ```
 
 - [ ] **Step 2: Run tests and verify RED before changing production code**
@@ -220,13 +220,13 @@ implementation, and the unused import from Input.
 - [ ] **Step 6: Finish exports and verify GREEN**
 
 Export `History` and `UndoHistory` from `gpui-base`, re-export both from
-`gpui-component::history`, and run:
+`gpui-neath::history`, and run:
 
 ```bash
 cargo test -p gpui-base history::tests --lib
 cargo test -p gpui-base nav_stack --lib
 cargo test -p gpui-base dock --lib
-cargo test -p gpui-component --test base_compat legacy_history_path_reexports_the_base_type
+cargo test -p gpui-neath --test base_compat legacy_history_path_reexports_the_base_type
 rg -n "HistoryItem|\.undos\(|\.redos\(" crates --glob '*.rs'
 ```
 
@@ -269,7 +269,7 @@ cargo test -p gpui-base history::tests --lib
 cargo test -p gpui-base undo_history::tests --lib
 cargo test -p gpui-base nav_stack --lib
 cargo test -p gpui-base dock --lib
-cargo test -p gpui-component --test base_compat
+cargo test -p gpui-neath --test base_compat
 ```
 
 Expected: all commands exit zero with no failed tests.

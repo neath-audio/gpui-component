@@ -124,7 +124,7 @@ Host 在取这个依赖之前必须知道两个数：二进制大多少，内存
 | 二进制，unstripped | 16.5 MiB | 33.8 MiB | +17.3 MiB |
 | 常驻内存 | 67 MiB | 81 MiB | **+14 MiB** |
 
-`hello_world` 是 41 行 Rust，跑在 `gpui` 和 `gpui-component` 上——一个窗口和一个计数器。`gpui-shell` CLI 是能跑起一个脚本应用的最小 Host；这里它跑的是 `examples/js_todolist`，四个模块共 519 行 JavaScript，背后是一个活的 QuickJS 运行时。内存取四次运行的中位数，丢弃缓存还冷时读数偏高的第一次；二进制是 `--release`、workspace 默认 profile，用 `strip(1)` 处理。
+`hello_world` 是 41 行 Rust，跑在 `gpui` 和 `gpui-neath` 上——一个窗口和一个计数器。`gpui-shell` CLI 是能跑起一个脚本应用的最小 Host；这里它跑的是 `examples/js_todolist`，四个模块共 519 行 JavaScript，背后是一个活的 QuickJS 运行时。内存取四次运行的中位数，丢弃缓存还冷时读数偏高的第一次；二进制是 `--release`、workspace 默认 profile，用 `strip(1)` 处理。
 
 **+13.5 MiB 是个常数，这是这里最有用的一点。** 同一对测量放到组件 gallery 上——一个体量五倍于此的程序——stripped 增加的还是 13.5 MiB，只是占比从 +107% 变成 +19.8%。两次独立测量在三位有效数字上一致，这才让它成为关于 `gpui-shell` 的事实，而不是对某一个应用的一次读数。
 
@@ -132,7 +132,7 @@ Host 在取这个依赖之前必须知道两个数：二进制大多少，内存
 
 ### 二进制大在哪
 
-主要不是 QuickJS。解释器本身一到两 MB，剩下的是随它一起来的标准运行时。`fetch`、`websocket` 和 `crypto` 带进了 `hyper`、`rustls`、`ring`、`h2`、一份 `webpki` 根证书库和压缩相关的 crate，而 `gpui-component` 一个都不带——`hello_world` 里没有 HTTP、没有 TLS、也没有 `tokio`。整个这套栈都是从这个 crate 进来的。
+主要不是 QuickJS。解释器本身一到两 MB，剩下的是随它一起来的标准运行时。`fetch`、`websocket` 和 `crypto` 带进了 `hyper`、`rustls`、`ring`、`h2`、一份 `webpki` 根证书库和压缩相关的 crate，而 `gpui-neath` 一个都不带——`hello_world` 里没有 HTTP、没有 TLS、也没有 `tokio`。整个这套栈都是从这个 crate 进来的。
 
 这也解释了这张表更早的一版为什么写的是 +4.7 MiB：那是标准运行时之前的数字。`fs`、`net`、`crypto`、`fetch`、`websocket`、`zlib` 都是之后才加进来的。
 

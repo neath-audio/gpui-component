@@ -83,7 +83,7 @@ fn hover_card_materializes_real_trigger_content_style_and_closed_methods(cx: &mu
         cx,
         r#"
 import { div, View } from "gpui-kit";
-import { HoverCard } from "gpui-component";
+import { HoverCard } from "gpui-neath";
 export default class OverlayHost extends View {
   render() {
     return new HoverCard("profile")
@@ -127,7 +127,7 @@ fn hover_card_rejects_whitespace_identity(cx: &mut TestAppContext) {
         cx,
         r#"
 import { View } from "gpui-kit";
-import { HoverCard } from "gpui-component";
+import { HoverCard } from "gpui-neath";
 export default class InvalidIdentity extends View {
   render() { return new HoverCard("  \t "); }
 }

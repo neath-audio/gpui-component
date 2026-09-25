@@ -1,8 +1,6 @@
 use super::Empty;
 use super::{Carrier, take};
-use gpui_component::{
-    ResizablePanel, ResizablePanelGroup, h_resizable, resizable_panel, v_resizable,
-};
+use gpui_neath::{ResizablePanel, ResizablePanelGroup, h_resizable, resizable_panel, v_resizable};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

@@ -344,7 +344,7 @@
       "source": "ui",
       "name": "dock",
       "classification": "infrastructure",
-      "explanation": "Dock is an application layout subsystem already exposed directly by gpui-shell; it is not a singular gpui-component constructor."
+      "explanation": "Dock is an application layout subsystem already exposed directly by gpui-shell; it is not a singular gpui-neath constructor."
     },
     {
       "source": "ui",
@@ -2190,7 +2190,7 @@
       "source": "story",
       "name": "shell",
       "classification": "infrastructure",
-      "explanation": "Story application shell and navigation infrastructure; it is not a gpui-component constructor."
+      "explanation": "Story application shell and navigation infrastructure; it is not a gpui-neath constructor."
     },
     {
       "source": "story",
@@ -2532,13 +2532,13 @@
       "source": "story",
       "name": "virtual_list",
       "classification": "infrastructure",
-      "explanation": "VirtualList is already a gpui-base primitive re-exported through gpui-shell, not a gpui-component registry surface."
+      "explanation": "VirtualList is already a gpui-base primitive re-exported through gpui-shell, not a gpui-neath registry surface."
     },
     {
       "source": "story",
       "name": "welcome",
       "classification": "infrastructure",
-      "explanation": "Story gallery landing content; it is not a gpui-component constructor."
+      "explanation": "Story gallery landing content; it is not a gpui-neath constructor."
     },
     {
       "source": "ui",

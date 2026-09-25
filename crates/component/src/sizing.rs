@@ -1,4 +1,4 @@
-use gpui::{Edges, Pixels, Styled, px};
+use gpui::{Edges, Pixels, Rems, Styled, px, rems};
 use serde::{Deserialize, Serialize};
 
 /// A size for elements.
@@ -61,6 +61,58 @@ impl Size {
             Size::Small => px(30.),
             Size::Large => px(40.),
             _ => px(32.),
+        }
+    }
+
+    /// Single type scale. 16px rem base; these are the only named text sizes.
+    pub fn text_size(&self) -> Rems {
+        match self {
+            Size::XSmall => rems(0.625),
+            Size::Small => rems(0.75),
+            Size::Medium => rems(0.8125),
+            Size::Large => rems(0.9375),
+            Size::Size(size) => rems(size.as_f32() / 16.0),
+        }
+    }
+
+    /// Type used by `.xsmall()`/`.small()`/`.medium()`/`.large()` controls.
+    /// XSmall chrome uses Small type (12px). Caption 10px is only
+    /// [`Self::text_size`] on `Size::XSmall`, the same way Large 15px is
+    /// explicit display type.
+    pub fn control_text_size(&self) -> Rems {
+        match self {
+            Size::XSmall => Size::Small.text_size(),
+            other => other.text_size(),
+        }
+    }
+
+    pub fn input_text_size(&self) -> Rems {
+        self.control_text_size()
+    }
+
+    pub fn button_text_size(&self) -> Rems {
+        self.control_text_size()
+    }
+
+    pub fn table_text_size(&self) -> Rems {
+        self.control_text_size()
+    }
+
+    /// Menus may be Small (12) or Medium (13) only. Large and custom clamp to Medium.
+    pub fn menu_text_size(&self) -> Rems {
+        match self {
+            Size::XSmall | Size::Small => Size::Small.text_size(),
+            Size::Medium | Size::Large | Size::Size(_) => Size::Medium.text_size(),
+        }
+    }
+
+    /// Hard height for a single-line menu row. Compact (xsmall/small) is
+    /// 20px; standard is 25px. Select/Combobox/PopoverRow stay padding-based
+    /// via [`StyleSized::list_py`].
+    pub fn list_row_height(&self) -> Pixels {
+        match self {
+            Size::XSmall | Size::Small => px(20.),
+            _ => px(25.),
         }
     }
 
@@ -231,13 +283,7 @@ pub trait StyleSized<T: Styled> {
 impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn input_text_size(self, size: Size) -> Self {
-        match size {
-            Size::XSmall => self.text_xs(),
-            Size::Small => self.text_sm(),
-            Size::Medium => self.text_sm(),
-            Size::Large => self.text_base(),
-            Size::Size(size) => self.text_size(size * 0.875),
-        }
+        self.text_size(size.control_text_size())
     }
 
     #[inline]
@@ -284,8 +330,10 @@ impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn list_px(self, size: Size) -> Self {
         match size {
-            Size::Small => self.px_2(),
-            _ => self.px_3(),
+            // Compact (xsmall) item gutter is 6px; every other open row is 8px.
+            // Plus List/menu content inset (4px) that is 10 / 12 to the text.
+            Size::XSmall => self.px_1p5(),
+            _ => self.px_2(),
         }
     }
 
@@ -294,7 +342,7 @@ impl<T: Styled> StyleSized<T> for T {
         match size {
             Size::Large => self.py_2(),
             Size::Medium => self.py_1(),
-            Size::Small => self.py_0p5(),
+            Size::Small | Size::XSmall => self.py_0p5(),
             _ => self.py_1(),
         }
     }
@@ -313,30 +361,61 @@ impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn table_cell_size(self, size: Size) -> Self {
         let padding = size.table_cell_padding();
-        match size {
-            Size::XSmall => self.text_sm(),
-            Size::Small => self.text_sm(),
-            _ => self,
-        }
-        .pl(padding.left)
-        .pr(padding.right)
-        .pt(padding.top)
-        .pb(padding.bottom)
+        self.text_size(size.control_text_size())
+            .pl(padding.left)
+            .pr(padding.right)
+            .pt(padding.top)
+            .pb(padding.bottom)
     }
 
     fn button_text_size(self, size: Size) -> Self {
-        match size {
-            Size::XSmall => self.text_xs(),
-            Size::Small => self.text_sm(),
-            _ => self.text_base(),
-        }
+        self.text_size(size.control_text_size())
     }
 }
 #[cfg(test)]
 mod tests {
-    use gpui::px;
+    use gpui::{px, rems};
 
     use crate::Size;
+
+    #[test]
+    fn text_size_is_the_type_table() {
+        assert_eq!(Size::XSmall.text_size(), rems(0.625));
+        assert_eq!(Size::Small.text_size(), rems(0.75));
+        assert_eq!(Size::Medium.text_size(), rems(0.8125));
+        assert_eq!(Size::Large.text_size(), rems(0.9375));
+    }
+
+    #[test]
+    fn style_sized_text_maps_are_the_size_table() {
+        assert_eq!(Size::XSmall.text_size(), rems(0.625));
+        assert_eq!(Size::XSmall.control_text_size(), rems(0.75));
+        for size in [Size::XSmall, Size::Small, Size::Medium, Size::Large] {
+            assert_eq!(size.input_text_size(), size.control_text_size());
+            assert_eq!(size.button_text_size(), size.control_text_size());
+            assert_eq!(size.table_text_size(), size.control_text_size());
+        }
+        for size in [Size::Small, Size::Medium, Size::Large] {
+            assert_eq!(size.control_text_size(), size.text_size());
+        }
+    }
+
+    #[test]
+    fn list_row_height_is_20_compact_25_standard() {
+        assert_eq!(Size::XSmall.list_row_height(), px(20.));
+        assert_eq!(Size::Small.list_row_height(), px(20.));
+        assert_eq!(Size::Medium.list_row_height(), px(25.));
+        assert_eq!(Size::Large.list_row_height(), px(25.));
+    }
+
+    #[test]
+    fn menu_text_size_is_small_or_medium_only() {
+        assert_eq!(Size::XSmall.menu_text_size(), rems(0.75));
+        assert_eq!(Size::Small.menu_text_size(), rems(0.75));
+        assert_eq!(Size::Medium.menu_text_size(), rems(0.8125));
+        assert_eq!(Size::Large.menu_text_size(), rems(0.8125));
+        assert_eq!(Size::Size(px(40.)).menu_text_size(), rems(0.8125));
+    }
 
     #[test]
     fn test_size_max_min() {

@@ -108,6 +108,18 @@ pub trait TableDelegate: Sized + 'static {
         menu
     }
 
+    /// Render the context menu shown when the user right-clicks an EMPTY
+    /// area of the table (no row under the cursor). Default: the menu
+    /// unchanged (no items → no popup). Mirrors `context_menu`.
+    fn context_menu_empty(
+        &mut self,
+        menu: PopupMenu,
+        _window: &mut Window,
+        _cx: &mut Context<TableState<Self>>,
+    ) -> PopupMenu {
+        menu
+    }
+
     /// Render cell at the given row and column.
     fn render_td(
         &mut self,

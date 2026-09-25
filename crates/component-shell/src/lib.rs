@@ -1,8 +1,8 @@
 //! JavaScript component bindings for [`gpui_shell`].
 //!
-//! This crate is the only place concrete `gpui-component` knowledge belongs.
+//! This crate is the only place concrete `gpui-neath` knowledge belongs.
 //! The dependency edge runs one way: this crate uses both `gpui-shell` and
-//! `gpui-component`, and the runtime depends on neither this crate nor the
+//! `gpui-neath`, and the runtime depends on neither this crate nor the
 //! component library, so it stays usable without a component catalog.
 
 mod shell;
@@ -17,7 +17,7 @@ mod shell;
 /// registry — the shipped command, for one — gets the same startup through
 /// [`gpui_shell::init_with_components`].
 pub fn init(cx: &mut gpui_shell::gpui::App) {
-    gpui_component::init(cx);
+    gpui_neath::init(cx);
     gpui_shell::init(cx);
 }
 
@@ -27,7 +27,7 @@ pub fn components() -> Result<gpui_shell::FrozenComponentRegistry, gpui_shell::R
         gpui_shell::COMPONENT_REGISTRY_API_VERSION,
         gpui_shell::DEFAULT_COMPONENT_MODULE,
     )?
-    .with_initializer(gpui_component::init)
+    .with_initializer(gpui_neath::init)
     .with_window_opener(open_window_with_root);
     register(&mut registry)?;
     registry.freeze()
@@ -38,9 +38,9 @@ pub fn new_isolated_runtime() -> gpui_shell::anyhow::Result<std::rc::Rc<gpui_she
     gpui_shell::ShellRuntime::new_isolated_with_components(components()?)
 }
 
-/// Opens the window with `gpui_component::Root` as its root view.
+/// Opens the window with `gpui_neath::Root` as its root view.
 ///
-/// Every `gpui-component` overlay — dialog, alert dialog, sheet, notification —
+/// Every `gpui-neath` overlay — dialog, alert dialog, sheet, notification —
 /// finds its host with `window.root::<Root>()` and panics when the window is
 /// rooted at anything else. The runtime installs its own `ShellRoot` and cannot
 /// name `Root`, so the catalog that needs one supplies it here. `ShellRoot`
@@ -57,7 +57,7 @@ fn open_window_with_root(
 
     let handle = cx.open_window(options, |window, cx| {
         let inner = build(window, cx);
-        cx.new(|cx| gpui_component::Root::new(inner, window, cx))
+        cx.new(|cx| gpui_neath::Root::new(inner, window, cx))
     })?;
     Ok(handle.into())
 }
@@ -83,13 +83,13 @@ mod tests {
             .0;
 
         assert!(
-            !dependencies.contains("gpui-component"),
+            !dependencies.contains("gpui-neath"),
             "`gpui-shell` must stay free of the concrete component catalog; \
              the adapter depends on both, not the runtime on one"
         );
     }
 
-    /// Every `gpui-component` overlay locates its host with
+    /// Every `gpui-neath` overlay locates its host with
     /// `window.root::<Root>()` and panics when the window is rooted at anything
     /// else. The runtime roots its window at `ShellRoot`, so unless the catalog
     /// supplies the `Root` itself, every dialog, alert dialog, sheet and
@@ -119,12 +119,12 @@ mod tests {
 
         let found = handle
             .update(cx, |_, window, _| {
-                window.root::<gpui_component::Root>().is_some()
+                window.root::<gpui_neath::Root>().is_some()
             })
             .expect("the window must be live");
         assert!(
             found,
-            "the window is not rooted at gpui_component::Root, so every overlay would panic"
+            "the window is not rooted at gpui_neath::Root, so every overlay would panic"
         );
     }
 
@@ -135,7 +135,7 @@ mod tests {
     #[gpui::test]
     fn a_dialog_opened_through_the_catalog_window_is_drawn(cx: &mut gpui::TestAppContext) {
         use gpui::AppContext as _;
-        use gpui_component::WindowExt as _;
+        use gpui_neath::WindowExt as _;
 
         let components = crate::components().unwrap();
         let open = components.window_opener().unwrap();
@@ -190,7 +190,7 @@ mod tests {
     fn init_installs_the_component_catalog_globals(cx: &mut gpui::TestAppContext) {
         cx.update(crate::init);
 
-        cx.read(|cx| assert!(cx.has_global::<gpui_component::Theme>()));
+        cx.read(|cx| assert!(cx.has_global::<gpui_neath::Theme>()));
     }
 
     /// The shipped command builds a runtime from [`crate::components`] alone
@@ -204,7 +204,7 @@ mod tests {
 
         cx.update(|cx| gpui_shell::init_with_components(cx, &components));
 
-        cx.read(|cx| assert!(cx.has_global::<gpui_component::Theme>()));
+        cx.read(|cx| assert!(cx.has_global::<gpui_neath::Theme>()));
     }
 
     #[test]
@@ -400,7 +400,7 @@ mod tests {
 
         assert!(
             non_snake_case.is_empty(),
-            "descriptor vocabulary must follow gpui-component snake_case: {non_snake_case:?}"
+            "descriptor vocabulary must follow gpui-neath snake_case: {non_snake_case:?}"
         );
     }
 

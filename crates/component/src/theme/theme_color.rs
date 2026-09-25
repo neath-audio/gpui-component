@@ -65,6 +65,8 @@ pub struct ThemeColor {
     pub accordion: Hsla,
     /// Default background color.
     pub background: Hsla,
+    /// Window background color.
+    pub window_background: Hsla,
     /// Default border color
     pub border: Hsla,
     /// Default Button background color.
@@ -127,6 +129,8 @@ pub struct ThemeColor {
     pub group_box: Hsla,
     /// Text color for GroupBox.
     pub group_box_foreground: Hsla,
+    /// Title text color for GroupBox.
+    pub group_box_title_foreground: Hsla,
     /// Input caret color (Blinking cursor).
     pub caret: Hsla,
     /// Chart 1 color (`chart.1` in the theme file).
@@ -338,18 +342,105 @@ pub struct ThemeColor {
     pub cyan: Hsla,
     /// The base cyan light color.
     pub cyan_light: Hsla,
+
+    /// Strong border color for emphasized outlines and drop zones.
+    pub border_strong: Hsla,
+    /// Card background color.
+    pub card: Hsla,
+    /// Card foreground color.
+    pub card_foreground: Hsla,
+    /// Card border color.
+    pub card_border: Hsla,
+    /// Card hover background color.
+    pub card_hover: Hsla,
+    /// Card active background color.
+    pub card_active: Hsla,
+    /// Selected card background color.
+    pub card_selected: Hsla,
+    /// Selected card border color.
+    pub card_selected_border: Hsla,
+    /// Checked switch track background color.
+    pub switch_checked: Hsla,
+    /// Checked switch thumb background color.
+    pub switch_thumb_checked: Hsla,
+    /// Transport strip background color.
+    pub transport: Hsla,
+    /// Transport strip border color.
+    pub transport_border: Hsla,
+    /// Knob track background color.
+    pub knob: Hsla,
+    /// Knob value background color.
+    pub knob_value: Hsla,
+    /// Knob pointer foreground color.
+    pub knob_foreground: Hsla,
+    /// Low similarity score color.
+    pub similarity_low: Hsla,
+    /// Medium similarity score color.
+    pub similarity_medium: Hsla,
+    /// High similarity score color.
+    pub similarity_high: Hsla,
+    /// Meter fill color.
+    pub meter_fill: Hsla,
+    /// Meter held-peak color.
+    pub meter_peak: Hsla,
+    /// Meter track color.
+    pub meter_track: Hsla,
+    /// Meter clipping indicator color.
+    pub meter_clip: Hsla,
+    /// Waveform canvas background color.
+    pub waveform: Hsla,
+    /// Compact waveform thumbnail fill color.
+    pub waveform_thumbnail_fill: Hsla,
+    /// Main waveform fill color.
+    pub waveform_fill: Hsla,
+    /// Waveform fill inside a time selection.
+    pub waveform_time_selection_foreground: Hsla,
+    /// Time-selection band background color.
+    pub waveform_time_selection: Hsla,
+    /// Time-selection border color.
+    pub waveform_time_selection_border: Hsla,
+    /// Active time-selection border color.
+    pub waveform_time_selection_active_border: Hsla,
+    /// Waveform fill over a visual overlay.
+    pub waveform_overlay_fill: Hsla,
+    /// Waveform overlay zero-line color.
+    pub waveform_overlay_zero_line: Hsla,
+    /// Selected waveform fill over a visual overlay.
+    pub waveform_overlay_time_selection_foreground: Hsla,
+    /// Waveform zero-line color.
+    pub waveform_zero_line: Hsla,
+    /// Waveform fade-control color.
+    pub waveform_fade_control: Hsla,
+    /// Waveform playhead color.
+    pub waveform_playhead: Hsla,
+    /// Waveform ruler background color.
+    pub waveform_ruler: Hsla,
+    /// Waveform ruler foreground color.
+    pub waveform_ruler_foreground: Hsla,
+    /// Waveform channel-label background color.
+    pub waveform_channel_label: Hsla,
+    /// Waveform channel-label foreground color.
+    pub waveform_channel_label_foreground: Hsla,
+    /// Waveform marker background color.
+    pub waveform_marker: Hsla,
+    /// Waveform marker foreground color.
+    pub waveform_marker_foreground: Hsla,
+    /// Active waveform marker color.
+    pub waveform_marker_active: Hsla,
+    /// Waveform segment background color.
+    pub waveform_segment: Hsla,
+    /// Active waveform segment color.
+    pub waveform_segment_active: Hsla,
 }
 
 macro_rules! define_theme_tokens {
     ($($field:ident),+ $(,)?) => {
-        /// Legacy resolved tokens retained for compatibility with existing
-        /// `gpui-component` themes and components.
+        /// Schema-backed resolved tokens for `gpui-neath` and product roles.
         ///
-        /// This type intentionally includes component-specific fields such as
-        /// `button_primary`, `tab_active`, and `table_hover`. New application-owned
-        /// components should use [`gpui_base::SemanticThemeTokens`] instead. The
-        /// legacy fields remain public so existing theme files and direct field
-        /// access continue to work unchanged.
+        /// This is the complete public projection of [`ThemeColor`], including
+        /// component-specific and application-owned fields such as `button_primary`,
+        /// `tab_active`, and `waveform`. [`gpui_base::SemanticThemeTokens`] is the
+        /// smaller generic projection for code that depends only on `gpui-base`.
         #[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
         pub struct ThemeTokens {
             $(pub $field: ThemeToken,)+
@@ -405,6 +496,7 @@ define_theme_tokens! {
     accent_foreground,
     accordion,
     background,
+    window_background,
     border,
     button,
     button_active,
@@ -436,6 +528,7 @@ define_theme_tokens! {
     button_warning_hover,
     group_box,
     group_box_foreground,
+    group_box_title_foreground,
     caret,
     chart_1,
     chart_2,
@@ -539,6 +632,50 @@ define_theme_tokens! {
     magenta_light,
     cyan,
     cyan_light,
+    border_strong,
+    card,
+    card_foreground,
+    card_border,
+    card_hover,
+    card_active,
+    card_selected,
+    card_selected_border,
+    switch_checked,
+    switch_thumb_checked,
+    transport,
+    transport_border,
+    knob,
+    knob_value,
+    knob_foreground,
+    similarity_low,
+    similarity_medium,
+    similarity_high,
+    meter_fill,
+    meter_peak,
+    meter_track,
+    meter_clip,
+    waveform,
+    waveform_thumbnail_fill,
+    waveform_fill,
+    waveform_time_selection_foreground,
+    waveform_time_selection,
+    waveform_time_selection_border,
+    waveform_time_selection_active_border,
+    waveform_overlay_fill,
+    waveform_overlay_zero_line,
+    waveform_overlay_time_selection_foreground,
+    waveform_zero_line,
+    waveform_fade_control,
+    waveform_playhead,
+    waveform_ruler,
+    waveform_ruler_foreground,
+    waveform_channel_label,
+    waveform_channel_label_foreground,
+    waveform_marker,
+    waveform_marker_foreground,
+    waveform_marker_active,
+    waveform_segment,
+    waveform_segment_active,
 }
 
 impl ThemeColor {

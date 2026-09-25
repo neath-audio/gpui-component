@@ -15,7 +15,7 @@ use gpui_kit::shell::{HostModule, HostValue};
 
 gpui_kit::shell::export_module(
     HostModule::new("workspace")
-        .function("project_name", |_| Ok(HostValue::from("gpui-component")))
+        .function("project_name", |_| Ok(HostValue::from("gpui-neath")))
         .function("version", |_| Ok(HostValue::from("0.1.0"))),
 )?;
 ```
@@ -23,7 +23,7 @@ gpui_kit::shell::export_module(
 ```js
 import { project_name } from "workspace";
 
-project_name(); // "gpui-component"
+project_name(); // "gpui-neath"
 ```
 
 A registered module is an ordinary ES module, resolved by the same loader that answers `gpui-kit` and `path`. One call registers one module, and a repeated name replaces the earlier module rather than merging into it — a host with three of them calls `export_module` three times. The rest of this page is what that costs and what it refuses.

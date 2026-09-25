@@ -221,6 +221,10 @@ impl AlertDialog {
         self.0 = self.0.close_on_escape(value);
         self
     }
+    pub fn close_on_backdrop_press(mut self, value: bool) -> Self {
+        self.0 = self.0.close_on_backdrop_press(value);
+        self
+    }
     pub fn dismiss_below_y(mut self, value: Pixels) -> Self {
         self.0 = self.0.dismiss_below_y(value);
         self
@@ -297,6 +301,34 @@ mod tests {
         }
     }
 
+    struct ConfiguredHarness {
+        close_requested: Rc<Cell<bool>>,
+    }
+
+    impl Render for ConfiguredHarness {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let close_requested = self.close_requested.clone();
+            AlertDialog::new(cx)
+                .close_on_backdrop_press(true)
+                .request_close(move |_, _, _| close_requested.set(true))
+                .backdrop(div().size(px(200.)))
+        }
+    }
+
+    struct AbsoluteBackdropHarness {
+        close_requested: Rc<Cell<bool>>,
+    }
+
+    impl Render for AbsoluteBackdropHarness {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let close_requested = self.close_requested.clone();
+            AlertDialog::new(cx)
+                .close_on_backdrop_press(true)
+                .request_close(move |_, _, _| close_requested.set(true))
+                .backdrop(div().absolute().size_full())
+        }
+    }
+
     #[gpui::test]
     fn backdrop_is_not_closable_by_default(cx: &mut gpui::TestAppContext) {
         cx.update(crate::init);
@@ -310,5 +342,35 @@ mod tests {
         cx.simulate_click(point(px(20.), px(20.)), Default::default());
 
         assert!(!close_requested.get());
+    }
+
+    #[gpui::test]
+    fn configured_backdrop_is_closable(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let close_requested = Rc::new(Cell::new(false));
+        let (_, cx) = cx.add_window_view({
+            let close_requested = close_requested.clone();
+            move |_, _| ConfiguredHarness { close_requested }
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        cx.simulate_click(point(px(20.), px(20.)), Default::default());
+
+        assert!(close_requested.get());
+    }
+
+    #[gpui::test]
+    fn configured_absolute_backdrop_is_closable(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let close_requested = Rc::new(Cell::new(false));
+        let (_, cx) = cx.add_window_view({
+            let close_requested = close_requested.clone();
+            move |_, _| AbsoluteBackdropHarness { close_requested }
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        cx.simulate_click(point(px(20.), px(100.)), Default::default());
+
+        assert!(close_requested.get());
     }
 }

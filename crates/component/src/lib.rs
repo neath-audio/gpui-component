@@ -1,8 +1,13 @@
 use gpui::App;
 use std::ops::Deref;
 
+pub mod checkerboard;
 mod component_traits;
 mod element_ext;
+pub mod material;
+pub mod truncate;
+pub use material::{Material, MaterialDepth};
+
 pub mod global_state;
 mod icon;
 mod index_path;
@@ -93,6 +98,7 @@ pub use crate::Disableable;
 pub use element_ext::*;
 pub use global_state::GlobalState;
 pub use gpui_base::Root;
+pub use gpui_base::TextSelection;
 pub use gpui_base::animation;
 pub(crate) use gpui_base::measurement_enabled as measure_enable;
 #[doc(hidden)]
@@ -115,6 +121,8 @@ pub use styled::*;
 pub use theme::*;
 pub use time::{calendar, date_picker, time_field};
 pub use title_bar::*;
+pub use tooltip::ManagedTooltipExt;
+pub use truncate::*;
 pub use virtual_list::{VirtualList, VirtualListScrollHandle, h_virtual_list, v_virtual_list};
 pub use window_border::{WindowBorder, window_border, window_paddings};
 pub use window_ext::WindowExt;

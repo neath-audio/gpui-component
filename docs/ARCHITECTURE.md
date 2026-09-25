@@ -7,7 +7,7 @@ source-derived reference, not a migration plan. Public exports in
 `crates/base/src/lib.rs` and the Rust API documentation remain authoritative for
 individual methods.
 
-`gpui-base` is the reusable foundation below the styled `gpui-component` crate.
+`gpui-base` is the reusable foundation below the styled `gpui-neath` crate.
 It is designed for both of these callers:
 
 - `crates/component`, which adapts base behavior into GPUI Component's complete visual
@@ -37,7 +37,7 @@ control density, borders, radii, icons, variants, or final composition.
                        application
                      /             \
                     ▼               ▼
-       application-owned UI     gpui-component
+       application-owned UI     gpui-neath
                     \               /
                      └──────┬──────┘
                             ▼
@@ -46,8 +46,8 @@ control density, borders, radii, icons, variants, or final composition.
                            GPUI
 ```
 
-Dependencies point downward. `gpui-base` must not import `gpui-component`
-themes, assets, or façade types. `gpui-component::init` may initialize and theme
+Dependencies point downward. `gpui-base` must not import `gpui-neath`
+themes, assets, or façade types. `gpui-neath::init` may initialize and theme
 the base layer, but the base layer must also work when initialized directly.
 
 There is no Registry or CLI crate in the current workspace. Source distribution
@@ -259,7 +259,7 @@ mirror an external schema, such as the LSP `Diagnostic`.
 
 Design-token records (`ColorTokens`, `RadiusTokens`, and the rest of
 `theme_tokens`) still carry `pub` fields. They have the same growth problem, and
-converting them is tracked separately because every theme in `gpui-component`
+converting them is tracked separately because every theme in `gpui-neath`
 constructs them.
 
 ## Input, Textarea, and Editor Architecture
@@ -269,7 +269,7 @@ not need to learn the complete editor interface for every text field.
 
 ### Public forms
 
-Both `gpui-base` and `gpui-component` expose three purpose-specific forms:
+Both `gpui-base` and `gpui-neath` expose three purpose-specific forms:
 
 | Form       | State           | Intended interface                                                                                        |
 | ---------- | --------------- | --------------------------------------------------------------------------------------------------------- |
@@ -277,12 +277,12 @@ Both `gpui-base` and `gpui-component` expose three purpose-specific forms:
 | `Textarea` | `TextareaState` | Ordinary multi-line text, fixed rows, soft wrapping, and optional auto-grow limits                        |
 | `Editor`   | `EditorState`   | Source text, language-aware highlighting, line numbers, folding, search, diagnostics, and LSP integration |
 
-`gpui-base` provides unstyled forms. `gpui-component` adapts the same behavior
+`gpui-base` provides unstyled forms. `gpui-neath` adapts the same behavior
 into the product theme and sizing system. `InputBase` is the foundational frame
 used for input semantics, state styling, accessibility, and application-owned
 content; it is not one of the three editing forms.
 
-Existing `gpui-component::Input::new(&Entity<InputState>)` call sites remain the
+Existing `gpui-neath::Input::new(&Entity<InputState>)` call sites remain the
 single-line compatibility path. `InputState` is a real facade, not a type alias
 for the editing engine: multiline, auto-grow, gutter, folding, diagnostics, and
 LSP configuration are absent from its API. Multi-line code must construct
@@ -325,7 +325,7 @@ concepts.
 
 Presentation is injected through `InputEditorStyle`, highlighter interfaces,
 fold-icon renderers, context-menu adapters, and the higher-level UI forms.
-`gpui-component` supplies editor insets from its size system. Base consumes
+`gpui-neath` supplies editor insets from its size system. Base consumes
 those insets only as geometry so text, the fixed gutter, and scrollbars share a
 coordinate system:
 
@@ -340,7 +340,7 @@ gutter, and scrollbar geometry local to the editing engine.
 
 ### Input groups
 
-`gpui-component::input::InputGroup` composes one `Input` or `Textarea` with typed
+`gpui-neath::input::InputGroup` composes one `Input` or `Textarea` with typed
 addons and buttons in a shared frame. It owns no editing state: the control is
 the ordinary styled `Input`, rendered without its own border, background and
 focus ring, so every capability the input gains — paste hooks, touch
@@ -460,7 +460,7 @@ Building a layout is entity-free too: `DockLayout` (`h_split`, `v_split`,
 constructing containers. `DockArea::set_center` and `set_dock` reconcile a
 `DockLayout` into live entities when it is installed.
 
-Panels go in wrapped: `gpui_component::dock::panel_handle(panel)` is what
+Panels go in wrapped: `gpui_neath::dock::panel_handle(panel)` is what
 carries a panel's presentation across the renderer seam, and every entry point
 takes one — `DockLayout::panel_view` when describing a layout,
 `DockArea::add_panel_view` when adding to a live one, and
@@ -526,7 +526,7 @@ state through `TabGroupContext` and `DockContext`.
 `Panel` splits at the seam the same way: `gpui_base::dock::Panel` covers
 behavior (`panel_name`, `visible`, `closable`, `zoomable`, `set_active`,
 `set_zoomed`, `on_added_to`, `on_removed`, `dump`), and
-`gpui_component::dock::Panel` extends it with presentation (`title`,
+`gpui_neath::dock::Panel` extends it with presentation (`title`,
 `tab_name`, `toolbar_buttons`, `dropdown_menu`, `zoom_control`). A panel type
 implements both.
 
@@ -541,7 +541,7 @@ The base `Theme` contains:
 Semantic tokens describe roles and scales, never component names. They do not
 automatically style base controls. A presentation layer reads and applies them.
 
-`gpui-component` projects its active theme into the base theme during
+`gpui-neath` projects its active theme into the base theme during
 initialization and theme changes. Direct base users can mutate
 `gpui_base::Theme::global_mut(cx)` themselves.
 
@@ -576,12 +576,12 @@ Call `gpui_base::init(cx)` before constructing base controls. Initialization:
 - registers key bindings and infrastructure for dialog, focus traps, popover,
   sheet, combobox, color picker, select, number input, input, and tree.
 
-Applications that call `gpui_component::init(cx)` must not initialize base a
+Applications that call `gpui_neath::init(cx)` must not initialize base a
 second time; the styled crate includes base initialization.
 
-## Relationship to `gpui-component`
+## Relationship to `gpui-neath`
 
-`gpui-component` is a presentation adapter and compatibility layer above base.
+`gpui-neath` is a presentation adapter and compatibility layer above base.
 It may:
 
 - map its Theme into base tokens and infrastructure defaults;
@@ -597,7 +597,7 @@ remain correct. Sharing a type name or compiling an adapter is not sufficient.
 
 Changes to `gpui-base` should preserve these invariants:
 
-1. Base remains independent of `gpui-component` presentation and assets.
+1. Base remains independent of `gpui-neath` presentation and assets.
 2. Reusable behavior is implemented once behind the lowest useful interface.
 3. Applications can replace the visual language without reimplementing the
    behavior module.

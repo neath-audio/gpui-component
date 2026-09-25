@@ -51,7 +51,7 @@ fn empty_slots_replace_previous_parts_and_preserve_child_actions(cx: &mut TestAp
 import { div, View } from "gpui-kit";
 import {
   Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent, Button, Icon,
-} from "gpui-component";
+} from "gpui-neath";
 
 export default class EmptyHost extends View {
   init() { this.hits = 0; }
@@ -128,7 +128,7 @@ fn empty_rejects_wrong_slot_types_and_ordinary_header_children(cx: &mut TestAppC
     let runtime = gpui_component_shell::new_isolated_runtime().expect("runtime");
     let window = cx.add_window(|window, cx| {
         let empty = cx.new(|_| gpui::Empty);
-        gpui_component::Root::new(empty, window, cx)
+        gpui_neath::Root::new(empty, window, cx)
     });
     let mut context = VisualTestContext::from_window(*window.deref(), cx);
     for (expression, diagnostic) in [
@@ -164,7 +164,7 @@ fn empty_rejects_wrong_slot_types_and_ordinary_header_children(cx: &mut TestAppC
     ] {
         let app = TempApp::new(&format!(
             "import {{ View, div }} from 'gpui-kit';
-             import {{ Empty, EmptyHeader, EmptyTitle, EmptyContent, EmptyMedia }} from 'gpui-component';
+             import {{ Empty, EmptyHeader, EmptyTitle, EmptyContent, EmptyMedia }} from 'gpui-neath';
              export default class Invalid extends View {{ render() {{ return {expression}; }} }}"
         ));
         let error = context

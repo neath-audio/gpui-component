@@ -591,7 +591,7 @@ impl<M: InputModeKind> TextElement<M> {
                     // For Right alignment use 0 margin: cursor is clamped to bounds separately,
                     // so we never scroll the text for cursor-at-edge, avoiding a first-click jump.
                     let safety_margin = match last_layout.text_align {
-                        TextAlign::Left => RIGHT_MARGIN,
+                        TextAlign::Left => state.mode.scroll_right_margin(),
                         TextAlign::Right => px(0.),
                         TextAlign::Center => CURSOR_WIDTH,
                     };
@@ -2651,9 +2651,10 @@ impl<M: InputModeKind> Element for TextElement<M> {
         // Empty bottom and ghost lines both describe extra height past the
         // last content row, so take the max rather than summing — summing
         // left a band of empty space the cursor could never reach.
+        let right_margin = state.mode.scroll_right_margin();
         let mut scroll_size = size(
-            if longest_line_width + line_number_width + RIGHT_MARGIN > bounds.size.width {
-                longest_line_width + line_number_width + RIGHT_MARGIN
+            if longest_line_width + line_number_width + right_margin > bounds.size.width {
+                longest_line_width + line_number_width + right_margin
             } else {
                 longest_line_width
             },
