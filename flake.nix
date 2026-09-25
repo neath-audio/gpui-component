@@ -1,5 +1,5 @@
 {
-  description = "gpui-component";
+  description = "gpui-neath";
 
   inputs = {
     nixpkgs.url      = "github:NixOS/nixpkgs/nixos-unstable";

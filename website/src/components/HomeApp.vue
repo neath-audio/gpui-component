@@ -121,9 +121,9 @@ const copy = computed(() =>
               ],
               chooseKicker: "三个层次，一个生态",
               chooseTitle: "决定由谁掌控视觉系统。",
-              chooseDescription: "使用 gpui-component 保持统一风格，基于 gpui-base 构建自己的设计系统，或用 gpui-shell 让应用可以被 JavaScript 扩展。",
+              chooseDescription: "使用 gpui-neath 保持统一风格，基于 gpui-base 构建自己的设计系统，或用 gpui-shell 让应用可以被 JavaScript 扩展。",
               shipTitle: "保持风格统一",
-              shipDescription: "gpui-component 提供完整、成熟且开箱即用的视觉与交互系统。",
+              shipDescription: "gpui-neath 提供完整、成熟且开箱即用的视觉与交互系统。",
               shipPoints: ["75+ 个组件与原语", "内置明暗主题", "开箱即用的交互细节"],
               startComponent: "开始使用",
               ownTitle: "拥有设计系统",
@@ -176,9 +176,9 @@ const copy = computed(() =>
               ],
               chooseKicker: "Three layers. One ecosystem.",
               chooseTitle: "Choose who owns the visual system.",
-              chooseDescription: "Use gpui-component for a coherent product, build and own your design system on gpui-base, or open the application to JavaScript extensions with gpui-shell.",
+              chooseDescription: "Use gpui-neath for a coherent product, build and own your design system on gpui-base, or open the application to JavaScript extensions with gpui-shell.",
               shipTitle: "Keep the product coherent",
-              shipDescription: "gpui-component provides a complete, polished visual and interaction system ready to ship.",
+              shipDescription: "gpui-neath provides a complete, polished visual and interaction system ready to ship.",
               shipPoints: ["75+ components and primitives", "Light and dark themes included", "Interaction details already handled"],
               startComponent: "Get started",
               ownTitle: "Own the design system",
@@ -369,7 +369,7 @@ const copy = computed(() =>
                     <article class="path path--primary">
                         <div class="path__meta">
                             <Blocks :size="16" />
-                            <span>gpui-component</span>
+                            <span>gpui-neath</span>
                         </div>
                         <h3>{{ copy.shipTitle }}</h3>
                         <p>{{ copy.shipDescription }}</p>

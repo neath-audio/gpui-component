@@ -227,8 +227,8 @@ for (const surface of registered) {
     fail(`${surface} is marked registered outside component-inventory.json`);
   }
 }
-if (!registeredSource.includes('from "gpui-component"')) {
-  fail("registered examples do not import the public gpui-component module");
+if (!registeredSource.includes('from "gpui-neath"')) {
+  fail("registered examples do not import the public gpui-neath module");
 }
 for (const surface of registered) {
   if (!registeredSource.includes(`case "${surface}"`)) {

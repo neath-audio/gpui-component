@@ -1,5 +1,5 @@
 // The gallery imports only public script modules. Registered surfaces render
-// through gpui-component; infrastructure entries remain honest status panels.
+// through gpui-neath; infrastructure entries remain honest status panels.
 import { div } from "gpui-kit";
 import { v_flex } from "gpui-base";
 import { coveredSurfaces } from "./coverage.js";

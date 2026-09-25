@@ -46,7 +46,7 @@ try {
     ['new Spinner().p(4).on_click(() => {})', 'on_click'],
     ["new Spinner().when(true, element => element).size('huge')", 'size(size) expects'],
   ]) {
-    writeFileSync(join(temporary, 'main.js'), `import { View } from 'gpui-kit'; import { Spinner } from 'gpui-component'; export default class Invalid extends View { render() { return ${expression}; } }`);
+    writeFileSync(join(temporary, 'main.js'), `import { View } from 'gpui-kit'; import { Spinner } from 'gpui-neath'; export default class Invalid extends View { render() { return ${expression}; } }`);
     const [command, ...args] = shell;
     const result = spawnSync(command, [...args, 'check', temporary], {
       cwd: workspace, encoding: 'utf8', timeout: 30000,

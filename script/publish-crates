@@ -6,11 +6,11 @@ trap 'rm -f "$publish_log"' EXIT
 
 # Publish dependencies first so a partially completed release can be resumed.
 for package in \
-  gpui-kit-assets \
+  gpui-component-assets \
   gpui-component-macros \
   gpui-base \
   gpui-fps \
-  gpui-component \
+  gpui-neath \
   gpui-wry \
   gpui-kit
 do

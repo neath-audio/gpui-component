@@ -1,6 +1,6 @@
 // These exports are public constructors from the current component-shell
 // inventory. Constructor calls intentionally use `new`, matching the generated
-// gpui-component declarations.
+// gpui-neath declarations.
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import {
@@ -152,7 +152,7 @@ import {
   Tree,
   WarningAlert,
   TreeItem,
-} from "gpui-component";
+} from "gpui-neath";
 
 /**
  * Registered component elements are runtime Elements. Some generated fluent
@@ -232,7 +232,7 @@ const retained = (key, create) => {
  * GPUI input state cannot be created from render, and every descriptor here
  * needs a stable identity so interaction survives subsequent frames.
  */
-/** @type {import("gpui-component").InputContent} */
+/** @type {import("gpui-neath").InputContent} */
 const tokenDraft = {
   text: "🙂 Ask @alice@bob to review",
   tokens: [
@@ -515,13 +515,13 @@ function expandedInputGroupExamples(cx) {
 /** @param {boolean} multiline @param {import("gpui-kit").Context} cx */
 function tokenExample(multiline, cx) {
   const key = multiline ? "token-textarea" : "token-input";
-  const input = /** @type {import("gpui-component").InputState | import("gpui-component").TextareaState} */ (demo.get(key));
+  const input = /** @type {import("gpui-neath").InputState | import("gpui-neath").TextareaState} */ (demo.get(key));
   const content = input.content();
   const control = multiline
-    ? new Textarea(/** @type {import("gpui-component").TextareaState} */ (input)).w_full().h(100)
+    ? new Textarea(/** @type {import("gpui-neath").TextareaState} */ (input)).w_full().h(100)
         .token(token => h_flex().gap(4).px(4).h(token.line_height)
           .child("◆").child(token.token.label ?? token.token.text))
-    : new Input(/** @type {import("gpui-component").InputState} */ (input)).w_full();
+    : new Input(/** @type {import("gpui-neath").InputState} */ (input)).w_full();
   return {
     label: "Atomic inline references",
     description: "Delete a reference and undo. Drafts preserve identity; copied text stays plain.",
@@ -538,7 +538,7 @@ function tokenExample(multiline, cx) {
           setState(`${key}-saved`, input.content(), cx);
         }))
         .child(new Button(`${key}-restore`).label("Restore draft").on_click((_event, cx) => {
-          input.set_value(/** @type {import("gpui-component").InputContent} */ (state(`${key}-saved`, tokenDraft)));
+          input.set_value(/** @type {import("gpui-neath").InputContent} */ (state(`${key}-saved`, tokenDraft)));
           cx.notify();
         }))
         .child(new Button(`${key}-submit`).label("Submit").on_click((_event, cx) => {

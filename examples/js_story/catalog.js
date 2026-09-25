@@ -156,6 +156,6 @@ export function filterCatalog(query) {
  * @property {string} description
  * @property {string[]} states Examples to provide once the binding is available.
  * @property {"registered" | "infrastructure"} availability
- * @property {string} api The expected public gpui-component export.
+ * @property {string} api The expected public gpui-neath export.
  * @property {(cx: import("gpui-kit").Context) => import("gpui-kit").Element} render
  */
