@@ -1,8 +1,8 @@
 use std::{hash::Hash, rc::Rc};
 
 use gpui::{
-    AnyElement, App, Bounds, ElementId, Hsla, IntoElement, PathBuilder, Pixels, Point,
-    SharedString, Window, fill, point, px,
+    AnyElement, App, Bounds, ElementId, Hsla, IntoElement, Pixels, Point, SharedString, Window,
+    fill, point, px,
 };
 use gpui_component_macros::IntoPlot;
 use num_traits::{Num, ToPrimitive};
@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-use super::{build_band_labels, caller_id, labeled_items};
+use super::{TooltipContent, build_band_labels, caller_id, labeled_items};
 
 #[derive(IntoPlot)]
 pub struct CandlestickChart<T, X, Y>
@@ -40,6 +40,7 @@ where
     bearish: Option<Hsla>,
     id: ElementId,
     interactive: bool,
+    tooltip_content: TooltipContent<T>,
 }
 
 impl<T, X, Y> CandlestickChart<T, X, Y>
@@ -67,6 +68,7 @@ where
             bearish: None,
             id: caller_id(),
             interactive: true,
+            tooltip_content: TooltipContent::default(),
         }
     }
 
@@ -91,6 +93,54 @@ where
     /// drops its path cache, which is keyed on the same id.
     pub fn interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
+        self
+    }
+
+    /// Set the hover tooltip's title for a datum, instead of its x value.
+    pub fn tooltip_title(mut self, title: impl Fn(&T) -> SharedString + 'static) -> Self {
+        self.tooltip_content.set_title(title);
+        self
+    }
+
+    /// Set the text of each tooltip row's value; the raw number by default.
+    ///
+    /// The closure receives the datum, the row's index (0 to 3 for open, high, low and close) and
+    /// the value the row reads.
+    pub fn tooltip_value(
+        mut self,
+        value: impl Fn(&T, usize, f64) -> SharedString + 'static,
+    ) -> Self {
+        self.tooltip_content.set_value(value);
+        self
+    }
+
+    /// Color each tooltip row's value, such as green or red by its sign; the
+    /// tooltip's text color by default.
+    ///
+    /// The closure receives the same arguments as
+    /// [`tooltip_value`](Self::tooltip_value).
+    pub fn tooltip_value_color<H>(mut self, color: impl Fn(&T, usize, f64) -> H + 'static) -> Self
+    where
+        H: Into<Hsla>,
+    {
+        self.tooltip_content.set_value_color(color);
+        self
+    }
+
+    /// Draw the tooltip box's content for a datum yourself, in place of the
+    /// title and rows, for a layout they cannot express such as a table.
+    ///
+    /// The highlight band and where the box sits stay the chart's, and
+    /// [`tooltip_title`](Self::tooltip_title), [`tooltip_value`](Self::tooltip_value)
+    /// and [`tooltip_value_color`](Self::tooltip_value_color) no longer apply.
+    pub fn tooltip_content<E>(
+        mut self,
+        content: impl Fn(&T, &mut Window, &mut App) -> E + 'static,
+    ) -> Self
+    where
+        E: IntoElement,
+    {
+        self.tooltip_content.set_content(content);
         self
     }
 
@@ -286,14 +336,13 @@ where
             let body_left = center_x - body_width / 2.;
             let body_right = center_x + body_width / 2.;
 
-            // Draw wick (high to low line)
-            let mut wick_builder = PathBuilder::stroke(px(1.));
-            wick_builder.move_to(origin_point(px(center_x), px(high_y), origin));
-            wick_builder.line_to(origin_point(px(center_x), px(low_y), origin));
-
-            if let Ok(path) = wick_builder.build() {
-                window.paint_path(path, color);
-            }
+            // Draw wick (high to low line): a 1px quad, so no stroke to tessellate.
+            let (wick_top, wick_bottom) = (high_y.min(low_y), high_y.max(low_y));
+            let wick_bounds = Bounds::from_corners(
+                origin_point(px(center_x - 0.5), px(wick_top), origin),
+                origin_point(px(center_x + 0.5), px(wick_bottom), origin),
+            );
+            window.paint_quad(fill(wick_bounds, color));
 
             // Draw body (open to close rectangle)
             // For bullish: top is close, bottom is open
@@ -347,7 +396,7 @@ where
         state: &TooltipState,
         cursor: Point<Pixels>,
         bounds: Bounds<Pixels>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) -> Option<AnyElement> {
         let (x_fn, open_fn, high_fn, low_fn, close_fn) = (
@@ -358,7 +407,6 @@ where
             self.close.as_ref()?,
         );
         let d = self.data.get(state.index)?;
-        let title: SharedString = x_fn(d).into();
         let (open, close) = (open_fn(d), close_fn(d));
         let (bullish, bearish) = self.candle_colors(cx);
         let color = if close > open { bullish } else { bearish };
@@ -371,19 +419,27 @@ where
             .span(0., self.plot_height(bounds))
             .band(px(band_width));
 
-        let rows = [
-            (t!("Chart.open"), open),
-            (t!("Chart.high"), high_fn(d)),
-            (t!("Chart.low"), low_fn(d)),
-            (t!("Chart.close"), close),
-        ];
-        let mut tooltip = Tooltip::new(cursor, bounds.size)
+        let tooltip = Tooltip::new(cursor, bounds.size)
             .gap(px(8.))
-            .cross_line(cross_line)
-            .title(title);
-        for (label, value) in rows {
-            tooltip = tooltip.row(color, label.to_string(), format!("{}", value.to_f64()?));
-        }
+            .cross_line(cross_line);
+        let tooltip = self.tooltip_content.apply(
+            tooltip,
+            d,
+            || Some(x_fn(d).into()),
+            || {
+                [
+                    (t!("Chart.open"), open),
+                    (t!("Chart.high"), high_fn(d)),
+                    (t!("Chart.low"), low_fn(d)),
+                    (t!("Chart.close"), close),
+                ]
+                .into_iter()
+                .map(|(label, value)| Some((color, label.to_string().into(), value.to_f64()?)))
+                .collect::<Option<Vec<_>>>()
+            },
+            window,
+            cx,
+        )?;
 
         Some(tooltip.into_any_element())
     }

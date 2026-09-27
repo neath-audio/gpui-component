@@ -17,8 +17,8 @@ pub use sankey_chart::{SankeyChart, SankeyLabel};
 use std::{hash::Hash, panic::Location, rc::Rc};
 
 use gpui::{
-    App, Bounds, ContentMask, ElementId, Hsla, Pixels, SharedString, Size, TextAlign, Window,
-    point, px,
+    AnyElement, App, Bounds, ContentMask, ElementId, Hsla, IntoElement, ParentElement as _, Pixels,
+    SharedString, Size, TextAlign, Window, point, px,
 };
 use num_traits::{Num, ToPrimitive};
 
@@ -28,6 +28,7 @@ use crate::{
         AxisLabelPlacement, AxisText, Grid, PlotLabel,
         label::{TEXT_GAP, TEXT_HEIGHT, TEXT_SIZE, Text, measure_text_width},
         scale::{Scale, ScaleBand, ScaleLinear, ScalePoint, Sealed},
+        tooltip::Tooltip,
     },
 };
 
@@ -200,6 +201,102 @@ pub(crate) fn labeled_items(
     }
 }
 
+/// What a series chart (`LineChart`, `AreaChart`, `BarChart`, `RadarChart`,
+/// `CandlestickChart`) writes in its hover tooltip, and the builders the five
+/// charts forward to it.
+pub(crate) struct TooltipContent<T> {
+    title: Option<Rc<dyn Fn(&T) -> SharedString>>,
+    value: Option<Rc<dyn Fn(&T, usize, f64) -> SharedString>>,
+    value_color: Option<Rc<dyn Fn(&T, usize, f64) -> Hsla>>,
+    content: Option<Rc<dyn Fn(&T, &mut Window, &mut App) -> AnyElement>>,
+}
+
+impl<T> Default for TooltipContent<T> {
+    fn default() -> Self {
+        Self {
+            title: None,
+            value: None,
+            value_color: None,
+            content: None,
+        }
+    }
+}
+
+impl<T: 'static> TooltipContent<T> {
+    pub(crate) fn set_title(&mut self, title: impl Fn(&T) -> SharedString + 'static) {
+        self.title = Some(Rc::new(title));
+    }
+
+    pub(crate) fn set_value(&mut self, value: impl Fn(&T, usize, f64) -> SharedString + 'static) {
+        self.value = Some(Rc::new(value));
+    }
+
+    pub(crate) fn set_value_color<H: Into<Hsla>>(
+        &mut self,
+        color: impl Fn(&T, usize, f64) -> H + 'static,
+    ) {
+        self.value_color = Some(Rc::new(move |d, ix, value| color(d, ix, value).into()));
+    }
+
+    pub(crate) fn set_content<E: IntoElement>(
+        &mut self,
+        content: impl Fn(&T, &mut Window, &mut App) -> E + 'static,
+    ) {
+        self.content = Some(Rc::new(move |d, window, cx| {
+            content(d, window, cx).into_any_element()
+        }));
+    }
+
+    /// The title for datum `d`: the caller's, or `fallback`, the chart's own,
+    /// which a chart may not have.
+    fn title_text(&self, d: &T, fallback: Option<SharedString>) -> Option<SharedString> {
+        match self.title.as_ref() {
+            Some(title) => Some(title(d)),
+            None => fallback,
+        }
+    }
+
+    /// The value text of row `ix`: the caller's, or the raw number.
+    fn value_text(&self, d: &T, ix: usize, value: f64) -> SharedString {
+        match self.value.as_ref() {
+            Some(text) => text(d, ix, value),
+            None => format!("{}", value).into(),
+        }
+    }
+
+    /// Write the content of `tooltip` for datum `d`: the caller's own content when it renders
+    /// one, otherwise the chart's `title`, if it has one, and one row per
+    /// `(swatch, name, value)`. Neither is built when the caller renders, and
+    /// `None` from `rows` means a row has no value to show.
+    pub(crate) fn apply<R>(
+        &self,
+        tooltip: Tooltip,
+        d: &T,
+        title: impl FnOnce() -> Option<SharedString>,
+        rows: impl FnOnce() -> Option<R>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Option<Tooltip>
+    where
+        R: IntoIterator<Item = (Hsla, SharedString, f64)>,
+    {
+        if let Some(content) = self.content.as_ref() {
+            return Some(tooltip.child(content(d, window, cx)));
+        }
+        let mut tooltip = match self.title_text(d, title()) {
+            Some(title) => tooltip.title(title),
+            None => tooltip,
+        };
+        for (ix, (swatch, name, value)) in rows()?.into_iter().enumerate() {
+            tooltip = tooltip.row(swatch, name, self.value_text(d, ix, value));
+            if let Some(color) = self.value_color.as_ref() {
+                tooltip = tooltip.value_color(color(d, ix, value));
+            }
+        }
+        Some(tooltip)
+    }
+}
+
 /// The grid, value-axis labels and reference lines a point chart (`LineChart`,
 /// `AreaChart`) draws, and the builders both charts forward to it.
 pub(crate) struct PointAxes {
@@ -311,7 +408,7 @@ impl PointAxes {
         let columns: Vec<f32> = (0..self.grid_columns)
             .map(|i| width * i as f32 / self.grid_columns as f32)
             .collect();
-        let grid = Grid::new().y(rows).x(columns).stroke(cx.theme().border);
+        let grid = Grid::new().y(rows).x(columns).stroke(cx.theme().chart_grid);
         let grid = if self.grid_dashed {
             grid.dash_array(&[px(4.), px(2.)])
         } else {
@@ -422,14 +519,13 @@ where
             if !labeled.get(i).copied().unwrap_or(false) {
                 return None;
             }
-            x_scale.tick(&x_fn(d)).map(|x_tick| {
+            x_scale.tick_at(i).map(|x_tick| {
                 let align = match i {
                     0 if point_count == 1 => TextAlign::Center,
                     0 => TextAlign::Left,
                     i if i == point_count - 1 => TextAlign::Right,
                     _ => TextAlign::Center,
                 };
-                // Call x_fn again to get an owned value for the label text.
                 AxisText::new(x_fn(d).into(), x_tick, color).align(align)
             })
         })
@@ -470,7 +566,15 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{chart::PieChart, plot::Plot};
+    use std::cell::Cell;
+
+    use gpui::{Hsla, SharedString, TestAppContext, blue, div, green, point, px, red, size};
+
+    use super::TooltipContent;
+    use crate::{
+        chart::PieChart,
+        plot::{Plot, tooltip::Tooltip},
+    };
 
     fn chart() -> PieChart<f32> {
         PieChart::new([1., 2.])
@@ -598,5 +702,109 @@ mod tests {
         let (_, extent) = point_value_scale([0.], Some((100., 200.)), 100., (0., 0.));
         assert_eq!(extent.value_at(0.), 200.);
         assert_eq!(extent.position_of(150.), Some(50.));
+    }
+
+    /// Unset, the tooltip reads the chart's own title and the raw number;
+    /// set, the caller's text replaces both.
+    #[test]
+    fn tooltip_text_falls_back_to_the_chart_own() {
+        let mut content = TooltipContent::<f64>::default();
+        assert_eq!(
+            content.title_text(&1., Some("Jan".into())),
+            Some("Jan".into())
+        );
+        assert_eq!(content.title_text(&1., None), None);
+        assert_eq!(content.value_text(&1., 0, 1234.5).as_ref(), "1234.5");
+
+        content.set_title(|d| format!("Day {d}").into());
+        content.set_value(|_, _, value| format!("${value:.2}").into());
+        assert_eq!(content.title_text(&3., None), Some("Day 3".into()));
+        assert_eq!(content.value_text(&3., 0, 1234.5).as_ref(), "$1234.50");
+    }
+
+    /// Rows read the caller's value text and color, one per series, each told
+    /// which row it is.
+    #[gpui::test]
+    fn tooltip_fill_writes_each_row_with_the_value_color(cx: &mut TestAppContext) {
+        let mut content = TooltipContent::<f64>::default();
+        content.set_value(|_, ix, value| format!("{ix}: {value:+}").into());
+        content.set_value_color(|_, _, value| if value >= 0. { green() } else { red() });
+        let cx = cx.add_empty_window();
+        let tooltip = cx
+            .update(|window, cx| {
+                content.apply(
+                    Tooltip::new(point(px(0.), px(0.)), size(px(100.), px(100.))),
+                    &1.,
+                    || Some("Jan".into()),
+                    || Some([(blue(), "Open".into(), 2.), (blue(), "Close".into(), -1.)]),
+                    window,
+                    cx,
+                )
+            })
+            .expect("rows are given");
+
+        assert_eq!(tooltip.title_for_test().map(|t| t.as_ref()), Some("Jan"));
+        assert_eq!(
+            tooltip.rows_for_test(),
+            vec![
+                ("0: +2".into(), Some(green())),
+                ("1: -1".into(), Some(red()))
+            ]
+        );
+    }
+
+    /// Without a title of the chart's or the caller's, the tooltip has none, as a
+    /// radar with element labels shows.
+    #[gpui::test]
+    fn tooltip_fill_leaves_the_title_off_without_one(cx: &mut TestAppContext) {
+        let content = TooltipContent::<f64>::default();
+        let cx = cx.add_empty_window();
+        let tooltip = cx
+            .update(|window, cx| {
+                content.apply(
+                    Tooltip::new(point(px(0.), px(0.)), size(px(100.), px(100.))),
+                    &1.,
+                    || None,
+                    || Some([(blue(), "Alpha".into(), 80.)]),
+                    window,
+                    cx,
+                )
+            })
+            .expect("rows are given");
+
+        assert!(tooltip.title_for_test().is_none());
+        assert_eq!(tooltip.rows_for_test(), vec![("80".into(), None)]);
+    }
+
+    /// A caller's own content replaces the title and rows, which are never built,
+    /// so a series without a value doesn't hide it.
+    #[gpui::test]
+    fn tooltip_fill_renders_the_caller_content_without_building_rows(cx: &mut TestAppContext) {
+        let mut content = TooltipContent::<f64>::default();
+        content.set_title(|_| "Caller".into());
+        content.set_content(|_, _, _| div());
+        let built = Cell::new(false);
+        let cx = cx.add_empty_window();
+        let tooltip = cx.update(|window, cx| {
+            content.apply(
+                Tooltip::new(point(px(0.), px(0.)), size(px(100.), px(100.))),
+                &1.,
+                || {
+                    built.set(true);
+                    Some("Jan".into())
+                },
+                || -> Option<[(Hsla, SharedString, f64); 0]> {
+                    built.set(true);
+                    None
+                },
+                window,
+                cx,
+            )
+        });
+
+        let tooltip = tooltip.expect("the caller renders");
+        assert!(!built.get());
+        assert!(tooltip.title_for_test().is_none());
+        assert!(tooltip.rows_for_test().is_empty());
     }
 }

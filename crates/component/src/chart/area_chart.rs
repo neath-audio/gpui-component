@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::{
-    HOVER_DOT_SIZE, HOVER_HALO_SIZE, PointAxes, ValueExtent, axis_point_count,
+    HOVER_DOT_SIZE, HOVER_HALO_SIZE, PointAxes, TooltipContent, ValueExtent, axis_point_count,
     build_point_x_labels, caller_id, labeled_items, pinned_plot_mask, point_range,
     point_value_scale,
 };
@@ -37,6 +37,7 @@ where
     stroke_styles: Vec<StrokeStyle>,
     fills: Vec<Background>,
     names: Vec<SharedString>,
+    tooltip_content: TooltipContent<T>,
     tick_margin: usize,
     x_axis: bool,
     grid: bool,
@@ -63,6 +64,7 @@ where
             strokes: vec![],
             fills: vec![],
             names: vec![],
+            tooltip_content: TooltipContent::default(),
             tick_margin: 1,
             x: None,
             y: vec![],
@@ -105,6 +107,54 @@ where
     /// Call after the matching [`AreaChart::y`] (e.g. `.y(..).stroke(..).name("Desktop")`).
     pub fn name(mut self, name: impl Into<SharedString>) -> Self {
         self.names.push(name.into());
+        self
+    }
+
+    /// Set the hover tooltip's title for a datum, instead of its x value.
+    pub fn tooltip_title(mut self, title: impl Fn(&T) -> SharedString + 'static) -> Self {
+        self.tooltip_content.set_title(title);
+        self
+    }
+
+    /// Set the text of each tooltip row's value; the raw number by default.
+    ///
+    /// The closure receives the datum, the row's index (the series' index in the order `y` added
+    /// them) and the value the row reads.
+    pub fn tooltip_value(
+        mut self,
+        value: impl Fn(&T, usize, f64) -> SharedString + 'static,
+    ) -> Self {
+        self.tooltip_content.set_value(value);
+        self
+    }
+
+    /// Color each tooltip row's value, such as green or red by its sign; the
+    /// tooltip's text color by default.
+    ///
+    /// The closure receives the same arguments as
+    /// [`tooltip_value`](Self::tooltip_value).
+    pub fn tooltip_value_color<H>(mut self, color: impl Fn(&T, usize, f64) -> H + 'static) -> Self
+    where
+        H: Into<Hsla>,
+    {
+        self.tooltip_content.set_value_color(color);
+        self
+    }
+
+    /// Draw the tooltip box's content for a datum yourself, in place of the
+    /// title and rows, for a layout they cannot express such as a table.
+    ///
+    /// The crosshair, the dots and where the box sits stay the chart's, and
+    /// [`tooltip_title`](Self::tooltip_title), [`tooltip_value`](Self::tooltip_value)
+    /// and [`tooltip_value_color`](Self::tooltip_value_color) no longer apply.
+    pub fn tooltip_content<E>(
+        mut self,
+        content: impl Fn(&T, &mut Window, &mut App) -> E + 'static,
+    ) -> Self
+    where
+        E: IntoElement,
+    {
+        self.tooltip_content.set_content(content);
         self
     }
 
@@ -385,7 +435,6 @@ where
         let areas = self.y.iter().enumerate().map(|(i, y_fn)| {
             let x = x.clone();
             let y = y.clone();
-            let x_fn = x_fn.clone();
             let y_fn = y_fn.clone();
 
             let fill = *self.fills.get(i).unwrap_or(&default_fill);
@@ -396,10 +445,11 @@ where
                 .unwrap_or(self.stroke_styles.first().unwrap_or(&Default::default()));
 
             Area::new()
-                .data(&self.data)
-                .x(move |d| x.tick(&x_fn(d)))
+                // One x domain entry per datum: project by index, not by lookup.
+                .data(self.data.iter().enumerate())
+                .x(move |(i, _)| x.tick_at(*i))
                 .y0(height)
-                .y1(move |d| y.tick(&y_fn(d)))
+                .y1(move |(_, d)| y.tick(&y_fn(d)))
                 .stroke(stroke)
                 .stroke_style(stroke_style)
                 .fill(fill)
@@ -443,7 +493,6 @@ where
         bounds: Bounds<Pixels>,
         _cx: &App,
     ) -> Option<TooltipState> {
-        let x_fn = self.x.as_ref()?;
         let (x, y, _) = self.scales(bounds)?;
 
         // Ignore the x-axis label gutter so hovering the labels doesn't show a tooltip.
@@ -456,7 +505,7 @@ where
 
         let index = x.least_index(position.x.as_f32());
         let d = self.data.get(index)?;
-        let x_tick = x.tick(&x_fn(d))?;
+        let x_tick = x.tick_at(index)?;
 
         // One dot per series at the hovered x.
         let dots = self
@@ -477,19 +526,18 @@ where
         state: &TooltipState,
         cursor: Point<Pixels>,
         bounds: Bounds<Pixels>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) -> Option<AnyElement> {
         let x_fn = self.x.as_ref()?;
         let d = self.data.get(state.index)?;
-        let title: SharedString = x_fn(d).into();
 
         let default_color = cx.theme().chart_2;
         let dot_stroke = cx.theme().background;
         let color = |i: usize| *self.strokes.get(i).unwrap_or(&default_color);
 
         // Follow the cursor; the crosshair and dots glide to the data point.
-        let mut tooltip = Tooltip::new(cursor, bounds.size)
+        let tooltip = Tooltip::new(cursor, bounds.size)
             .gap(px(8.))
             // Confine the crosshair to the plot area so it doesn't cross the x-axis.
             .cross_line(
@@ -502,15 +550,26 @@ where
                     .halo(HOVER_HALO_SIZE)
                     .stroke(dot_stroke)
                     .fill(color(i))
-            }))
-            .title(title);
+            }));
 
-        // One row per series: swatch + label + value.
-        for (i, y_fn) in self.y.iter().enumerate() {
-            let name = self.names.get(i).cloned().unwrap_or_default();
-            let value = y_fn(d).to_f64()?;
-            tooltip = tooltip.row(color(i), name, format!("{}", value));
-        }
+        let tooltip = self.tooltip_content.apply(
+            tooltip,
+            d,
+            || Some(x_fn(d).into()),
+            // One row per series: swatch + label + value.
+            || {
+                self.y
+                    .iter()
+                    .enumerate()
+                    .map(|(i, y_fn)| {
+                        let name = self.names.get(i).cloned().unwrap_or_default();
+                        Some((color(i), name, y_fn(d).to_f64()?))
+                    })
+                    .collect::<Option<Vec<_>>>()
+            },
+            window,
+            cx,
+        )?;
 
         Some(tooltip.into_any_element())
     }

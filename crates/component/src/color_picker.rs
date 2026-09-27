@@ -474,10 +474,6 @@ impl RenderOnce for ColorPicker {
         let focus_handle = self.state.focus_handle(cx);
         let open_state = self.state.clone();
         let popover_state = self.state.clone();
-        // A closed picker only needs its trigger. Building the palette grid and
-        // four slider tracks eagerly is especially costly for schema editors
-        // that render many picker triggers at once.
-        let popup_content = open.then(|| self.render_colors(window, cx).into_any_element());
 
         BaseColorPicker::new(self.id.clone())
             .open(open)
@@ -511,7 +507,9 @@ impl RenderOnce for ColorPicker {
                         icon: self.icon.clone(),
                         selected: false,
                     })
-                    .children(popup_content),
+                    // The popover drops its content while closed, so building the
+                    // palette swatches or slider tracks then is wasted work.
+                    .when(open, |this| this.child(self.render_colors(window, cx))),
             )
     }
 }

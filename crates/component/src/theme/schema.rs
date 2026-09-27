@@ -406,6 +406,9 @@ pub struct ThemeConfigColors {
     /// Bearish color for candlestick charts (downward price movement).
     #[serde(rename = "chart.bearish", alias = "chart_bearish")]
     pub chart_bearish: Option<SharedString>,
+    /// Chart grid line color.
+    #[serde(rename = "chart.grid")]
+    pub chart_grid: Option<SharedString>,
     /// Danger background color.
     #[serde(rename = "danger.background")]
     pub danger: Option<SharedString>,
@@ -1129,6 +1132,7 @@ impl ThemeColor {
         apply_color!(chart_5, fallback = self.blue.darken(0.4));
         apply_color!(chart_bullish, fallback = self.green);
         apply_color!(chart_bearish, fallback = self.red);
+        apply_color!(chart_grid, fallback = self.border.opacity(0.6));
         apply_background_color!(danger, fallback = self.red);
         apply_background_color!(danger_active, fallback = self.danger.darken(active_darken));
         apply_color!(danger_foreground, fallback = self.primary_foreground);
@@ -1478,6 +1482,7 @@ impl Theme {
             chart_3: color(self.chart_3),
             chart_4: color(self.chart_4),
             chart_5: color(self.chart_5),
+            chart_grid: color(self.chart_grid),
             chart_bullish: color(self.chart_bullish),
             chart_bearish: color(self.chart_bearish),
             danger: color(self.danger),
@@ -1809,7 +1814,8 @@ mod tests {
                 "chart.2": "not a color",
                 "chart.3": "#333333",
                 "chart.bullish": "#00ff00",
-                "chart.bearish": "#ff0000"
+                "chart.bearish": "#ff0000",
+                "chart.grid": "#eeeeee"
             }
         }))
         .unwrap();
@@ -1827,6 +1833,10 @@ mod tests {
         assert_eq!(theme.tokens.chart_3.color, theme.chart_3);
         assert_eq!(theme.chart_bullish, try_parse_color("#00ff00").unwrap());
         assert_eq!(theme.chart_bearish, try_parse_color("#ff0000").unwrap());
+        assert_eq!(theme.chart_grid, try_parse_color("#eeeeee").unwrap());
+
+        theme.apply_config(&std::rc::Rc::new(ThemeConfig::default()));
+        assert_eq!(theme.chart_grid, theme.border.opacity(0.6));
     }
 
     #[test]

@@ -3954,6 +3954,7 @@ dependencies = [
  "gpui-neath",
  "gpui_platform",
  "gpui_web",
+ "lsp-types 0.97.0",
 ]
 
 [[package]]
@@ -4055,6 +4056,7 @@ dependencies = [
  "gpui-base",
  "gpui-fps",
  "gpui_platform",
+ "image",
  "instant",
  "libc",
  "quickjs-jit",
@@ -4066,8 +4068,10 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "smallvec",
+ "smol",
  "tracing",
  "tungstenite",
+ "usvg 0.46.0",
  "wait-timeout",
  "windows 0.58.0",
  "zed-reqwest",

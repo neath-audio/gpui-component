@@ -1229,10 +1229,16 @@ impl DockArea {
 
     /// Resize one dock from a pointer position, clamped so neither this dock
     /// nor the one opposite is squeezed below its minimum.
+    ///
+    /// A collapsible bottom dock is the exception: it follows the pointer
+    /// below the minimum down to its closed strip, so closing it by drag is
+    /// one continuous motion. That size is only shown, and
+    /// [`Self::end_dock_resize`] settles it on release.
     fn resize_dock(
         &mut self,
         placement: DockPlacement,
         pointer: Point<Pixels>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let opposite = match placement {
@@ -1240,21 +1246,69 @@ impl DockArea {
             DockPlacement::Right => self.dock_size(DockPlacement::Left),
             _ => None,
         };
-        let min_size = self
-            .docks
-            .get(&placement)
-            .map(|pane| pane.dock.min_size())
-            .unwrap_or(PANEL_MIN_SIZE);
+        let Some(pane) = self.docks.get(&placement) else {
+            return;
+        };
+        let min_size = pane.dock.min_size();
+        let dock = self.dock_context(placement, &pane.dock);
+        let collapsed_extent = self.renderer.collapsed_dock_extent(&dock, window, cx);
         let sizing = DockSizing::new(placement)
             .with_area_bounds(self.bounds)
             .with_opposite_dock_size(opposite.unwrap_or(px(0.)))
             .with_min_size(min_size);
-        let size = sizing.clamp(sizing.size_from_pointer(pointer));
+        let size = sizing
+            .size_from_pointer(pointer)
+            .min(sizing.clamp(Pixels::MAX));
 
-        if let Some(pane) = self.docks.get_mut(&placement) {
+        let Some(pane) = self.docks.get_mut(&placement) else {
+            return;
+        };
+        let was_open = pane.dock.is_open();
+        if placement == DockPlacement::Bottom && pane.dock.is_collapsible() && size < min_size {
+            pane.dock.set_open(size > collapsed_extent);
+            pane.dock.set_live_size(Some(size.max(collapsed_extent)));
+        } else {
+            pane.dock.set_open(true);
+            pane.dock.set_live_size(None);
             pane.dock.set_size(size);
-            cx.notify();
         }
+        if pane.dock.is_open() != was_open {
+            self.reconcile(window, cx);
+        }
+        cx.notify();
+    }
+
+    /// Settle a drag that ended below the minimum: nearer the closed strip it
+    /// closes, nearer the minimum it opens at the minimum.
+    fn end_dock_resize(
+        &mut self,
+        placement: DockPlacement,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(pane) = self.docks.get(&placement) else {
+            return;
+        };
+        let min_size = pane.dock.min_size();
+        let dock = self.dock_context(placement, &pane.dock);
+        let collapsed_extent = self.renderer.collapsed_dock_extent(&dock, window, cx);
+        let Some(pane) = self.docks.get_mut(&placement) else {
+            return;
+        };
+        let Some(size) = pane.dock.live_size() else {
+            return;
+        };
+        pane.dock.set_live_size(None);
+
+        let open = size >= (collapsed_extent + min_size) / 2.;
+        if open {
+            pane.dock.set_size(min_size);
+        }
+        if pane.dock.is_open() != open {
+            pane.dock.set_open(open);
+            self.reconcile(window, cx);
+        }
+        cx.notify();
     }
 }
 
@@ -1399,7 +1453,7 @@ impl DockArea {
 
         DockContext {
             placement,
-            size: dock.size(),
+            size: dock.live_size().unwrap_or(dock.size()),
             open: dock.is_open(),
             collapsible: dock.is_collapsible(),
             on_toggle: {
@@ -1408,8 +1462,16 @@ impl DockArea {
                     _ = area.update(cx, |area, cx| area.toggle_dock(placement, window, cx));
                 })
             },
-            on_resize: Rc::new(move |pointer, _, cx| {
-                _ = area.update(cx, |area, cx| area.resize_dock(placement, pointer, cx));
+            on_resize: {
+                let area = area.clone();
+                Rc::new(move |pointer, window, cx| {
+                    _ = area.update(cx, |area, cx| {
+                        area.resize_dock(placement, pointer, window, cx)
+                    });
+                })
+            },
+            on_resize_end: Rc::new(move |window, cx| {
+                _ = area.update(cx, |area, cx| area.end_dock_resize(placement, window, cx));
             }),
         }
     }
@@ -1714,6 +1776,7 @@ pub struct DockContext {
     collapsible: bool,
     on_toggle: DockToggleHandler,
     on_resize: DockResizeHandler,
+    on_resize_end: DockToggleHandler,
 }
 
 impl DockContext {
@@ -1743,6 +1806,12 @@ impl DockContext {
     /// against the area bounds and the opposite dock.
     pub fn resize_to(&self, pointer: Point<Pixels>, window: &mut Window, cx: &mut App) {
         (self.on_resize)(pointer, window, cx);
+    }
+
+    /// End a resize started with [`Self::resize_to`]. A bottom dock dragged
+    /// below its minimum snaps shut or to the minimum, whichever is nearer.
+    pub fn end_resize(&self, window: &mut Window, cx: &mut App) {
+        (self.on_resize_end)(window, cx);
     }
 }
 
@@ -2086,6 +2155,51 @@ mod tests {
     fn closed_bottom_extent_comes_from_its_renderer(cx: &mut TestAppContext) {
         assert_eq!(measure_closed_bottom(px(17.), cx), px(17.));
         assert_eq!(measure_closed_bottom(px(43.), cx), px(43.));
+    }
+
+    #[gpui::test]
+    fn bottom_drag_uses_renderer_extent_and_custom_minimum(cx: &mut TestAppContext) {
+        let (area, cx) = setup(cx);
+        cx.update(|window, cx| {
+            area.update(cx, |area, cx| {
+                area.renderer = Rc::new(CollapsedExtentSkin {
+                    requested: px(43.),
+                    measured: Rc::new(Cell::new(Pixels::ZERO)),
+                });
+                area.bounds = Bounds::new(Point::default(), gpui::size(px(800.), px(600.)));
+                let bottom = DockPlacement::Bottom;
+                area.set_dock(
+                    bottom,
+                    DockLayout::tabs().panel(TestPanel::new("Bottom", cx)),
+                    window,
+                    cx,
+                );
+                area.set_dock_collapsible(bottom, true, window, cx);
+                area.set_dock_min_size(bottom, px(160.), window, cx);
+
+                // Follow the pointer below the configured minimum, then snap
+                // back to that minimum when released nearer the open position.
+                area.resize_dock(bottom, gpui::point(px(400.), px(480.)), window, cx);
+                assert_eq!(area.docks[&bottom].dock.live_size(), Some(px(120.)));
+                area.end_dock_resize(bottom, window, cx);
+                assert!(area.is_dock_open(bottom));
+                assert_eq!(area.dock_size(bottom), Some(px(160.)));
+                assert_eq!(area.docks[&bottom].dock.live_size(), None);
+
+                // The same gesture can close and reopen without losing the
+                // renderer's interactive strip or the remembered open size.
+                area.resize_dock(bottom, gpui::point(px(400.), px(590.)), window, cx);
+                assert!(!area.is_dock_open(bottom));
+                assert_eq!(area.docks[&bottom].dock.live_size(), Some(px(43.)));
+                area.resize_dock(bottom, gpui::point(px(400.), px(480.)), window, cx);
+                assert!(area.is_dock_open(bottom));
+                area.resize_dock(bottom, gpui::point(px(400.), px(520.)), window, cx);
+                area.end_dock_resize(bottom, window, cx);
+                assert!(!area.is_dock_open(bottom));
+                assert_eq!(area.dock_size(bottom), Some(px(160.)));
+                assert_eq!(area.docks[&bottom].dock.live_size(), None);
+            });
+        });
     }
 
     #[gpui::test]

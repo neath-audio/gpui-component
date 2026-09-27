@@ -121,6 +121,7 @@ pub struct Dock {
     open: bool,
     collapsible: bool,
     size: Pixels,
+    live_size: Option<Pixels>,
     resizing: bool,
     min_size: Pixels,
 }
@@ -131,6 +132,7 @@ impl Dock {
             open: true,
             collapsible: true,
             size,
+            live_size: None,
             resizing: false,
             min_size: PANEL_MIN_SIZE,
         }
@@ -173,6 +175,17 @@ impl Dock {
     /// that would drag it back out, and the collapsed size persists.
     pub fn set_size(&mut self, size: Pixels) {
         self.size = size.max(self.min_size);
+    }
+
+    /// A size below [`PANEL_MIN_SIZE`] that a drag in progress is showing.
+    /// It is never persisted: the drag's release settles it into either a
+    /// closed dock or one at the minimum.
+    pub(crate) fn live_size(&self) -> Option<Pixels> {
+        self.live_size
+    }
+
+    pub(crate) fn set_live_size(&mut self, size: Option<Pixels>) {
+        self.live_size = size;
     }
 
     pub fn is_resizing(&self) -> bool {

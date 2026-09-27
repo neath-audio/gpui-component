@@ -173,6 +173,7 @@
             "chart.5": null,
             "chart.bullish": null,
             "chart.bearish": null,
+            "chart.grid": null,
             "danger.background": null,
             "danger.active.background": null,
             "danger.foreground": null,
@@ -672,6 +673,13 @@
         },
         "chart.bearish": {
           "description": "Bearish color for candlestick charts (downward price movement).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "chart.grid": {
+          "description": "Chart grid line color.",
           "type": [
             "string",
             "null"
