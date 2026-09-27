@@ -455,7 +455,7 @@ impl PopupMenu {
         self
     }
 
-    /// Set max height of the popup menu, default is half of the window height
+    /// Set max height of a scrollable menu, bounded by the available window height.
     pub fn max_h(mut self, height: impl Into<Pixels>) -> Self {
         self.max_height = Some(height.into());
         self
@@ -1277,6 +1277,7 @@ impl PopupMenu {
 
         let this = MenuItemElement::new(ix, &group_name)
             .relative()
+            .flex_shrink_0()
             .text_size(menu_text)
             .py_0()
             .px(inner_padding)
@@ -1369,10 +1370,7 @@ impl PopupMenu {
                     )
                 })
                 .disabled(*disabled)
-                // Hard height, not min: standard action rows are single-line
-                // and must not stretch when a child (kbd badge, icon) is
-                // taller than the text line (user-ruled 2026-07-20, Nova
-                // 28px rows). Custom/element and submenu arms keep `min_h`.
+                // Single-line actions and submenu triggers use the same row height.
                 .h(item_height)
                 .gap_x(ICON_GAP)
                 .children(Self::render_icon(
@@ -1415,10 +1413,9 @@ impl PopupMenu {
             } => this
                 .selected(selected)
                 .disabled(*disabled)
-                .items_start()
+                .h(item_height)
                 .child(
                     h_flex()
-                        .min_h(item_height)
                         .size_full()
                         .items_center()
                         .gap_x(ICON_GAP)
@@ -1510,10 +1507,12 @@ impl Render for PopupMenu {
         let view = cx.entity().clone();
         let items_count = self.menu_items.len();
 
-        let max_height = self.max_height.unwrap_or_else(|| {
-            let window_half_height = window.window_bounds().get_bounds().size.height * 0.5;
-            window_half_height.min(px(450.))
-        });
+        // Reserve the 8px window margin and 1px surface border on both edges.
+        let available_height = (window.viewport_size().height - px(18.)).max(Pixels::ZERO);
+        let max_height = self
+            .max_height
+            .unwrap_or(available_height)
+            .min(available_height);
 
         let has_left_icon = self
             .menu_items
@@ -1573,15 +1572,14 @@ impl Render for PopupMenu {
                             // Ignore last separator
                             .filter(|(ix, item)| !(*ix + 1 == items_count && item.is_separator()))
                             .map(|(ix, item)| self.render_item(ix, item, options, window, cx)),
-                    )
-                    .on_prepaint(move |bounds, _, cx| {
-                        view.update(cx, |r, _| r.bounds = bounds);
-                        // Keep the open-menu registry current so a Popover's
-                        // mouse-down-out can tell a press inside this menu
-                        // from a genuine outside click.
-                        UiGlobalState::global_mut(cx).update_menu_bounds(view.entity_id(), bounds);
-                    }),
+                    ),
             )
+            // Measure the surface outside the scroll area: on_prepaint adds
+            // an absolute canvas that would otherwise count as scroll content.
+            .on_prepaint(move |bounds, _, cx| {
+                view.update(cx, |r, _| r.bounds = bounds);
+                UiGlobalState::global_mut(cx).update_menu_bounds(view.entity_id(), bounds);
+            })
             .when(self.scrollable, |this| {
                 this.vertical_scrollbar(&self.scroll_handle)
             });
@@ -1610,6 +1608,85 @@ mod tests {
         fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
             div().size_full().child(self.menu.clone())
         }
+    }
+
+    #[gpui::test]
+    fn scrollable_menu_uses_available_height_before_scrolling(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let activated = Rc::new(std::cell::Cell::new(false));
+        let (view, cx) = cx.add_window_view(|window, cx| PopupMenuHarness {
+            menu: PopupMenu::build(window, cx, |menu, _, _| {
+                (0..24).fold(menu.scrollable(true), |menu, ix| {
+                    let activated = activated.clone();
+                    menu.item(
+                        PopupMenuItem::new(format!("Item {ix}"))
+                            .on_click(move |_, _, _| activated.set(ix == 23)),
+                    )
+                })
+            }),
+        });
+        let menu = view.read_with(cx, |view, _| view.menu.clone());
+        cx.simulate_resize(gpui::size(px(800.), px(800.)));
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        assert_eq!(
+            menu.read_with(cx, |menu, _| menu.scroll_handle.max_offset().y),
+            Pixels::ZERO,
+            "all items fit in the window and must be available without scrolling",
+        );
+
+        cx.simulate_resize(gpui::size(px(800.), px(320.)));
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let bounds = menu.read_with(cx, |menu, _| {
+            assert!(menu.scroll_handle.max_offset().y > Pixels::ZERO);
+            menu.bounds
+        });
+        assert!(bounds.bottom() < px(320.));
+        cx.simulate_event(gpui::ScrollWheelEvent {
+            position: bounds.center(),
+            delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-10000.))),
+            ..Default::default()
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        cx.simulate_click(
+            point(bounds.center().x, bounds.bottom() - px(14.)),
+            Default::default(),
+        );
+        assert!(activated.get(), "the last item must remain reachable");
+    }
+
+    #[gpui::test]
+    fn scrolling_preserves_action_and_submenu_row_heights(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|window, cx| PopupMenuHarness {
+            menu: PopupMenu::build(window, cx, |menu, window, cx| {
+                (0..12).fold(menu.scrollable(true), |menu, ix| {
+                    menu.item(PopupMenuItem::new(format!("Item {ix}"))).submenu(
+                        format!("Group {ix}"),
+                        window,
+                        cx,
+                        |menu, _, _| menu.item(PopupMenuItem::new("Child")),
+                    )
+                })
+            }),
+        });
+        let menu = view.read_with(cx, |view, _| view.menu.clone());
+        cx.simulate_resize(gpui::size(px(800.), px(1600.)));
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let normal_height = menu.read_with(cx, |menu, _| {
+            menu.scroll_handle.bounds_for_item(0).unwrap().size.height
+        });
+
+        cx.simulate_resize(gpui::size(px(800.), px(320.)));
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        menu.read_with(cx, |menu, _| {
+            for ix in 0..24 {
+                assert_eq!(
+                    menu.scroll_handle.bounds_for_item(ix).unwrap().size.height,
+                    normal_height,
+                    "scrolling must preserve the hit target of action and submenu rows",
+                );
+            }
+        });
     }
 
     #[gpui::test]
