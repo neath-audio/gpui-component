@@ -2035,8 +2035,7 @@ where
             let mut tr = self.delegate.render_tr(row_ix, window, cx);
             let style = tr.style().clone();
 
-            tr.test_support()
-                .role(gpui::Role::Row)
+            tr.role(gpui::Role::Row)
                 .aria_selected(is_selected)
                 .h_flex()
                 .w_full()
@@ -2085,11 +2084,7 @@ where
                                                             div()
                                                                 .absolute()
                                                                 .inset_0()
-                                                                .bg(cx.theme().tokens.table_active)
-                                                                .border_1()
-                                                                .border_color(
-                                                                    cx.theme().table_active_border,
-                                                                ),
+                                                                .bg(cx.theme().tokens.table_active),
                                                         )
                                                     })
                                                     .when(
@@ -2200,18 +2195,10 @@ where
                                                         ))
                                                         .when(is_cell_selected, |this| {
                                                             this.child(
-                                                                div()
-                                                                    .absolute()
-                                                                    .inset_0()
-                                                                    .bg(cx
-                                                                        .theme()
-                                                                        .tokens
-                                                                        .table_active)
-                                                                    .border_1()
-                                                                    .border_color(
-                                                                        cx.theme()
-                                                                            .table_active_border,
-                                                                    ),
+                                                                div().absolute().inset_0().bg(cx
+                                                                    .theme()
+                                                                    .tokens
+                                                                    .table_active),
                                                             )
                                                         })
                                                         .when(
@@ -2266,25 +2253,10 @@ where
                         )
                         .child(self.delegate.render_last_empty_col(window, cx)),
                 )
-                // Preserve the outlined current-row overlay. Its translucent
-                // fill also distinguishes it from delegate-painted selections.
                 .when(is_selected, |this| {
-                    if cx.theme().list.active_highlight {
-                        this.border_color(gpui::transparent_white()).child(
-                            div()
-                                .top(if row_ix == 0 { px(0.) } else { px(-1.) })
-                                .left(px(0.))
-                                .right(px(0.))
-                                .bottom(px(-1.))
-                                .absolute()
-                                .bg(cx.theme().tokens.table_active)
-                                .border_1()
-                                .border_color(cx.theme().table_active_border),
-                        )
-                    } else {
-                        this.bg(cx.theme().tokens.table_active)
-                    }
+                    self.delegate.render_row_selection(row_ix, this, window, cx)
                 })
+                .test_support()
                 // Row right click row style
                 .when(self.right_clicked_row == Some(row_ix), |this| {
                     this.border_color(gpui::transparent_white()).child(
@@ -2777,6 +2749,118 @@ mod tests {
         }
     }
 
+    struct SelectionOverlayDelegate;
+
+    impl TableDelegate for SelectionOverlayDelegate {
+        fn columns_count(&self, _: &App) -> usize {
+            2
+        }
+        fn rows_count(&self, _: &App) -> usize {
+            1
+        }
+        fn column(&self, col_ix: usize, _: &App) -> Column {
+            let column = Column::new(format!("col-{col_ix}"), "Cell").width(px(180.));
+            if col_ix == 0 {
+                column.fixed_left()
+            } else {
+                column
+            }
+        }
+        fn render_tr(
+            &mut self,
+            row_ix: usize,
+            _: &mut Window,
+            _: &mut Context<TableState<Self>>,
+        ) -> Stateful<Div> {
+            div()
+                .id(("overlay-row", row_ix))
+                .debug_selector(|| "overlay-row".into())
+                .bg(gpui::rgba(0x12345633))
+        }
+        fn render_td(
+            &mut self,
+            _: usize,
+            col_ix: usize,
+            _: &mut Window,
+            _: &mut Context<TableState<Self>>,
+        ) -> impl IntoElement {
+            div()
+                .size_full()
+                .bg(gpui::rgb(if col_ix == 0 { 0x345678 } else { 0x456789 }))
+        }
+        fn render_row_selection(
+            &mut self,
+            _: usize,
+            row: Stateful<Div>,
+            _: &mut Window,
+            _: &mut Context<TableState<Self>>,
+        ) -> Stateful<Div> {
+            row.child(div().absolute().inset_0().bg(gpui::rgba(0x98765433)))
+        }
+    }
+
+    struct SelectionOverlayRoot {
+        table: Entity<TableState<SelectionOverlayDelegate>>,
+    }
+    impl Render for SelectionOverlayRoot {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(300.)).h(px(120.)).child(self.table.clone())
+        }
+    }
+
+    #[gpui::test]
+    fn row_selection_overlay_paints_above_fixed_and_scrolling_cells(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (root, cx) = cx.add_window_view(|window, cx| {
+            let table = cx.new(|cx| {
+                let mut table =
+                    TableState::new(SelectionOverlayDelegate, window, cx).row_header(false);
+                table.selected_row = Some(0);
+                table
+            });
+            SelectionOverlayRoot { table }
+        });
+        cx.run_until_parked();
+        let table = root.read_with(cx, |root, _| root.table.clone());
+        let overlay: gpui::Background = gpui::rgba(0x98765433).into();
+        let row_fill: gpui::Background = gpui::rgba(0x12345633).into();
+        let fixed: gpui::Background = gpui::rgb(0x345678).into();
+        let scrolling: gpui::Background = gpui::rgb(0x456789).into();
+        let quads = cx.update(|window, cx| {
+            let _ = window.draw(cx);
+            window.painted_quads()
+        });
+        let paint_index = |background| {
+            quads
+                .iter()
+                .position(|quad| quad.background == background)
+                .expect("row paint exists")
+        };
+        let overlay_index = paint_index(overlay);
+        assert!(paint_index(row_fill) < overlay_index);
+        assert!(paint_index(fixed) < overlay_index);
+        assert!(paint_index(scrolling) < overlay_index);
+        assert_eq!(
+            quads
+                .iter()
+                .filter(|quad| quad.background == overlay)
+                .count(),
+            1
+        );
+        let bounds = cx.debug_bounds("overlay-row").expect("selected row bounds");
+        table.update(cx, |table, cx| table.clear_selection(cx));
+        let quads = cx.update(|window, cx| {
+            let _ = window.draw(cx);
+            window.painted_quads()
+        });
+        assert!(!quads.iter().any(|quad| quad.background == overlay));
+        assert_eq!(
+            cx.debug_bounds("overlay-row")
+                .expect("unselected row bounds"),
+            bounds
+        );
+    }
+
     struct TestRoot {
         table: Entity<TableState<TestDelegate>>,
     }
@@ -2885,7 +2969,7 @@ mod tests {
             }))
             .expect("table paint test theme");
             crate::Theme::global_mut(cx).apply_config(&Rc::new(config));
-            crate::Theme::global_mut(cx).list.active_highlight = false;
+            crate::Theme::global_mut(cx).list.active_highlight = true;
         });
 
         let (_, cx) = cx.add_window_view(TranslucentPaintRoot::new);

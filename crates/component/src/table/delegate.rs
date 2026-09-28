@@ -97,6 +97,27 @@ pub trait TableDelegate: Sized + 'static {
         div().id(("row", row_ix))
     }
 
+    /// Style the selected row after its cells have been added.
+    ///
+    /// The default uses the theme's row-selection background. Applications may
+    /// append an overlay here to paint above fixed and scrolling cells without
+    /// changing their layout. Row input handling and the context-menu indicator
+    /// are applied afterward by the table.
+    fn render_row_selection(
+        &mut self,
+        _row_ix: usize,
+        row: Stateful<Div>,
+        _window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> Stateful<Div> {
+        let bg = if cx.theme().list.active_highlight {
+            cx.theme().tokens.table_active
+        } else {
+            cx.theme().tokens.accent
+        };
+        row.bg(bg)
+    }
+
     /// Render the context menu for the row at the given row index.
     fn context_menu(
         &mut self,

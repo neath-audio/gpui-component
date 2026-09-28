@@ -129,6 +129,8 @@ impl RenderOnce for SearchableListItemElement {
             .id(self.id)
             .relative()
             .gap_x_1()
+            .py_1()
+            .px_2()
             .rounded(cx.theme().radius)
             .text_color(cx.theme().foreground)
             .items_center()
@@ -151,6 +153,8 @@ impl RenderOnce for SearchableListItemElement {
                     .items_center()
                     .justify_between()
                     .gap_x_1()
+                    .py_1()
+                    .px_2()
                     .child(
                         h_flex()
                             .flex_1()

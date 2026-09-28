@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::{
     Anchor, AnyElement, App, Context, DismissEvent, Element, ElementId, Entity, FocusHandle,
     Focusable, GlobalElementId, InspectorElementId, InteractiveElement, IntoElement, LayoutId,
-    RenderOnce, SharedString, StyleRefinement, Styled, Window, prelude::FluentBuilder,
+    RenderOnce, SharedString, Styled, Window, prelude::FluentBuilder,
 };
 
 use crate::{Selectable, button::Button, menu::PopupMenu, popover::Popover};
@@ -24,10 +24,9 @@ pub trait DropdownMenu: Styled + Selectable + InteractiveElement + IntoElement +
         anchor: impl Into<Anchor>,
         f: impl Fn(PopupMenu, &mut Window, &mut Context<PopupMenu>) -> PopupMenu + 'static,
     ) -> DropdownMenuPopover<Self> {
-        let style = self.style().clone();
         let id = self.interactivity().element_id.clone();
 
-        DropdownMenuPopover::new(id.unwrap_or(0.into()), anchor, self, f).trigger_style(style)
+        DropdownMenuPopover::new(id.unwrap_or(0.into()), anchor, self, f)
     }
 }
 
@@ -36,7 +35,6 @@ impl DropdownMenu for Button {}
 #[derive(IntoElement)]
 pub struct DropdownMenuPopover<T: Selectable + IntoElement + 'static> {
     id: ElementId,
-    style: StyleRefinement,
     anchor: Anchor,
     trigger: T,
     builder: Rc<dyn Fn(PopupMenu, &mut Window, &mut Context<PopupMenu>) -> PopupMenu>,
@@ -63,7 +61,6 @@ where
     ) -> Self {
         Self {
             id: SharedString::from(format!("dropdown-menu:{:?}", id.into())).into(),
-            style: StyleRefinement::default(),
             anchor: anchor.into(),
             trigger,
             builder: Rc::new(builder),
@@ -74,12 +71,6 @@ where
     /// Set the anchor corner for the dropdown menu popover.
     pub fn anchor(mut self, anchor: impl Into<Anchor>) -> Self {
         self.anchor = anchor.into();
-        self
-    }
-
-    /// Set the style refinement for the dropdown menu trigger.
-    fn trigger_style(mut self, style: StyleRefinement) -> Self {
-        self.style = style;
         self
     }
 
@@ -131,7 +122,6 @@ where
             .child_owns_material()
             .overlay_closable(false)
             .trigger(self.trigger)
-            .trigger_style(self.style)
             .anchor(self.anchor)
             .when_some(self.on_open_change, |this, callback| {
                 this.on_open_change(move |open, window, cx| callback(open, window, cx))

@@ -145,9 +145,7 @@ impl IconChrome {
             })
             .when_some(self.tooltip, |this, tooltip| {
                 this.managed_tooltip(move |window, cx| {
-                    Tooltip::new(tooltip.clone())
-                        .overlay_anchored()
-                        .build(window, cx)
+                    Tooltip::new(tooltip.clone()).build(window, cx)
                 })
             })
             .when_some(self.icon.filter(|_| !self.loading), |this, icon| {

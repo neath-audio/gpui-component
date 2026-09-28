@@ -700,9 +700,28 @@ impl CommandState {
         });
     }
 
+    /// Row corner radius, concentric with the frame: the list's `p_1` (plus the
+    /// border when bordered) sits between a row and the frame's corner. A
+    /// borderless command without its own radius keeps the theme radius, since
+    /// its frame belongs to the host.
+    fn item_radius(&self, window: &Window, cx: &App) -> Pixels {
+        let theme = cx.theme();
+        let rem_size = window.rem_size();
+        let own_radius = self.options.style.corner_radii.top_left;
+        let (outer, border) = match (self.options.bordered, own_radius) {
+            (true, radius) => (
+                radius.map_or(theme.radius_lg, |r| r.to_pixels(rem_size)),
+                px(1.),
+            ),
+            (false, Some(radius)) => (radius.to_pixels(rem_size), px(0.)),
+            (false, None) => return theme.radius,
+        };
+        (outer - rem_size * 0.25 - border).max(px(0.))
+    }
+
     /// The frame every item row shares, so that the measured height matches the
     /// rendered one.
-    fn item_row(&self, selected: bool, cx: &App) -> gpui::Div {
+    fn item_row(&self, selected: bool, window: &Window, cx: &App) -> gpui::Div {
         div()
             .flex()
             .flex_row()
@@ -710,9 +729,9 @@ impl CommandState {
             .w_full()
             .gap_2()
             .px_2()
-            .py_1()
+            .py_1p5()
             .text_size(crate::Size::Medium.text_size())
-            .rounded(cx.theme().radius)
+            .rounded(self.item_radius(window, cx))
             .when(selected, |this| {
                 this.bg(cx.theme().accent)
                     .text_color(cx.theme().accent_foreground)
@@ -723,7 +742,7 @@ impl CommandState {
         div()
             .w_full()
             .px_2()
-            .py_1()
+            .py_1p5()
             .text_size(crate::Size::Small.text_size())
             .font_medium()
             .text_color(cx.theme().muted_foreground)
@@ -824,7 +843,7 @@ impl CommandState {
                 .into_any_element(),
         };
 
-        self.item_row(selected, cx)
+        self.item_row(selected, window, cx)
             .id(self.matched[matched_ix].index_path)
             .test_support()
             .role(Role::ListBoxOption)
@@ -925,7 +944,7 @@ impl Render for CommandState {
                 this.child(
                     div()
                         .flex_none()
-                        .px_2()
+                        .px_3()
                         .border_b_1()
                         .border_color(cx.theme().border)
                         .child(
@@ -1440,7 +1459,7 @@ mod tests {
                 CommandRow::Item(_),
             ] if heading == "Settings"
         ));
-        assert_eq!(row_sizes[4].height, px(80.));
+        assert_eq!(row_sizes[4].height, px(84.));
     }
 
     fn command_with_entries(
@@ -2426,7 +2445,7 @@ mod tests {
         cx.update(|window, cx| _ = window.draw(cx));
         let height = cx.update(|_, cx| harness.read(cx).state.read(cx).row_sizes[0].height);
 
-        assert_eq!(height, px(40.));
+        assert_eq!(height, px(44.));
     }
 
     #[gpui::test]
@@ -2461,10 +2480,10 @@ mod tests {
 
         assert_eq!(row_sizes.len(), 5);
         assert!(row_sizes[0].height > px(0.));
-        assert_eq!(row_sizes[1].height, px(40.));
+        assert_eq!(row_sizes[1].height, px(44.));
         assert_eq!(row_sizes[2].height, px(SEPARATOR_ROW_HEIGHT));
         assert!(row_sizes[3].height > px(0.));
-        assert_eq!(row_sizes[4].height, px(80.));
+        assert_eq!(row_sizes[4].height, px(84.));
     }
 
     #[gpui::test]
@@ -2532,8 +2551,8 @@ mod tests {
             });
         assert_eq!(selected_matched_index, Some(1));
         assert_eq!(selected_index, Some(IndexPath::new(1).section(0)));
-        assert_eq!(row_sizes[0].height, px(80.));
-        assert_eq!(row_sizes[1].height, px(40.));
+        assert_eq!(row_sizes[0].height, px(84.));
+        assert_eq!(row_sizes[1].height, px(44.));
     }
 
     #[gpui::test]

@@ -330,10 +330,8 @@ impl<T: Styled> StyleSized<T> for T {
     #[inline]
     fn list_px(self, size: Size) -> Self {
         match size {
-            // Compact (xsmall) item gutter is 6px; every other open row is 8px.
-            // Plus List/menu content inset (4px) that is 10 / 12 to the text.
-            Size::XSmall => self.px_1p5(),
-            _ => self.px_2(),
+            Size::Small => self.px_2(),
+            _ => self.px_3(),
         }
     }
 
@@ -342,7 +340,7 @@ impl<T: Styled> StyleSized<T> for T {
         match size {
             Size::Large => self.py_2(),
             Size::Medium => self.py_1(),
-            Size::Small | Size::XSmall => self.py_0p5(),
+            Size::Small => self.py_0p5(),
             _ => self.py_1(),
         }
     }

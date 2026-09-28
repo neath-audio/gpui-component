@@ -4,7 +4,7 @@ use std::{cell::Cell, rc::Rc, time::Duration};
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, Corners, ElementId, IntoElement,
     MouseButton, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement,
-    StyleRefinement, Styled, Window, div, prelude::FluentBuilder, px,
+    StyleRefinement, Styled, Window, canvas, div, prelude::FluentBuilder, px,
 };
 use gpui_base::{
     Tooltip as BaseTooltip, TooltipOverlay as BaseTooltipOverlay,
@@ -37,7 +37,6 @@ pub struct Tooltip {
     content: TooltipContext,
     key_binding: Option<Kbd>,
     action: Option<(Box<dyn Action>, Option<SharedString>)>,
-    overlay_anchored: bool,
 }
 
 impl Tooltip {
@@ -48,7 +47,6 @@ impl Tooltip {
             content: TooltipContext::Text(text.into()),
             key_binding: None,
             action: None,
-            overlay_anchored: false,
         }
     }
 
@@ -62,7 +60,6 @@ impl Tooltip {
             style: StyleRefinement::default(),
             key_binding: None,
             action: None,
-            overlay_anchored: false,
             content: TooltipContext::Element(Box::new(move |window, cx| {
                 builder(window, cx).into_any_element()
             })),
@@ -72,12 +69,6 @@ impl Tooltip {
     /// Set Action to display key binding information for the tooltip if it exists.
     pub fn action(mut self, action: &dyn Action, context: Option<&str>) -> Self {
         self.action = Some((action.boxed_clone(), context.map(SharedString::new)));
-        self
-    }
-
-    /// Drop the default margin so a positioner can own the trigger gap.
-    pub fn overlay_anchored(mut self) -> Self {
-        self.overlay_anchored = true;
         self
     }
 
@@ -125,7 +116,7 @@ impl Render for Tooltip {
             BaseTooltip::new("tooltip-popup")
                 .h_flex()
                 .font_family(cx.theme().font_family.clone())
-                .when(!self.overlay_anchored, |this| this.m_3())
+                .m_3()
                 .popover_style(cx)
                 .justify_between()
                 .py_0p5()
@@ -268,9 +259,18 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
         let trigger_bounds_cell: Rc<Cell<Bounds<Pixels>>> = Rc::new(Cell::new(Bounds::default()));
         let bounds_writer = trigger_bounds_cell.clone();
 
-        self.on_prepaint(move |bounds, _, _| {
-            bounds_writer.set(bounds);
-        })
+        // Pin the measuring child to the trigger. Without explicit insets, an
+        // absolute child of a block target (such as BreadcrumbItem) keeps its
+        // static position after the text and reports the next line as the anchor.
+        self.child(
+            canvas(
+                move |bounds, _, _| bounds_writer.set(bounds),
+                |_, _, _, _| {},
+            )
+            .absolute()
+            .inset_0()
+            .size_full(),
+        )
         .on_hover({
             let trigger_bounds_cell = trigger_bounds_cell.clone();
             let build_tooltip = build_tooltip.clone();
