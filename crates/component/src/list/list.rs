@@ -13,8 +13,8 @@ use crate::{
 use crate::{Icon, IndexPath, Selectable, Sizable, StyledExt};
 use crate::{VirtualListScrollHandle, list::ListDelegate, v_virtual_list};
 use gpui::{
-    App, AvailableSpace, ClickEvent, Context, DefiniteLength, EdgesRefinement, EventEmitter,
-    ListSizingBehavior, Rems, RenderOnce, Role, ScrollStrategy, SharedString,
+    App, AvailableSpace, ClickEvent, Context, DefiniteLength, Edges, EdgesRefinement, EventEmitter,
+    ListSizingBehavior, Pixels, Rems, RenderOnce, Role, ScrollStrategy, SharedString,
     StatefulInteractiveElement, StyleRefinement, Subscription, px, size,
 };
 use gpui::{
@@ -54,6 +54,9 @@ struct ListOptions {
     /// inside a band of `2 × text + 4px` — the linear scale through the
     /// default chrome's anchor (14px text in a 32px band).
     search_text_size: Option<Rems>,
+    /// Query-row wrapper insets override. Default (`None`) keeps the built-in
+    /// chrome: the size-matched horizontal padding and no vertical padding.
+    search_paddings: Option<Edges<Pixels>>,
     max_height: Option<Length>,
     paddings: EdgesRefinement<DefiniteLength>,
 }
@@ -66,6 +69,7 @@ impl Default for ListOptions {
             max_height: None,
             search_placeholder: None,
             search_text_size: None,
+            search_paddings: None,
             paddings: EdgesRefinement::default(),
         }
     }
@@ -697,9 +701,16 @@ where
             .when_some(query_input, |this, input| {
                 this.child(
                     div()
-                        .map(|this| match self.options.size {
-                            Size::Small => this.px_1p5(),
-                            _ => this.px_2(),
+                        .map(|this| match self.options.search_paddings {
+                            Some(edges) => this
+                                .pt(edges.top)
+                                .pb(edges.bottom)
+                                .pl(edges.left)
+                                .pr(edges.right),
+                            None => match self.options.size {
+                                Size::Small => this.px_1p5(),
+                                _ => this.px_2(),
+                            },
                         })
                         .border_b_1()
                         .border_color(cx.theme().border)
@@ -791,6 +802,14 @@ where
     /// query row keeps the size-derived chrome unchanged.
     pub fn search_text_size(mut self, size: impl Into<Rems>) -> Self {
         self.options.search_text_size = Some(size.into());
+        self
+    }
+
+    /// Overrides the query-row wrapper's insets (default: size-matched
+    /// horizontal padding, no vertical padding) — e.g. to sit the search icon
+    /// on the same inset line as the list's rows.
+    pub fn search_paddings(mut self, paddings: impl Into<Edges<Pixels>>) -> Self {
+        self.options.search_paddings = Some(paddings.into());
         self
     }
 }

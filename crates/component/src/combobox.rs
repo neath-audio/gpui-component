@@ -87,6 +87,7 @@ struct ComboboxOptions {
     appearance: bool,
     focus_ring_enabled: bool,
     search_text_size: Option<Rems>,
+    search_paddings: Option<Edges<Pixels>>,
     trigger_unstyled: bool,
     trigger_icon: Option<Icon>,
     check_icon: Option<Icon>,
@@ -106,6 +107,7 @@ impl Default for ComboboxOptions {
             appearance: true,
             focus_ring_enabled: true,
             search_text_size: None,
+            search_paddings: None,
             trigger_unstyled: false,
             trigger_icon: None,
             check_icon: None,
@@ -737,6 +739,7 @@ where
                         self.state.menu_width,
                         self.state.search_placeholder.clone(),
                         self.state.search_text_size,
+                        self.state.search_paddings,
                         self.state.size,
                         self.state.menu_max_h,
                         bounds,
@@ -856,6 +859,12 @@ where
         self
     }
 
+    /// Set the query-row wrapper insets in the popup list.
+    pub fn search_paddings(mut self, paddings: impl Into<Edges<Pixels>>) -> Self {
+        self.options.search_paddings = Some(paddings.into());
+        self
+    }
+
     /// Show a clear button when at least one item is selected.
     pub fn cleanable(mut self, cleanable: bool) -> Self {
         self.options.cleanable = cleanable;
@@ -968,6 +977,7 @@ where
             this.state.placeholder = opts.placeholder;
             this.state.search_placeholder = opts.search_placeholder;
             this.state.search_text_size = opts.search_text_size;
+            this.state.search_paddings = opts.search_paddings;
             this.state.menu_width = opts.menu_width;
             this.state.menu_max_h = opts.menu_max_h;
             this.state.disabled = opts.disabled;
@@ -1087,6 +1097,7 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
     menu_width: Length,
     search_placeholder: Option<SharedString>,
     search_text_size: Option<Rems>,
+    search_paddings: Option<Edges<Pixels>>,
     size: Size,
     menu_max_h: Length,
     bounds: Bounds<Pixels>,
@@ -1112,6 +1123,9 @@ fn render_popup_shell<D: SearchableListDelegate + 'static>(
                         this.search_placeholder(placeholder)
                     })
                     .when_some(search_text_size, |this, size| this.search_text_size(size))
+                    .when_some(search_paddings, |this, paddings| {
+                        this.search_paddings(paddings)
+                    })
                     .with_size(size)
                     .max_h(menu_max_h)
                     .paddings(Edges::all(px(4.))),
