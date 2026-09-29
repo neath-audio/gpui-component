@@ -87,10 +87,14 @@ impl Default for TableOptions {
 ///     .stripe(true)
 ///     .bordered(true)
 /// ```
+///
+/// Use [`crate::FocusableExt::focus_ring`] to control the table's keyboard focus
+/// outline without changing keyboard focus or row selection.
 #[derive(IntoElement)]
 pub struct DataTable<D: TableDelegate> {
     state: Entity<TableState<D>>,
     options: TableOptions,
+    focus_ring_enabled: bool,
 }
 
 impl<D> DataTable<D>
@@ -102,6 +106,7 @@ where
         Self {
             state: state.clone(),
             options: TableOptions::default(),
+            focus_ring_enabled: true,
         }
     }
 
@@ -135,6 +140,20 @@ where
     fn with_size(mut self, size: impl Into<Size>) -> Self {
         self.options.size = size.into();
         self
+    }
+}
+
+impl<D> crate::FocusableExt for DataTable<D>
+where
+    D: TableDelegate,
+{
+    fn focus_ring(mut self, enabled: bool) -> Self {
+        self.focus_ring_enabled = enabled;
+        self
+    }
+
+    fn is_focus_ring_enabled(&self) -> bool {
+        self.focus_ring_enabled
     }
 }
 
@@ -174,7 +193,9 @@ where
             // Clicking a row focuses the table too, so only keyboard focus
             // shows it, as CSS `:focus-visible` does.
             .when(
-                focus_handle.is_focused(window) && window.last_input_was_keyboard(),
+                self.focus_ring_enabled
+                    && focus_handle.is_focused(window)
+                    && window.last_input_was_keyboard(),
                 |this| this.focus_ring_style(window, cx),
             )
     }
