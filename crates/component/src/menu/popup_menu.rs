@@ -1261,7 +1261,6 @@ impl PopupMenu {
         const ICON_GAP: Rems = rems(0.375);
 
         let is_submenu = matches!(item, PopupMenuItem::Submenu { .. });
-        let group_name = format!("{}:item-{}", cx.entity().entity_id(), ix);
 
         let item_height = self.size.list_row_height();
         let compact = matches!(self.size, Size::XSmall | Size::Small);
@@ -1275,7 +1274,7 @@ impl PopupMenu {
             options.radius
         };
 
-        let this = MenuItemElement::new(ix, &group_name)
+        let this = MenuItemElement::new(ix)
             .relative()
             .flex_shrink_0()
             .text_size(menu_text)
@@ -1284,10 +1283,15 @@ impl PopupMenu {
             .rounded(radius)
             .items_center()
             .selected(selected)
-            .on_hover(cx.listener(move |this, hovered, _, cx| {
+            .on_hover(cx.listener(move |this, hovered, window, cx| {
                 if *hovered {
                     this.selected_index = Some(ix);
-                } else if !is_submenu && this.selected_index == Some(ix) {
+                } else if !is_submenu
+                    && this.selected_index == Some(ix)
+                    // A key press ends hover under a still pointer; keep the
+                    // highlight so the next arrow key moves on from this item.
+                    && !window.last_input_was_keyboard()
+                {
                     // TODO: Better handle the submenu unselection when hover out
                     this.selected_index = None;
                 }

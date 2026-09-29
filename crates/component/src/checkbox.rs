@@ -4,7 +4,7 @@ use crate::{
     ActiveTheme, Disableable, IconName, RoleOverride, Selectable, Sizable, Size, icon::IconNamed,
     text::Text, tooltip::ComponentTooltip, v_flex,
 };
-use crate::{StyledExt as _, ThemeStyled as _};
+use crate::{StyleSized as _, StyledExt as _, ThemeStyled as _};
 use gpui::{
     AnyElement, App, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
     RenderOnce, SharedString, StatefulInteractiveElement, StyleRefinement, Styled, Window, div,
@@ -272,7 +272,10 @@ impl RenderOnce for Checkbox {
             .items_start()
             .line_height(relative(1.))
             .text_color(cx.theme().foreground)
-            .text_size(self.size.control_text_size())
+            .map(|this| match self.size {
+                Size::Size(_) => this.text_size(self.size.control_text_size()),
+                size => this.input_text_size(size),
+            })
             .rounded(cx.theme().radius * 0.5)
             .when(is_focused && self.focus_ring_enabled, |this| {
                 this.focus_ring_style(window, cx)

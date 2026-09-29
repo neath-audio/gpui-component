@@ -5,8 +5,8 @@ use gpui::{
 
 use super::input::input_style;
 use super::state::sync_focused_input_registry;
-use crate::ThemeStyled as _;
 use crate::{ActiveTheme, Disableable, Icon, IconName, Sizable, Size, h_flex, v_flex};
+use crate::{StyleSized as _, ThemeStyled as _};
 use gpui_base::OtpInput as BaseOtpInput;
 pub use gpui_base::{OtpEvent, OtpState};
 
@@ -78,12 +78,6 @@ impl RenderOnce for OtpInput {
         let blink_show = state.cursor_visible(cx);
         let is_focused = state.focus_handle(cx).is_focused(window);
 
-        let text_size = match self.size {
-            // A custom OTP size specifies fixed cell dimensions.
-            Size::Size(cell_size) => cell_size * 0.5,
-            size => size.control_text_size().to_pixels(window.rem_size()),
-        };
-
         let cursor_ix = state
             .value()
             .chars()
@@ -120,7 +114,10 @@ impl RenderOnce for OtpInput {
                     .items_center()
                     .justify_center()
                     .rounded(cx.theme().radius)
-                    .text_size(text_size)
+                    .map(|this| match self.size {
+                        Size::Size(v) => this.text_size(v * 0.5),
+                        size => this.input_text_size(size),
+                    })
                     .map(|this| match self.size {
                         Size::XSmall => this.w_6().h_6(),
                         Size::Small => this.w_6().h_6(),
@@ -141,8 +138,7 @@ impl RenderOnce for OtpInput {
                                         .text_color(cx.theme().secondary_foreground)
                                         .when(self.disabled, |this| {
                                             this.text_color(cx.theme().muted_foreground)
-                                        })
-                                        .with_size(text_size),
+                                        }),
                                 )
                             } else {
                                 this.child(c.to_string())

@@ -218,6 +218,9 @@ impl Size {
     }
 }
 
+/// The inset between an input's dropdown popup and its list rows.
+pub(crate) const DROPDOWN_LIST_PADDING: Pixels = px(4.);
+
 impl From<Pixels> for Size {
     fn from(size: Pixels) -> Self {
         Size::Size(size)
