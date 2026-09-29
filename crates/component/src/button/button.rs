@@ -863,6 +863,7 @@ impl RenderOnce for Button {
             } else if let Some((tooltip, action)) = self.tooltip {
                 this.managed_tooltip_with_placement(tooltip_placement, move |window, cx| {
                     Tooltip::new(tooltip.clone())
+                        .overlay_anchored()
                         .when_some(action.clone(), |this, (action, context)| {
                             this.action(
                                 action.boxed_clone().as_ref(),
