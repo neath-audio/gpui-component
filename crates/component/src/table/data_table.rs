@@ -8,7 +8,7 @@ use crate::{
 };
 use gpui::{
     App, Edges, Entity, Focusable, InteractiveElement, IntoElement, KeyBinding, ParentElement,
-    RenderOnce, Styled, Window, div, prelude::FluentBuilder,
+    Pixels, RenderOnce, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_base::TestSupportExt as _;
 
@@ -37,6 +37,15 @@ pub(super) struct TableOptions {
     pub(super) bordered: bool,
     /// The cell size of the table.
     pub(super) size: Size,
+    /// Optional height of each header row, independent of body rows.
+    pub(super) header_height: Option<Pixels>,
+}
+
+impl TableOptions {
+    pub(super) fn header_height(&self) -> Pixels {
+        self.header_height
+            .unwrap_or_else(|| self.size.table_row_height())
+    }
 }
 
 impl Default for TableOptions {
@@ -46,6 +55,7 @@ impl Default for TableOptions {
             stripe: false,
             bordered: true,
             size: Size::default(),
+            header_height: None,
         }
     }
 }
@@ -119,6 +129,15 @@ where
     /// Set to use border style of the table, default to true.
     pub fn bordered(mut self, bordered: bool) -> Self {
         self.options.bordered = bordered;
+        self
+    }
+
+    /// Set the height of each header row, including group headers.
+    ///
+    /// By default, headers use the body row height set by [`Sizable`].
+    /// This override leaves body rows, cell padding, and typography unchanged.
+    pub fn header_height(mut self, height: impl Into<Pixels>) -> Self {
+        self.options.header_height = Some(height.into());
         self
     }
 

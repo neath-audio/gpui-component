@@ -777,9 +777,16 @@ where
 
     fn page_item_count(&self) -> usize {
         let row_height = self.options.size.table_row_height();
-        let height = self.bounds.size.height;
-        let count = (height / row_height).floor() as usize;
-        count.saturating_sub(1).max(1)
+        // The measured body viewport already excludes every header row.
+        let height = self
+            .vertical_scroll_handle
+            .0
+            .borrow()
+            .base_handle
+            .bounds()
+            .size
+            .height;
+        ((height / row_height).floor() as usize).max(1)
     }
 
     fn on_row_right_click(
@@ -1878,7 +1885,7 @@ where
                             layout.iter().enumerate().map(|(_row_ix, row_cells)| {
                                 h_flex()
                                     .min_w_full()
-                                    .h(self.options.size.table_row_height())
+                                    .h(self.options.header_height())
                                     .border_b_1()
                                     .border_color(cx.theme().border)
                                     .children(row_cells.iter().filter_map(|cell| {
@@ -1938,7 +1945,7 @@ where
                             let is_leaf_row = row_ix + 1 == layout_len;
                             h_flex()
                                 .min_w_full()
-                                .h(self.options.size.table_row_height())
+                                .h(self.options.header_height())
                                 .border_b_1()
                                 .border_color(cx.theme().border)
                                 .map(|this| {
@@ -2384,7 +2391,7 @@ where
         Some(
             div()
                 .absolute()
-                .top(self.options.size.table_row_height() * self.header_layout.len().max(1) as f32)
+                .top(self.options.header_height() * self.header_layout.len().max(1) as f32)
                 .right_0()
                 .bottom_0()
                 .w(Scrollbar::width())
@@ -3127,3 +3134,6 @@ mod tests {
         assert_eq!(table.read_with(cx, |s, _| s.selected_row()), None);
     }
 }
+
+#[cfg(test)]
+mod header_height_tests;
