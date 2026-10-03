@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use std::rc::Rc;
 
 use gpui::{
@@ -300,7 +301,7 @@ impl RenderOnce for Field {
                         // Label
                         this.child(
                             wrap_label(label_width)
-                                .text_size(self.props.size.control_text_size())
+                                .text_size(self.props.size.control_text_size(cx))
                                 .when_some(self.props.label_text_size, |this, size| {
                                     this.text_size(size)
                                 })
@@ -340,7 +341,7 @@ impl RenderOnce for Field {
                     .when_some(self.description, |this, builder| {
                         this.child(
                             div()
-                                .text_xs()
+                                .text_ui_sm(cx)
                                 .text_color(cx.theme().muted_foreground)
                                 .child(builder.render(window, cx)),
                         )

@@ -112,7 +112,7 @@ impl RenderOnce for StepperTrigger {
             .when(self.layout.is_vertical(), |this| this.h_flex().gap_2())
             .items_start()
             .when(self.text_center, |this| this.items_center())
-            .input_text_size(self.size.smaller())
+            .input_text_size(self.size.smaller(), cx)
             .refine_style(&self.style)
             .child(
                 div()

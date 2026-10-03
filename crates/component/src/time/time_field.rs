@@ -109,7 +109,7 @@ impl RenderOnce for TimeField {
             .border_1()
             .border_color(cx.theme().input)
             .rounded(cx.theme().radius)
-            .input_text_size(self.size)
+            .input_text_size(self.size, cx)
             .input_h(self.size)
             .px_1()
             .when(self.disabled, |this| this.opacity(0.5))

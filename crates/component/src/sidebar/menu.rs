@@ -1,4 +1,4 @@
-use crate::Size;
+use crate::StyledTypography as _;
 use crate::{
     ActiveTheme as _, Collapsible, Icon, IconName, Placement, Sizable as _, StyledExt,
     button::{Button, ButtonVariants as _},
@@ -308,7 +308,7 @@ impl SidebarItem for SidebarMenuItem {
                     .p_2()
                     .gap_x_2()
                     .rounded(cx.theme().radius)
-                    .text_size(Size::Small.text_size())
+                    .text_ui(cx)
                     .refine_style(&self.style)
                     .when(is_hoverable, |this| {
                         this.hover(|this| {

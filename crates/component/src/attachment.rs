@@ -1,3 +1,4 @@
+use crate::{StyledTypography as _, TextSize};
 use std::{rc::Rc, time::Duration};
 
 use gpui::{
@@ -131,7 +132,7 @@ struct CardMetrics {
     description: AbsoluteLength,
 }
 
-fn card_metrics(size: Size) -> CardMetrics {
+fn card_metrics(size: Size, cx: &App) -> CardMetrics {
     let r = |value: f32| AbsoluteLength::Rems(rems(value));
     match size {
         Size::XSmall => CardMetrics {
@@ -143,8 +144,8 @@ fn card_metrics(size: Size) -> CardMetrics {
             padding_end: r(0.375),
             card_padding: r(0.25),
             gap: r(0.375),
-            text: size.control_text_size().into(),
-            description: Size::XSmall.text_size().into(),
+            text: size.control_text_size(cx).into(),
+            description: TextSize::XSmall.rems(cx).into(),
         },
         Size::Small => CardMetrics {
             height: r(3.),
@@ -155,8 +156,8 @@ fn card_metrics(size: Size) -> CardMetrics {
             padding_end: r(0.5),
             card_padding: r(0.375),
             gap: r(0.5),
-            text: size.control_text_size().into(),
-            description: Size::Small.text_size().into(),
+            text: size.control_text_size(cx).into(),
+            description: TextSize::Small.rems(cx).into(),
         },
         Size::Medium => CardMetrics {
             height: r(3.5),
@@ -167,8 +168,8 @@ fn card_metrics(size: Size) -> CardMetrics {
             padding_end: r(0.75),
             card_padding: r(0.5),
             gap: r(0.625),
-            text: size.control_text_size().into(),
-            description: Size::Small.text_size().into(),
+            text: size.control_text_size(cx).into(),
+            description: TextSize::Small.rems(cx).into(),
         },
         Size::Large => CardMetrics {
             height: r(4.),
@@ -179,8 +180,8 @@ fn card_metrics(size: Size) -> CardMetrics {
             padding_end: r(1.),
             card_padding: r(0.75),
             gap: r(0.75),
-            text: size.control_text_size().into(),
-            description: Size::Medium.text_size().into(),
+            text: size.control_text_size(cx).into(),
+            description: TextSize::Default.rems(cx).into(),
         },
         // A custom density scales the medium geometry from its base value.
         Size::Size(value) => CardMetrics {
@@ -192,8 +193,8 @@ fn card_metrics(size: Size) -> CardMetrics {
             padding_end: (value * 0.75).into(),
             card_padding: (value * 0.5).into(),
             gap: (value * 0.625).into(),
-            text: size.control_text_size().into(),
-            description: size.text_size().into(),
+            text: size.control_text_size(cx).into(),
+            description: size.control_text_size(cx).into(),
         },
     }
 }
@@ -408,7 +409,7 @@ impl RenderOnce for Attachment {
         let progress_bar = self
             .progress
             .filter(|_| status.is_uploading() && axis == Axis::Horizontal);
-        let metrics = card_metrics(size);
+        let metrics = card_metrics(size, cx);
         let radius = card_radius(size, cx);
         let flush = axis == Axis::Vertical && !has_content;
 
@@ -743,7 +744,7 @@ impl RenderOnce for AttachmentMedia {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let tokens = cx.theme().semantic_tokens();
         let resolved_size = self.size.unwrap_or_default();
-        let metrics = card_metrics(resolved_size);
+        let metrics = card_metrics(resolved_size, cx);
         // Flush media sits inside the card's 1px border, so its corners are
         // one border width tighter than the card's to stay concentric.
         let radius = if self.flush {
@@ -1008,7 +1009,7 @@ impl RenderOnce for AttachmentContent {
                             .child(description)
                             .child(
                                 div()
-                                    .text_xs()
+                                    .text_ui_sm(cx)
                                     .text_color(tokens.colors.muted_foreground)
                                     .child(","),
                             )
@@ -1146,7 +1147,7 @@ impl RenderOnce for AttachmentDescription {
             .max_w_full()
             .min_w_0()
             .truncate()
-            .text_size(card_metrics(self.size.unwrap_or_default()).description)
+            .text_size(card_metrics(self.size.unwrap_or_default(), cx).description)
             .line_height(relative(1.25))
             .text_color(color)
             .child(self.text)

@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, ElementId, InteractiveElement as _, IntoElement, ParentElement, RenderOnce,
     StatefulInteractiveElement as _, StyleRefinement, Styled, Window, prelude::FluentBuilder as _,
@@ -359,7 +360,7 @@ impl RenderOnce for MessageHeader {
             .max_w_full()
             .min_w_0()
             .gap_1()
-            .text_xs()
+            .text_ui_sm(cx)
             .line_height(relative(1.25))
             .font_medium()
             .text_color(tokens.colors.muted_foreground)
@@ -496,7 +497,7 @@ impl RenderOnce for MessageFooter {
             .max_w_full()
             .min_w_0()
             .gap_1()
-            .text_xs()
+            .text_ui_sm(cx)
             .line_height(relative(1.25))
             .font_medium()
             .text_color(tokens.colors.muted_foreground)

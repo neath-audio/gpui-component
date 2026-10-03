@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, Axis, Div, InteractiveElement as _, IntoElement, ParentElement, SharedString,
     Stateful, Styled, Window, div, prelude::FluentBuilder as _,
@@ -254,7 +255,7 @@ impl SettingItem {
         window: &mut Window,
         cx: &mut App,
     ) -> Stateful<Div> {
-        let text_size = options.size().control_text_size();
+        let text_size = options.size().control_text_size(cx);
         div()
             .id(SharedString::from(format!("item-{}", options.item_ix())))
             .w_full()
@@ -299,7 +300,7 @@ impl SettingItem {
                                     this.child(
                                         div()
                                             .size_full()
-                                            .text_size(text_size)
+                                            .text_ui_sm(cx)
                                             .text_color(cx.theme().muted_foreground)
                                             .child(description),
                                     )

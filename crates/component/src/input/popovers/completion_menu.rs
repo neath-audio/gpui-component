@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use std::rc::Rc;
 
 use gpui::{
@@ -104,7 +105,7 @@ impl RenderOnce for CompletionMenuItem {
             .id(self.ix)
             .gap_2()
             .p_1()
-            .text_xs()
+            .text_ui_sm(cx)
             .line_height(relative(1.))
             .rounded(cx.theme().radius.half())
             .when(item.deprecated.unwrap_or(false), |this| this.line_through())

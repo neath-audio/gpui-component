@@ -160,7 +160,7 @@ impl Settings {
                     let is_page_active = selected_index.page_ix == page_ix
                         && (selected_index.group_ix.is_none() || groups.len() == 1);
                     SidebarMenuItem::new(page.title.clone())
-                        .text_size(size.control_text_size())
+                        .text_size(size.control_text_size(cx))
                         .click_to_open(true)
                         .when_some(page.icon.clone(), |this, icon| this.icon(icon))
                         .default_open(page.default_open)
@@ -191,7 +191,7 @@ impl Settings {
                                         let title = group.title.clone().unwrap_or_default();
 
                                         SidebarMenuItem::new(title)
-                                            .text_size(size.control_text_size())
+                                            .text_size(size.control_text_size(cx))
                                             .active(is_active)
                                             .on_click({
                                                 let state = state.clone();

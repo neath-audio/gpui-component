@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use std::rc::Rc;
 
 use gpui::{
@@ -81,7 +82,7 @@ impl RenderOnce for MenuItem {
             .id(self.ix)
             .gap_2()
             .p_1()
-            .text_xs()
+            .text_ui_sm(cx)
             .line_height(relative(1.))
             .rounded(cx.theme().radius.half())
             .hover(|this| this.bg(cx.theme().accent.opacity(0.8)))

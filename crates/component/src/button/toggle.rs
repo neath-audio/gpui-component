@@ -171,7 +171,7 @@ impl RenderOnce for Toggle {
             .line_height(relative(1.25))
             .items_center()
             .justify_center()
-            .text_size(self.size.control_text_size())
+            .text_size(self.size.control_text_size(cx))
             .map(|this| match self.size {
                 Size::XSmall => this.min_w_5().h_5().px_0p5(),
                 Size::Small => this.min_w_6().h_6().px_1(),

@@ -1,4 +1,4 @@
-use crate::Size;
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, IntoElement, ParentElement, RenderOnce, StyleRefinement, Styled, Window,
     relative,
@@ -38,9 +38,9 @@ impl Styled for DialogTitle {
 }
 
 impl RenderOnce for DialogTitle {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         self.base
-            .text_size(Size::Large.text_size())
+            .text_ui_lg(cx)
             .font_medium()
             .line_height(relative(1.))
             .refine_style(&self.style)

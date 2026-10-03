@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, Context, Hsla, IntoElement, ParentElement as _, Styled as _, Window, div,
 };
@@ -96,8 +97,8 @@ impl<D: SearchableListDelegate + 'static> ListDelegate for SearchableListAdapter
             div()
                 .py_0p5()
                 .px_2()
-                .list_size(self.size)
-                .text_size(Size::Small.text_size())
+                .list_size(self.size, cx)
+                .text_ui_sm(cx)
                 .text_color(cx.theme().muted_foreground)
                 .child(item)
                 .into_any_element(),

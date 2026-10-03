@@ -135,8 +135,8 @@ impl RenderOnce for SearchableListItemElement {
             .text_color(cx.theme().foreground)
             .items_center()
             .justify_between()
-            .input_text_size(self.size)
-            .list_size(self.size)
+            .input_text_size(self.size, cx)
+            .list_size(self.size, cx)
             .refine_style(&self.style)
             .when(!self.disabled, |this| {
                 this.when(!self.selected, |this| this.hover(|this| this.bg(hover_bg)))

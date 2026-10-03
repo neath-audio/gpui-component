@@ -52,3 +52,13 @@ fn legacy_theme_config_struct_literal_shape_is_unchanged() {
         highlight: None,
     };
 }
+
+#[test]
+fn runtime_ui_typography_does_not_change_theme_serialization() {
+    use gpui::rems;
+    use gpui_neath::{TextSize, Theme, UiTypography};
+    let mut theme = Theme::default();
+    let saved = serde_json::to_value(&theme).unwrap();
+    theme.set_ui_typography(UiTypography::default().with_size(TextSize::Default, rems(0.75)));
+    assert_eq!(serde_json::to_value(&theme).unwrap(), saved);
+}

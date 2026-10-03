@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use std::rc::Rc;
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, Weekday};
@@ -656,8 +657,8 @@ impl DatePicker {
             .child(
                 div()
                     .map(|this| match size {
-                        Size::Small => this.text_xs(),
-                        _ => this.text_sm(),
+                        Size::Small => this.text_ui(cx),
+                        _ => this.text_ui(cx),
                     })
                     .text_color(cx.theme().muted_foreground)
                     .child(SharedString::from(t!("DatePicker.time"))),
@@ -712,7 +713,7 @@ impl RenderOnce for DatePicker {
                 let state = self.state.clone();
                 move |bounds, _, cx| state.update(cx, |state, _| state.bounds = bounds)
             })
-            .input_text_size(self.size)
+            .input_text_size(self.size, cx)
             .refine_style(&self.style)
             .child(
                 div()
@@ -736,7 +737,7 @@ impl RenderOnce for DatePicker {
                         is_focused && self.appearance && !self.disabled && self.focus_ring_enabled,
                         |this| this.focus_ring_style(window, cx),
                     )
-                    .input_text_size(self.size)
+                    .input_text_size(self.size, cx)
                     .input_size(self.size)
                     .when(!state.open && !self.disabled, |this| {
                         this.on_click(

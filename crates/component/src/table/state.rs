@@ -1389,7 +1389,7 @@ where
         _row_ix: Option<usize>,
         col_ix: usize,
         _window: &mut Window,
-        _cx: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) -> Div {
         let Some(col_group) = self.col_groups.get(col_ix) else {
             return div();
@@ -1404,7 +1404,7 @@ where
             .flex_shrink_0()
             .overflow_hidden()
             .whitespace_nowrap()
-            .table_cell_size(self.options.size)
+            .table_cell_size(self.options.size, cx)
             .map(|this| match col_padding {
                 Some(padding) => this
                     .pl(padding.left)
@@ -1601,7 +1601,7 @@ where
             .border_r_1()
             .border_color(cx.theme().table_row_border)
             .flex_shrink_0()
-            .table_cell_size(self.options.size)
+            .table_cell_size(self.options.size, cx)
             .when(!is_head, |this| {
                 this.bg(cx.theme().tokens.table_head)
                     .when(self.row_selectable, |this| {
@@ -2311,7 +2311,7 @@ where
                             .w(px(40.))
                             .h_full()
                             .flex_shrink_0()
-                            .table_cell_size(self.options.size),
+                            .table_cell_size(self.options.size, cx),
                     )
                 })
                 // The fake cells paint nothing, so a single spacer as wide as all

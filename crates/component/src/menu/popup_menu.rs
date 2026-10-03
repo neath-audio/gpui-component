@@ -1159,7 +1159,7 @@ impl PopupMenu {
         &self,
         action: Option<Box<dyn Action>>,
         window: &mut Window,
-        _: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) -> Option<Kbd> {
         let action = action?;
 
@@ -1183,6 +1183,7 @@ impl PopupMenu {
         .or_else(|| Kbd::global_binding_for_action(action.as_ref(), window))
         .map(|this| {
             this.p_0()
+                .text_size(self.size.menu_text_size(cx))
                 .flex_nowrap()
                 .border_0()
                 .bg(gpui::transparent_white())
@@ -1265,7 +1266,7 @@ impl PopupMenu {
         let item_height = self.size.list_row_height();
         let compact = matches!(self.size, Size::XSmall | Size::Small);
         let inner_padding = if compact { rems(0.375) } else { rems(0.5) };
-        let menu_text = self.size.menu_text_size();
+        let menu_text = self.size.menu_text_size(cx);
         // Radius is keyed off the popover's own radius, halved only for the
         // compact `XSmall | Small` tiers.
         let radius = if compact {
@@ -1316,12 +1317,11 @@ impl PopupMenu {
                 h_flex()
                     .cursor_default()
                     .items_center()
-                    // Nova group-label recipe (`px-1.5 py-1 text-xs
-                    // font-medium text-muted-foreground`): 12px medium
-                    // muted text in a 24px box (16px text-xs line + 2×4px),
-                    // user-ruled 2026-07-20.
+                    // Group headings share the menu text role. Weight and
+                    // color distinguish them from actions in the existing
+                    // 24px minimum-height row.
                     .min_h(rems(1.5))
-                    .text_size(Size::Small.text_size())
+                    .text_size(menu_text)
                     .font_medium()
                     .text_color(cx.theme().muted_foreground)
                     .gap_x(ICON_GAP)

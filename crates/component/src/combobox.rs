@@ -1056,7 +1056,7 @@ fn render_trigger_container(
                 .rounded(cx.theme().radius)
         })
         .input_size(size)
-        .input_text_size(size)
+        .input_text_size(size, cx)
         .refine_style(style)
         .when(outline_visible && appearance, |this| {
             this.border_1().border_color(cx.theme().ring)

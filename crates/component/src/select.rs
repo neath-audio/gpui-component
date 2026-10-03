@@ -568,7 +568,7 @@ where
                             })
                         })
                         .input_size(self.state.size)
-                        .input_text_size(self.state.size)
+                        .input_text_size(self.state.size, cx)
                         .refine_style(&self.state.style)
                         .when(outline_visible && self.state.appearance, |this| {
                             this.border_1().border_color(cx.theme().ring)

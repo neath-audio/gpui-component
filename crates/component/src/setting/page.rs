@@ -8,7 +8,7 @@ use gpui::{
 use rust_i18n::t;
 
 use crate::{
-    ActiveTheme, Icon, IconName, Sizable, StyledExt,
+    ActiveTheme, Icon, IconName, Sizable, StyledExt, StyledTypography as _,
     button::{Button, ButtonVariants},
     h_flex,
     label::Label,
@@ -131,7 +131,6 @@ impl SettingPage {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
-        let text_size = options.size().control_text_size();
         let search_input = state.read(cx).search_input.clone();
         let query = search_input.read(cx).value();
         let groups = group_indices
@@ -232,7 +231,7 @@ impl SettingPage {
                     .when_some(self.description.clone(), |this, description| {
                         this.child(
                             Label::new(description)
-                                .text_size(text_size)
+                                .text_ui_sm(cx)
                                 .text_color(cx.theme().muted_foreground),
                         )
                     }),

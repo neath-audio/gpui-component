@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use std::rc::Rc;
 
 use gpui::{
@@ -118,7 +119,7 @@ impl SettingGroup {
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
-        let text_size = options.size().control_text_size();
+        let text_size = options.size().control_text_size(cx);
         GroupBox::new()
             .id(SharedString::from(format!("group-{}", options.group_ix())))
             .with_variant(self.variant.unwrap_or(options.group_variant()))
@@ -146,7 +147,7 @@ impl SettingGroup {
                         .when_some(self.description.clone(), |this, description| {
                             this.child(
                                 Label::new(description)
-                                    .text_size(text_size)
+                                    .text_ui_sm(cx)
                                     .text_color(cx.theme().muted_foreground),
                             )
                         }),

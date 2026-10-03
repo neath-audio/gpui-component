@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, Corners, Div, ElementId, Half as _, Hsla, IntoElement, ParentElement, Pixels,
     Point, RenderOnce, SharedString, Size, StyleRefinement, Styled, Window, deferred, div, point,
@@ -519,7 +520,7 @@ impl RenderOnce for Tooltip {
         let content = if title.is_some() || !rows.is_empty() {
             let swatched = has_swatches(&rows);
             v_flex()
-                .text_size(crate::Size::Small.text_size())
+                .text_ui_sm(cx)
                 .gap_1()
                 .when_some(title, |this, title| {
                     this.child(div().font_semibold().child(title))
@@ -560,7 +561,7 @@ impl RenderOnce for Tooltip {
         // transient overlay over dense data reads at the compact tier, and a
         // per-call-site size is how a dozen charts end up at a dozen sizes.
         // Content that wants a hierarchy sets it on its own children.
-        let content = content.text_xs();
+        let content = content.text_ui_sm(cx);
 
         div()
             .size_full()

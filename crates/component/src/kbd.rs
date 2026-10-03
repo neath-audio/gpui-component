@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     Action, AsKeystroke, FocusHandle, Half, InteractiveElement as _, IntoElement, KeyBinding,
     KeyContext, Keystroke, ParentElement as _, RenderOnce, StyleRefinement, Styled, Window, div,
@@ -252,7 +253,7 @@ impl RenderOnce for Kbd {
             .text_center()
             .rounded(cx.theme().radius.half())
             .line_height(relative(1.))
-            .text_xs()
+            .text_ui_sm(cx)
             .whitespace_normal()
             .flex_shrink_0()
             .refine_style(&self.style)

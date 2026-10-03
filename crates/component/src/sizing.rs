@@ -1,4 +1,5 @@
-use gpui::{Edges, Pixels, Rems, Styled, px, rems};
+use crate::TextSize;
+use gpui::{App, Edges, Pixels, Rems, Styled, px, rems};
 use serde::{Deserialize, Serialize};
 
 /// A size for elements.
@@ -64,45 +65,37 @@ impl Size {
         }
     }
 
-    /// Single type scale. 16px rem base; these are the only named text sizes.
-    pub fn text_size(&self) -> Rems {
+    /// Type used by `.xsmall()`/`.small()`/`.medium()`/`.large()` controls.
+    /// XSmall chrome uses supporting text; full-size controls keep at least 13/16 rem.
+    pub fn control_text_size(&self, cx: &App) -> Rems {
         match self {
-            Size::XSmall => rems(0.625),
-            Size::Small => rems(0.75),
-            Size::Medium => rems(0.8125),
-            Size::Large => rems(0.9375),
+            Size::XSmall => TextSize::Small.rems(cx),
+            Size::Small => TextSize::Default.rems(cx),
+            Size::Medium => rems(TextSize::Default.rems(cx).0.max(13. / 16.)),
+            Size::Large => TextSize::Large.rems(cx),
             Size::Size(size) => rems(size.as_f32() / 16.0),
         }
     }
 
-    /// Type used by `.xsmall()`/`.small()`/`.medium()`/`.large()` controls.
-    /// XSmall chrome uses Small type (12px). Caption 10px is only
-    /// [`Self::text_size`] on `Size::XSmall`, the same way Large 15px is
-    /// explicit display type.
-    pub fn control_text_size(&self) -> Rems {
+    pub fn input_text_size(&self, cx: &App) -> Rems {
+        self.control_text_size(cx)
+    }
+
+    pub fn button_text_size(&self, cx: &App) -> Rems {
+        self.control_text_size(cx)
+    }
+
+    pub fn table_text_size(&self, cx: &App) -> Rems {
+        self.control_text_size(cx)
+    }
+
+    /// Extra-compact menus use supporting text, Small follows ordinary text,
+    /// and primary menus retain the Medium control text tier.
+    pub fn menu_text_size(&self, cx: &App) -> Rems {
         match self {
-            Size::XSmall => Size::Small.text_size(),
-            other => other.text_size(),
-        }
-    }
-
-    pub fn input_text_size(&self) -> Rems {
-        self.control_text_size()
-    }
-
-    pub fn button_text_size(&self) -> Rems {
-        self.control_text_size()
-    }
-
-    pub fn table_text_size(&self) -> Rems {
-        self.control_text_size()
-    }
-
-    /// Menus may be Small (12) or Medium (13) only. Large and custom clamp to Medium.
-    pub fn menu_text_size(&self) -> Rems {
-        match self {
-            Size::XSmall | Size::Small => Size::Small.text_size(),
-            Size::Medium | Size::Large | Size::Size(_) => Size::Medium.text_size(),
+            Size::XSmall => TextSize::Small.rems(cx),
+            Size::Small => TextSize::Default.rems(cx),
+            _ => Size::Medium.control_text_size(cx),
         }
     }
 
@@ -266,27 +259,27 @@ pub trait Sizable: Sized {
 
 #[allow(unused)]
 pub trait StyleSized<T: Styled> {
-    fn input_text_size(self, size: Size) -> Self;
+    fn input_text_size(self, size: Size, cx: &App) -> Self;
     fn input_size(self, size: Size) -> Self;
     fn input_pl(self, size: Size) -> Self;
     fn input_pr(self, size: Size) -> Self;
     fn input_px(self, size: Size) -> Self;
     fn input_py(self, size: Size) -> Self;
     fn input_h(self, size: Size) -> Self;
-    fn list_size(self, size: Size) -> Self;
+    fn list_size(self, size: Size, cx: &App) -> Self;
     fn list_px(self, size: Size) -> Self;
     fn list_py(self, size: Size) -> Self;
     /// Apply size with the given `Size`.
     fn size_with(self, size: Size) -> Self;
     /// Apply the table cell size (Font size, padding) with the given `Size`.
-    fn table_cell_size(self, size: Size) -> Self;
-    fn button_text_size(self, size: Size) -> Self;
+    fn table_cell_size(self, size: Size, cx: &App) -> Self;
+    fn button_text_size(self, size: Size, cx: &App) -> Self;
 }
 
 impl<T: Styled> StyleSized<T> for T {
     #[inline]
-    fn input_text_size(self, size: Size) -> Self {
-        self.text_size(size.control_text_size())
+    fn input_text_size(self, size: Size, cx: &App) -> Self {
+        self.text_size(size.control_text_size(cx))
     }
 
     #[inline]
@@ -326,13 +319,14 @@ impl<T: Styled> StyleSized<T> for T {
     }
 
     #[inline]
-    fn list_size(self, size: Size) -> Self {
-        self.list_px(size).list_py(size).input_text_size(size)
+    fn list_size(self, size: Size, cx: &App) -> Self {
+        self.list_px(size).list_py(size).input_text_size(size, cx)
     }
 
     #[inline]
     fn list_px(self, size: Size) -> Self {
         match size {
+            Size::XSmall => self.px_1p5(),
             Size::Small => self.px_2(),
             _ => self.px_3(),
         }
@@ -343,7 +337,7 @@ impl<T: Styled> StyleSized<T> for T {
         match size {
             Size::Large => self.py_2(),
             Size::Medium => self.py_1(),
-            Size::Small => self.py_0p5(),
+            Size::Small | Size::XSmall => self.py_0p5(),
             _ => self.py_1(),
         }
     }
@@ -360,45 +354,41 @@ impl<T: Styled> StyleSized<T> for T {
     }
 
     #[inline]
-    fn table_cell_size(self, size: Size) -> Self {
+    fn table_cell_size(self, size: Size, cx: &App) -> Self {
         let padding = size.table_cell_padding();
-        self.text_size(size.control_text_size())
+        self.text_size(size.control_text_size(cx))
             .pl(padding.left)
             .pr(padding.right)
             .pt(padding.top)
             .pb(padding.bottom)
     }
 
-    fn button_text_size(self, size: Size) -> Self {
-        self.text_size(size.control_text_size())
+    fn button_text_size(self, size: Size, cx: &App) -> Self {
+        self.text_size(size.control_text_size(cx))
     }
 }
 #[cfg(test)]
 mod tests {
-    use gpui::{px, rems};
+    use gpui::{TestAppContext, px, rems};
 
-    use crate::Size;
+    use crate::{Size, TextSize};
 
-    #[test]
-    fn text_size_is_the_type_table() {
-        assert_eq!(Size::XSmall.text_size(), rems(0.625));
-        assert_eq!(Size::Small.text_size(), rems(0.75));
-        assert_eq!(Size::Medium.text_size(), rems(0.8125));
-        assert_eq!(Size::Large.text_size(), rems(0.9375));
-    }
-
-    #[test]
-    fn style_sized_text_maps_are_the_size_table() {
-        assert_eq!(Size::XSmall.text_size(), rems(0.625));
-        assert_eq!(Size::XSmall.control_text_size(), rems(0.75));
-        for size in [Size::XSmall, Size::Small, Size::Medium, Size::Large] {
-            assert_eq!(size.input_text_size(), size.control_text_size());
-            assert_eq!(size.button_text_size(), size.control_text_size());
-            assert_eq!(size.table_text_size(), size.control_text_size());
-        }
-        for size in [Size::Small, Size::Medium, Size::Large] {
-            assert_eq!(size.control_text_size(), size.text_size());
-        }
+    #[gpui::test]
+    fn style_sized_text_maps_follow_control_roles(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            for (size, role) in [
+                (Size::XSmall, TextSize::Small),
+                (Size::Small, TextSize::Default),
+                (Size::Medium, TextSize::Default),
+                (Size::Large, TextSize::Large),
+            ] {
+                assert_eq!(size.control_text_size(cx), role.rems(cx));
+                assert_eq!(size.input_text_size(cx), size.control_text_size(cx));
+                assert_eq!(size.button_text_size(cx), size.control_text_size(cx));
+                assert_eq!(size.table_text_size(cx), size.control_text_size(cx));
+            }
+        });
     }
 
     #[test]
@@ -409,13 +399,16 @@ mod tests {
         assert_eq!(Size::Large.list_row_height(), px(25.));
     }
 
-    #[test]
-    fn menu_text_size_is_small_or_medium_only() {
-        assert_eq!(Size::XSmall.menu_text_size(), rems(0.75));
-        assert_eq!(Size::Small.menu_text_size(), rems(0.75));
-        assert_eq!(Size::Medium.menu_text_size(), rems(0.8125));
-        assert_eq!(Size::Large.menu_text_size(), rems(0.8125));
-        assert_eq!(Size::Size(px(40.)).menu_text_size(), rems(0.8125));
+    #[gpui::test]
+    fn menu_text_size_is_small_or_medium_only(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        cx.update(|cx| {
+            assert_eq!(Size::XSmall.menu_text_size(cx), rems(0.75));
+            assert_eq!(Size::Small.menu_text_size(cx), rems(0.8125));
+            assert_eq!(Size::Medium.menu_text_size(cx), rems(0.8125));
+            assert_eq!(Size::Large.menu_text_size(cx), rems(0.8125));
+            assert_eq!(Size::Size(px(40.)).menu_text_size(cx), rems(0.8125));
+        });
     }
 
     #[test]

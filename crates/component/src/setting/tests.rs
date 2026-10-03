@@ -331,3 +331,58 @@ fn selecting_a_group_from_another_page_scrolls_to_it(cx: &mut TestAppContext) {
     let target = cx.debug_bounds("setting-1-2-1").unwrap();
     assert!(target.top() >= px(0.) && target.bottom() <= px(700.));
 }
+
+#[gpui::test]
+fn retained_settings_groups_remeasure_after_typography_changes(cx: &mut TestAppContext) {
+    use crate::{StyledTypography as _, TextSize, Theme, UiTypography};
+    use gpui::rems;
+
+    let (host, cx) = setup(cx);
+    cx.update(|_, cx| {
+        host.update(cx, |host, cx| {
+            host.pages[1].groups =
+                vec![SettingGroup::new().item(SettingItem::render(|_, _, cx| {
+                    crate::v_flex().w(px(160.)).children([
+                        div()
+                            .text_ui(cx)
+                            .child("Retained setting text with several words 世界")
+                            .debug_selector(|| "live-setting-text".into()),
+                        div()
+                            .text_size(px(13.))
+                            .child("Explicit text with several words 世界")
+                            .debug_selector(|| "explicit-setting-text".into()),
+                    ])
+                }))];
+            cx.notify();
+        });
+    });
+    let mut heights = Vec::new();
+    for font_size in [13., 24., 13.] {
+        cx.update(|window, cx| {
+            Theme::update(cx, |theme| {
+                theme.set_ui_typography(
+                    UiTypography::default().with_size(TextSize::Default, rems(font_size / 16.)),
+                )
+            });
+            window.refresh();
+        });
+        draw(cx);
+        let live = cx.debug_bounds("live-setting-text").unwrap();
+        let explicit = cx.debug_bounds("explicit-setting-text").unwrap();
+        heights.push((live.size.height, explicit.size.height, explicit.top()));
+        cx.update(|window, _| assert_eq!(window.rem_size(), px(16.)));
+    }
+    assert!(
+        heights[1].0 > heights[0].0,
+        "retained wrapped text must grow"
+    );
+    assert!(
+        heights[1].2 > heights[0].2,
+        "the following content must move with the new height"
+    );
+    assert_eq!(
+        heights[0].1, heights[1].1,
+        "explicit text size remains authoritative"
+    );
+    assert_eq!(heights[0], heights[2]);
+}

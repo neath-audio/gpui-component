@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, Background, ElementId, InteractiveElement as _, IntoElement, ParentElement,
     RenderOnce, StyleRefinement, Styled, Window, div, prelude::FluentBuilder, relative,
@@ -180,7 +181,7 @@ impl RenderOnce for GroupBox {
                     .when_some(self.footer, |this, footer| {
                         this.child(
                             div()
-                                .text_sm()
+                                .text_ui_sm(cx)
                                 .text_color(cx.theme().muted_foreground)
                                 .child(footer),
                         )

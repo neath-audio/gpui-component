@@ -221,7 +221,7 @@ impl RenderOnce for Switch {
         );
 
         div()
-            .text_size(self.size.control_text_size())
+            .text_size(self.size.control_text_size(cx))
             .refine_style(&self.style)
             .child(
                 BaseSwitch::new(self.id.clone())

@@ -280,7 +280,7 @@ impl RenderOnce for DescriptionList {
         let rows_len = rows.len();
 
         v_flex()
-            .text_size(self.size.control_text_size())
+            .text_size(self.size.control_text_size(cx))
             .gap(gap)
             .overflow_hidden()
             .when(self.bordered, |this| {

@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use crate::root::WindowState;
 use std::{cell::Cell, rc::Rc, time::Duration};
 
@@ -130,7 +131,7 @@ impl Render for Tooltip {
                 .justify_between()
                 .py_0p5()
                 .px_2()
-                .text_xs()
+                .text_ui(cx)
                 .gap_3()
                 .refine_style(&self.style)
                 .map(|this| {
@@ -142,10 +143,10 @@ impl Render for Tooltip {
                 .when_some(key_binding, |this, kbd| {
                     this.child(
                         div()
-                            .text_xs()
+                            .text_ui(cx)
                             .flex_shrink_0()
                             .text_color(cx.theme().muted_foreground)
-                            .child(kbd.appearance(false)),
+                            .child(kbd.appearance(false).text_ui(cx)),
                     )
                 });
 

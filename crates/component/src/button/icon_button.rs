@@ -6,6 +6,7 @@
 //!
 //! State priority: disabled > active or selected > dimmed > prominent > ordinary.
 
+use crate::StyledTypography as _;
 use std::rc::Rc;
 
 use gpui::{
@@ -119,7 +120,7 @@ impl IconChrome {
                     this.h(px(28.)).min_w(px(28.)).px(px(2.))
                 }
             })
-            .text_xs()
+            .text_ui_sm(cx)
             .map(|this| {
                 if filled {
                     let r = px(4.);

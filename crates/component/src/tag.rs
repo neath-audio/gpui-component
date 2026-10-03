@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use crate::{ColorName, Sizable, Size, StyledExt, theme::ActiveTheme as _};
 use gpui::{
     AbsoluteLength, AnyElement, App, Hsla, InteractiveElement as _, IntoElement, ParentElement,
@@ -255,8 +256,8 @@ impl RenderOnce for Tag {
             .line_height(relative(1.25))
             .map(|this| match self.size {
                 Size::XSmall | Size::Small => this.text_size(rems(0.625)),
-                Size::Large => this.text_sm(),
-                _ => this.text_xs(),
+                Size::Large => this.text_ui(cx),
+                _ => this.text_ui_sm(cx),
             })
             .map(|this| match self.size {
                 Size::XSmall | Size::Small => this.px_1p5().py_0p5(),

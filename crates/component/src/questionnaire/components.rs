@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use std::rc::Rc;
 
 use gpui::{
@@ -181,8 +182,8 @@ impl QuestionnaireMetrics {
 fn text_style<T: Styled>(element: T, size: Size, cx: &App) -> T {
     let typography = cx.theme().semantic_tokens().typography;
     match size {
-        Size::XSmall => apply_text_token(element, typography.xs),
-        Size::Small => apply_text_token(element, typography.sm),
+        Size::XSmall => apply_text_token(element, typography.xs).text_ui_sm(cx),
+        Size::Small => apply_text_token(element, typography.sm).text_ui(cx),
         Size::Large => apply_text_token(element, typography.lg),
         Size::Size(value) => element.text_size(value),
         Size::Medium => apply_text_token(element, typography.md),

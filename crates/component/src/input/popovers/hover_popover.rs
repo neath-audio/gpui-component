@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use std::{ops::Range, rc::Rc};
 
 use gpui::{
@@ -168,7 +169,7 @@ impl Element for Popover {
                     .flex_none()
                     .occlude()
                     .p_1()
-                    .text_xs()
+                    .text_ui_sm(cx)
                     .popover_style(cx)
                     .shadow_md()
                     .max_w(max_width)

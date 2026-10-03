@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use crate::{ActiveTheme, StyledExt};
 use gpui::{
     App, Axis, Div, Hsla, IntoElement, ParentElement, PathBuilder, RenderOnce, SharedString,
@@ -145,7 +146,7 @@ impl RenderOnce for Separator {
                         .px_2()
                         .py_1()
                         .mx_auto()
-                        .text_xs()
+                        .text_ui_sm(cx)
                         .bg(cx.theme().tokens.background)
                         .text_color(cx.theme().muted_foreground)
                         .child(label),

@@ -116,7 +116,7 @@ impl RenderOnce for OtpInput {
                     .rounded(cx.theme().radius)
                     .map(|this| match self.size {
                         Size::Size(v) => this.text_size(v * 0.5),
-                        size => this.input_text_size(size),
+                        size => this.input_text_size(size, cx),
                     })
                     .map(|this| match self.size {
                         Size::XSmall => this.w_6().h_6(),

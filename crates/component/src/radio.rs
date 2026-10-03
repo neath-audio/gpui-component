@@ -217,8 +217,8 @@ impl RenderOnce for Radio {
                 this.focus_ring_style(window, cx)
             })
             .map(|this| match self.size {
-                Size::Size(_) => this.text_size(self.size.control_text_size()),
-                size => this.input_text_size(size),
+                Size::Size(_) => this.text_size(self.size.control_text_size(cx)),
+                size => this.input_text_size(size, cx),
             })
             .refine_style(&self.style)
             .child(

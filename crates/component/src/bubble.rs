@@ -1,4 +1,4 @@
-use crate::Size;
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, IntoElement, ParentElement, RenderOnce, StyleRefinement, Styled, Window, div,
     prelude::FluentBuilder as _, relative, rems,
@@ -205,7 +205,7 @@ impl RenderOnce for BubbleContent {
             .border_color(cx.theme().transparent)
             .px_3()
             .py_2()
-            .text_size(Size::Medium.text_size())
+            .text_ui(cx)
             .line_height(relative(1.625))
             .when_some(self.alignment, |this, alignment| match alignment {
                 MessageAlignment::Start => this.self_start(),
@@ -400,7 +400,7 @@ impl RenderOnce for BubbleReactions {
             .bg(tokens.colors.muted)
             .text_color(tokens.colors.foreground)
             .when(!has_action, |this| this.px_1p5().py_0p5())
-            .text_size(Size::Medium.text_size())
+            .text_ui(cx)
             // Approximates shadcn's `translate-y-3/4`: GPUI cannot offset by a
             // fraction of the pill's own height, so this fixed value leaves
             // about three quarters of the default pill outside the bubble.

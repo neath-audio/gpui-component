@@ -1,7 +1,7 @@
 //! Reusable table-cell truncation and middle-ellipsis utilities.
 
-use crate::Size;
-use gpui::{Div, ParentElement as _, SharedString, Styled, div};
+use crate::StyledTypography as _;
+use gpui::{App, Div, ParentElement as _, SharedString, Styled, div};
 
 fn end_truncating_text(text: SharedString) -> Div {
     div().flex_1().min_w_0().truncate().child(text)
@@ -16,13 +16,13 @@ fn middle_truncating_text(text: SharedString) -> Div {
 /// Its inner wrapper carries `flex_1 + min_w_0 + truncate` so a direct text
 /// child truncates against the cell's allocated width rather than the flex
 /// container's intrinsic measurement.
-pub fn truncating_cell(text: impl Into<SharedString>) -> Div {
+pub fn truncating_cell(text: impl Into<SharedString>, cx: &App) -> Div {
     div()
         .size_full()
         .flex()
         .items_center()
         .overflow_hidden()
-        .text_size(Size::Small.text_size())
+        .text_ui(cx)
         .child(end_truncating_text(text.into()))
 }
 

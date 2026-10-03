@@ -801,7 +801,7 @@ impl RenderOnce for Input {
                 this.input_px(self.size).input_py(self.size)
             })
             .input_h(self.size)
-            .input_text_size(self.size)
+            .input_text_size(self.size, cx)
             .items_center()
             .when(presentation.is_multi_line(), |this| {
                 this.h_auto()

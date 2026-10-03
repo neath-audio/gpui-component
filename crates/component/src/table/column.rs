@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     Bounds, Context, Edges, Empty, EntityId, IntoElement, ParentElement as _, Pixels, Render,
     SharedString, Styled as _, TextAlign, Window, div, prelude::FluentBuilder, px,
@@ -307,7 +308,7 @@ impl Render for DragColumn {
             // Text columns: mirror the header's own `text_xs` size, not the
             // default 16px, and cap the width so long names stay compact.
             None => chip
-                .text_xs()
+                .text_ui_sm(cx)
                 .max_w(self.width.max(px(160.)))
                 .child(div().truncate().child(self.name.clone())),
         }

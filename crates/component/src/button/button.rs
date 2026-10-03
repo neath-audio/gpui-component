@@ -746,13 +746,16 @@ impl RenderOnce for Button {
             .whitespace_nowrap()
             .items_center()
             .justify_center()
-            .button_text_size(self.size)
+            .button_text_size(self.size, cx)
             .map(|this| match self.size {
                 Size::XSmall => this.gap_1(),
                 Size::Small => this.gap_1(),
                 _ => this.gap_2(),
             })
             .refine_style(&self.content_style)
+            .when_some(instance_style.text.font_size, |this, size| {
+                this.text_size(size)
+            })
             .when_some(self.icon, |this, icon| {
                 this.child(
                     icon.loading_icon(self.loading_icon)

@@ -4,8 +4,8 @@ mod avatar_group;
 pub use avatar::*;
 pub use avatar_group::*;
 
-use crate::{Icon, Size, StyledExt as _};
-use gpui::{Div, Img, IntoElement, Pixels, Styled, px, rems};
+use crate::{Icon, Size, StyledExt as _, StyledTypography as _};
+use gpui::{App, Div, Img, IntoElement, Pixels, Styled, px, rems};
 
 /// Returns the size of the avatar based on the given [`Size`].
 pub(super) fn avatar_size(size: Size) -> Pixels {
@@ -20,10 +20,10 @@ pub(super) fn avatar_size(size: Size) -> Pixels {
 
 /// Extension for add `avatar_size` method to `IntoElement` to apply avatar size to element.
 pub(super) trait AvatarSized: IntoElement + Styled {
-    fn avatar_text_size(self, size: Size) -> Self {
+    fn avatar_text_size(self, size: Size, cx: &App) -> Self {
         match size {
             Size::Large => self.text_3xl().font_semibold(),
-            Size::Medium => self.text_size(Size::Medium.text_size()),
+            Size::Medium => self.text_ui(cx),
             Size::Small => self.text_xs(),
             Size::XSmall => self.text_size(rems(0.65)),
             Size::Size(size) => self.size(size * 0.5),

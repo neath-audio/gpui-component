@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, IntoElement, ParentElement, RenderOnce, StyleRefinement, Styled, Window, div,
     prelude::FluentBuilder as _, relative, rems,
@@ -262,11 +263,11 @@ impl Styled for EmptyTitle {
 }
 
 impl RenderOnce for EmptyTitle {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         div()
             .max_w_full()
             .min_w_0()
-            .text_sm()
+            .text_ui(cx)
             .font_medium()
             .whitespace_normal()
             .refine_style(&self.style)
@@ -314,7 +315,7 @@ impl RenderOnce for EmptyDescription {
         div()
             .w_full()
             .min_w_0()
-            .text_sm()
+            .text_ui_sm(cx)
             .line_height(relative(1.625))
             .text_color(cx.theme().muted_foreground)
             .whitespace_normal()
@@ -359,14 +360,14 @@ impl Styled for EmptyContent {
 }
 
 impl RenderOnce for EmptyContent {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         v_flex()
             .w_full()
             .max_w(rems(24.))
             .min_w_0()
             .items_center()
             .gap_2p5()
-            .text_sm()
+            .text_ui(cx)
             .refine_style(&self.style)
             .children(self.children)
     }

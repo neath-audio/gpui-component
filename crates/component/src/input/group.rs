@@ -8,6 +8,7 @@
 //! caller keeps the `InputState` or `TextareaState`; the group owns only
 //! composition and the frame.
 
+use crate::StyledTypography as _;
 use gpui_base::TestSupportExt as _;
 
 use gpui::{
@@ -214,7 +215,7 @@ impl RenderOnce for InputGroup {
             .border_color(border)
             .bg(background)
             .text_color(foreground)
-            .input_text_size(self.size)
+            .input_text_size(self.size, cx)
             .shadow_none()
             .when(disabled, |this| {
                 // Custom addon content must not bypass the group's disabled policy.
@@ -399,7 +400,7 @@ impl InputGroupAddon {
             )
             .justify_center()
             .font_medium()
-            .input_text_size(presentation.size)
+            .input_text_size(presentation.size, cx)
             .text_color(cx.theme().muted_foreground)
             .cursor_text()
             .map(|this| match self.alignment {
@@ -552,7 +553,7 @@ impl InputGroupButton {
             size => size,
         };
         let content_style = div()
-            .text_sm()
+            .text_ui(cx)
             .line_height(rems(1.25))
             .map(|this| match self.size {
                 Size::XSmall => this.gap_1(),
@@ -582,7 +583,7 @@ impl InputGroupButton {
                 .when(disabled, |this| this.opacity(0.5))
             })
             .when(disabled, |this| this.focus_ring(false))
-            .text_sm()
+            .text_ui(cx)
             .font_medium()
             .border_1()
             .shadow_none()
@@ -698,7 +699,7 @@ impl RenderOnce for InputGroupText {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         h_flex()
             .gap_2()
-            .text_sm()
+            .text_ui(cx)
             .text_color(cx.theme().muted_foreground)
             .refine_style(&self.style)
             .children(self.children.into_iter().map(addon_child))

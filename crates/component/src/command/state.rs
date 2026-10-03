@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui_base::TestSupportExt as _;
 use std::rc::Rc;
 
@@ -730,7 +731,7 @@ impl CommandState {
             .gap_2()
             .px_2()
             .py_1p5()
-            .text_size(crate::Size::Medium.text_size())
+            .text_size(crate::Size::Medium.menu_text_size(cx))
             .rounded(self.item_radius(window, cx))
             .when(selected, |this| {
                 this.bg(cx.theme().accent)
@@ -743,7 +744,7 @@ impl CommandState {
             .w_full()
             .px_2()
             .py_1p5()
-            .text_size(crate::Size::Small.text_size())
+            .text_ui_sm(cx)
             .font_medium()
             .text_color(cx.theme().muted_foreground)
             .child(heading)
@@ -883,7 +884,7 @@ impl CommandState {
             .py_6()
             .w_full()
             .text_center()
-            .text_size(crate::Size::Medium.text_size())
+            .text_size(crate::Size::Medium.menu_text_size(cx))
             .text_color(cx.theme().muted_foreground)
             .child(message)
             .into_any_element()
@@ -1056,7 +1057,7 @@ mod tests {
 
     use super::{CONTEXT, CommandModel, CommandRow, CommandState, SEPARATOR_ROW_HEIGHT};
     use crate::{
-        Disableable as _, Icon, IconName, IndexPath,
+        Disableable as _, Icon, IconName, IndexPath, StyledTypography as _,
         actions::{Cancel, Confirm, SelectDown},
         command::{Command, CommandEntry, CommandGroup, CommandItem},
     };
@@ -2315,8 +2316,8 @@ mod tests {
     }
 
     impl Render for WrappingHarness {
-        fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
-            div().size_full().child(
+        fn render(&mut self, _: &mut Window, cx: &mut gpui::Context<Self>) -> impl IntoElement {
+            div().text_ui(cx).size_full().child(
                 div().w(self.width).child(
                     Command::new(&self.state)
                         .item(CommandItem::new().label("wrapped").child(|_, _| {
@@ -2329,6 +2330,37 @@ mod tests {
                 ),
             )
         }
+    }
+
+    #[gpui::test]
+    fn wrapping_rows_remeasure_when_ui_typography_changes_at_fixed_rem(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let (harness, cx) = cx.add_window_view(|window, cx| WrappingHarness {
+            state: cx.new(|cx| CommandState::new(window, cx)),
+            width: px(160.),
+            no_wrap: false,
+        });
+        let mut heights = Vec::new();
+        for value in [13., 24., 13.] {
+            cx.update(|window, cx| {
+                crate::Theme::update(cx, |theme| {
+                    theme.set_ui_typography(
+                        crate::UiTypography::default()
+                            .with_size(crate::TextSize::Default, gpui::rems(value / 16.)),
+                    )
+                });
+                window.set_rem_size(px(16.));
+                window.draw(cx).clear(cx);
+            });
+            cx.run_until_parked();
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            heights.push(cx.update(|window, cx| {
+                assert_eq!(window.rem_size(), px(16.));
+                harness.read(cx).state.read(cx).row_sizes[0].height
+            }));
+        }
+        assert!(heights[1] > heights[0]);
+        assert_eq!(heights[0], heights[2]);
     }
 
     #[gpui::test]

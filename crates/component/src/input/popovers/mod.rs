@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 mod code_action_menu;
 mod completion_menu;
 mod diagnostic_popover;
@@ -50,7 +51,7 @@ pub(super) fn editor_popover(id: impl Into<ElementId>, cx: &App) -> Stateful<Div
         .occlude()
         .popover_style(cx)
         .shadow_md()
-        .text_xs()
+        .text_ui_sm(cx)
         .p_1()
 }
 

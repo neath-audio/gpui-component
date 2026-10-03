@@ -1,4 +1,4 @@
-use crate::Size;
+use crate::{TextSize, UiTypography};
 use crate::{
     highlighter::HighlightTheme, list::ListSettings, notification::NotificationSettings,
     scroll::ScrollbarMode, sheet::SheetSettings,
@@ -203,6 +203,9 @@ pub struct Theme {
     pub font_family: SharedString,
     /// The base font size for the application, default is 16px.
     pub font_size: Pixels,
+    #[serde(skip)]
+    #[schemars(skip)]
+    ui_typography: UiTypography,
     /// The monospace font family for the application.
     ///
     /// Defaults to:
@@ -370,6 +373,16 @@ impl Theme {
         Self::sync_base(cx);
         cx.refresh_windows();
         result
+    }
+
+    /// Application UI typography, independent of the window rem base.
+    pub fn ui_typography(&self) -> UiTypography {
+        self.ui_typography
+    }
+
+    /// Set runtime UI typography. Use [`Self::update`] to refresh consumers.
+    pub fn set_ui_typography(&mut self, value: UiTypography) {
+        self.ui_typography = value;
     }
 
     /// Returns true if the theme is dark.
@@ -653,10 +666,22 @@ impl Theme {
         let mut tokens = TypographyTokens::default();
         tokens.sans = self.font_family.clone();
         tokens.mono = self.mono_font_family.clone();
-        tokens.xs.size = Size::XSmall.text_size().to_pixels(self.font_size);
-        tokens.sm.size = Size::Small.text_size().to_pixels(self.font_size);
-        tokens.md.size = Size::Medium.text_size().to_pixels(self.font_size);
-        tokens.lg.size = Size::Large.text_size().to_pixels(self.font_size);
+        tokens.xs.size = self
+            .ui_typography
+            .size(TextSize::XSmall)
+            .to_pixels(self.font_size);
+        tokens.sm.size = self
+            .ui_typography
+            .size(TextSize::Small)
+            .to_pixels(self.font_size);
+        tokens.md.size = self
+            .ui_typography
+            .size(TextSize::Default)
+            .to_pixels(self.font_size);
+        tokens.lg.size = self
+            .ui_typography
+            .size(TextSize::Large)
+            .to_pixels(self.font_size);
         // Keep the public xl role compatible without introducing another UI tier.
         tokens.xl.size = tokens.lg.size;
         tokens.mono_md.size = self.mono_font_size;
@@ -707,7 +732,7 @@ impl Theme {
         self.font_family = tokens.typography.sans.clone();
         self.mono_font_family = tokens.typography.mono.clone();
         // Medium is body text, while font_size is the rem base for the whole UI.
-        self.font_size = tokens.typography.md.size / Size::Medium.text_size().0;
+        self.font_size = tokens.typography.md.size / self.ui_typography.size(TextSize::Default).0;
         self.mono_font_size = tokens.typography.mono_md.size;
         self.shadow = !tokens.shadow.sm.is_empty()
             || !tokens.shadow.md.is_empty()
@@ -835,6 +860,7 @@ impl From<&ThemeColor> for Theme {
             transparent: Hsla::transparent_black(),
             font_family: ".SystemUIFont".into(),
             font_size: px(16.),
+            ui_typography: UiTypography::default(),
             mono_font_family: mono_font::default_mono_font_family(),
             mono_font_size: px(13.),
             radius: px(6.),

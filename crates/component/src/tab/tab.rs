@@ -622,7 +622,7 @@ impl RenderOnce for Tab {
             .base
             .text_style()
             .font_size
-            .unwrap_or_else(|| self.size.control_text_size().into());
+            .unwrap_or_else(|| self.size.control_text_size(cx).into());
         let mut normal_style = self.variant.normal(cx);
         let mut selected_style = self.variant.selected(cx);
         let mut disabled_style = self.variant.disabled(self.selected, cx);

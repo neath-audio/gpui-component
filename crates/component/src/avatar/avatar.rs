@@ -111,7 +111,7 @@ impl RenderOnce for Avatar {
             .when_some(identity, |this, identity| {
                 this.bg(identity.background)
                     .text_color(identity.foreground)
-                    .child(div().avatar_text_size(self.size).child(self.short_name))
+                    .child(div().avatar_text_size(self.size, cx).child(self.short_name))
             })
             .refine_style(&inner_style);
 

@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     Anchor, AnyElement, App, ElementId, Entity, FocusHandle, Focusable, Hsla,
     InteractiveElement as _, IntoElement, ParentElement, RenderOnce, SharedString,
@@ -283,7 +284,7 @@ impl ColorPicker {
                     .child(
                         div()
                             .min_w_16()
-                            .text_xs()
+                            .text_ui(cx)
                             .text_color(label_color)
                             .child(t!("ColorPicker.Hue")),
                     )
@@ -304,7 +305,7 @@ impl ColorPicker {
                     .child(
                         div()
                             .w_10()
-                            .text_xs()
+                            .text_ui_sm(cx)
                             .text_color(label_color)
                             .text_align(TextAlign::Right)
                             .child(format!("{:.0}", slider_color.h * 360.)),
@@ -317,7 +318,7 @@ impl ColorPicker {
                     .child(
                         div()
                             .min_w_16()
-                            .text_xs()
+                            .text_ui(cx)
                             .text_color(label_color)
                             .child(t!("ColorPicker.Saturation")),
                     )
@@ -342,7 +343,7 @@ impl ColorPicker {
                     .child(
                         div()
                             .w_10()
-                            .text_xs()
+                            .text_ui_sm(cx)
                             .text_color(label_color)
                             .text_align(TextAlign::Right)
                             .child(format!("{:.0}", slider_color.s * 100.)),
@@ -355,7 +356,7 @@ impl ColorPicker {
                     .child(
                         div()
                             .min_w_16()
-                            .text_xs()
+                            .text_ui(cx)
                             .text_color(label_color)
                             .child(t!("ColorPicker.Lightness")),
                     )
@@ -376,7 +377,7 @@ impl ColorPicker {
                     .child(
                         div()
                             .w_10()
-                            .text_xs()
+                            .text_ui_sm(cx)
                             .text_color(label_color)
                             .text_align(TextAlign::Right)
                             .child(format!("{:.0}", slider_color.l * 100.)),
@@ -389,7 +390,7 @@ impl ColorPicker {
                     .child(
                         div()
                             .min_w_16()
-                            .text_xs()
+                            .text_ui(cx)
                             .text_color(label_color)
                             .child(t!("ColorPicker.Alpha")),
                     )
@@ -410,7 +411,7 @@ impl ColorPicker {
                     .child(
                         div()
                             .w_10()
-                            .text_xs()
+                            .text_ui_sm(cx)
                             .text_color(label_color)
                             .text_align(TextAlign::Right)
                             .child(format!("{:.0}", slider_color.a * 100.)),
@@ -773,7 +774,7 @@ impl ColorPickerButton {
             .border_color(cx.theme().input)
             .rounded(cx.theme().radius)
             .input_size(self.size)
-            .input_text_size(self.size)
+            .input_text_size(self.size, cx)
             .when(outline_visible, |this| {
                 this.border_color(cx.theme().ring)
                     .focus_ring_style(window, cx)

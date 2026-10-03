@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use crate::{ActiveTheme, Collapsible, h_flex, sidebar::SidebarItem, v_flex};
 use gpui::{
     App, ElementId, IntoElement, ParentElement, SharedString, Styled as _, Window, div,
@@ -65,7 +66,7 @@ impl<E: SidebarItem> SidebarItem for SidebarGroup<E> {
                         .flex_shrink_0()
                         .px_2()
                         .rounded(cx.theme().radius)
-                        .text_xs()
+                        .text_ui_sm(cx)
                         .text_color(cx.theme().sidebar_foreground.opacity(0.7))
                         .h_8()
                         .child(self.label),

@@ -273,8 +273,8 @@ impl RenderOnce for Checkbox {
             .line_height(relative(1.))
             .text_color(cx.theme().foreground)
             .map(|this| match self.size {
-                Size::Size(_) => this.text_size(self.size.control_text_size()),
-                size => this.input_text_size(size),
+                Size::Size(_) => this.text_size(self.size.control_text_size(cx)),
+                size => this.input_text_size(size, cx),
             })
             .rounded(cx.theme().radius * 0.5)
             .when(is_focused && self.focus_ring_enabled, |this| {

@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use gpui::{
     AnyElement, App, IntoElement, ParentElement, RenderOnce, StyleRefinement, Styled, Window,
     prelude::FluentBuilder as _,
@@ -90,7 +91,7 @@ impl RenderOnce for StatusBar {
             .border_t_1()
             .border_color(cx.theme().status_bar_border)
             .bg(cx.theme().tokens.status_bar)
-            .text_xs()
+            .text_ui_sm(cx)
             .text_color(cx.theme().muted_foreground)
             .refine_style(&self.style)
             .when(has_left, |this| this.child(region().children(self.left)))

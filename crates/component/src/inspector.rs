@@ -1,4 +1,4 @@
-use crate::Size;
+use crate::StyledTypography as _;
 use std::{collections::HashMap, fmt::Write as _, rc::Rc, sync::OnceLock};
 
 use anyhow::Result;
@@ -406,11 +406,9 @@ fn rust_to_style(mut style: StyleRefinement, source: &str) -> (StyleRefinement, 
 
 impl Render for DivInspector {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-            .size_full()
-            .gap_y_4()
-            .text_size(Size::Small.text_size())
-            .when_some(self.inspector_state.as_ref(), |this, state| {
+        v_flex().size_full().gap_y_4().text_ui_sm(cx).when_some(
+            self.inspector_state.as_ref(),
+            |this, state| {
                 this.child(
                     DescriptionList::new()
                         .columns(1)
@@ -444,7 +442,7 @@ impl Render for DivInspector {
                                 .text_size(cx.theme().mono_font_size)
                                 .child(Editor::new(&self.rust_state.state).h(gpui::relative(1.)))
                                 .when_some(self.rust_state.error.clone(), |this, err| {
-                                    this.child(Alert::error("rust-error", err).text_xs())
+                                    this.child(Alert::error("rust-error", err).text_ui_sm(cx))
                                 }),
                         ),
                 )
@@ -472,11 +470,12 @@ impl Render for DivInspector {
                                 .text_size(cx.theme().mono_font_size)
                                 .child(Editor::new(&self.json_state.state).h(gpui::relative(1.)))
                                 .when_some(self.json_state.error.clone(), |this, err| {
-                                    this.child(Alert::error("json-error", err).text_xs())
+                                    this.child(Alert::error("json-error", err).text_ui_sm(cx))
                                 }),
                         ),
                 )
-            })
+            },
+        )
     }
 }
 
@@ -513,7 +512,7 @@ fn render_inspector(
                 .child(
                     h_flex()
                         .gap_2()
-                        .text_size(Size::Small.text_size())
+                        .text_ui_sm(cx)
                         .child(
                             Button::new("inspect")
                                 .icon(IconName::Inspector)
@@ -543,12 +542,12 @@ fn render_inspector(
                 .flex_1()
                 .p_3()
                 .gap_y_3()
-                .text_size(Size::Small.text_size())
+                .text_ui_sm(cx)
                 .when_some(source_location, |this, source_location| {
                     this.child(
                         h_flex()
                             .gap_x_2()
-                            .text_size(Size::Small.text_size())
+                            .text_ui_sm(cx)
                             .child(
                                 Link::new("source-location")
                                     .href(format!("file://{}", source_location))

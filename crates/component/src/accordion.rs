@@ -375,7 +375,7 @@ impl RenderOnce for AccordionItem {
                 .when(!self.last, |this| {
                     this.border_b_1().border_color(cx.theme().border)
                 })
-                .text_size(self.size.control_text_size())
+                .text_size(self.size.control_text_size(cx))
                 .refine_style(&self.style),
         )
     }

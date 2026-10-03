@@ -1,3 +1,4 @@
+use crate::StyledTypography as _;
 use chrono::Weekday;
 use gpui::{
     App, ElementId, Entity, InteractiveElement, IntoElement, ParentElement, RenderOnce,
@@ -119,20 +120,20 @@ impl RenderOnce for Calendar {
                 .items_center()
                 .justify_center()
                 .when(state.kind() != CalendarItemKind::Weekday, |this| {
-                    this.text_size(size.control_text_size())
+                    this.text_size(size.control_text_size(cx))
                 })
                 .when(state.kind() == CalendarItemKind::Weekday, |this| {
-                    this.text_xs()
+                    this.text_ui_sm(cx)
                         .font_normal()
                         .text_color(cx.theme().muted_foreground)
                 })
-                .when(uses_compact_text(state.kind()), |this| this.text_xs())
+                .when(uses_compact_text(state.kind()), |this| this.text_ui_sm(cx))
                 .when(
                     matches!(
                         state.kind(),
                         CalendarItemKind::MonthToggle | CalendarItemKind::YearToggle
                     ),
-                    |this| this.text_size(size.control_text_size()).font_medium(),
+                    |this| this.text_size(size.control_text_size(cx)).font_medium(),
                 )
                 .when(
                     matches!(

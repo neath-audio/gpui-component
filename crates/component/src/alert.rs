@@ -197,7 +197,7 @@ impl RenderOnce for Alert {
             .py(padding_y)
             .gap(gap)
             .justify_between()
-            .text_size(self.size.control_text_size())
+            .text_size(self.size.control_text_size(cx))
             .border_1()
             .border_color(border_color)
             .when(!self.banner, |this| this.rounded(radius).items_start())
