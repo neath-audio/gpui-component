@@ -1,6 +1,6 @@
 use gpui::{
     AnyElement, App, Background, ElementId, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement, RenderOnce, StyleRefinement, Styled, Window, prelude::FluentBuilder,
+    ParentElement, RenderOnce, StyleRefinement, Styled, Window, prelude::FluentBuilder, rems,
 };
 
 use crate::{
@@ -129,14 +129,19 @@ impl RenderOnce for SearchableListItemElement {
             .id(self.id)
             .relative()
             .gap_x_1()
-            .py_1()
-            .px_2()
             .rounded(cx.theme().radius)
             .text_color(cx.theme().foreground)
             .items_center()
             .justify_between()
             .input_text_size(self.size, cx)
-            .list_size(self.size, cx)
+            .list_px(self.size)
+            // Search results keep their text tier and horizontal gutter, with
+            // 1px less padding per edge than general lists at the 16px rem base.
+            .py(match self.size {
+                Size::XSmall | Size::Small => rems(1. / 16.),
+                Size::Large => rems(7. / 16.),
+                _ => rems(3. / 16.),
+            })
             .refine_style(&self.style)
             .when(!self.disabled, |this| {
                 this.when(!self.selected, |this| this.hover(|this| this.bg(hover_bg)))
