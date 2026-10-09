@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 use crate::{
     IconName, Sizable, Size, StyledExt,
@@ -6,7 +6,7 @@ use crate::{
     h_resizable,
     input::{Input, InputState},
     resizable_panel,
-    setting::SettingPage,
+    setting::{SettingPage, page::PageState},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
 };
 use gpui::{
@@ -41,6 +41,7 @@ pub struct Settings {
     sidebar_style: StyleRefinement,
     default_selected_index: SelectIndex,
     header_style: StyleRefinement,
+    search_input: Option<Entity<InputState>>,
 }
 
 impl Settings {
@@ -56,12 +57,21 @@ impl Settings {
             sidebar_style: StyleRefinement::default(),
             default_selected_index: SelectIndex::default(),
             header_style: StyleRefinement::default(),
+            search_input: None,
         }
     }
 
     /// Set the width of the sidebar, default is `250px`.
     pub fn sidebar_width(mut self, width: impl Into<Pixels>) -> Self {
         self.sidebar_width = width.into();
+        self
+    }
+
+    /// Use an application-owned search input when initializing this Settings
+    /// instance. This lets a nested page clear search when it opens. Like the
+    /// default selection, changing it requires a new Settings element ID.
+    pub fn search_input(mut self, input: &Entity<InputState>) -> Self {
+        self.search_input = Some(input.clone());
         self
     }
 
@@ -138,6 +148,7 @@ impl Settings {
     ) -> impl IntoElement {
         let selected_index = state.read(cx).selected_index;
         let search_input = state.read(cx).search_input.clone();
+        let searching = !search_input.read(cx).value().is_empty();
         let size = self.size;
 
         Sidebar::new("settings-sidebar")
@@ -157,13 +168,22 @@ impl Settings {
                 SidebarMenu::new().children(filter.visible_pages().map(|page_ix| {
                     let page = &self.pages[page_ix];
                     let groups = &filter.groups[page_ix];
+                    let show_groups = searching
+                        || page
+                            .sidebar_groups_visible
+                            .as_ref()
+                            .is_none_or(|visible| visible(cx));
                     let is_page_active = selected_index.page_ix == page_ix
-                        && (selected_index.group_ix.is_none() || groups.len() == 1);
+                        && (selected_index.group_ix.is_none() || groups.len() == 1 || !show_groups);
                     SidebarMenuItem::new(page.title.clone())
                         .text_size(size.control_text_size(cx))
                         .click_to_open(true)
                         .when_some(page.icon.clone(), |this, icon| this.icon(icon))
-                        .default_open(page.default_open)
+                        .default_open(
+                            page.default_open
+                                || (selected_index.page_ix == page_ix
+                                    && selected_index.group_ix.is_some()),
+                        )
                         .active(is_page_active)
                         .on_click({
                             let state = state.clone();
@@ -178,7 +198,7 @@ impl Settings {
                                 })
                             }
                         })
-                        .when(groups.len() > 1, |this| {
+                        .when(show_groups && groups.len() > 1, |this| {
                             this.children(
                                 groups
                                     .iter()
@@ -275,6 +295,9 @@ pub(super) struct SettingsState {
     /// If set, defer scrolling to this group index after rendering.
     pub(super) deferred_scroll_group_ix: Option<usize>,
     pub(super) search_input: Entity<InputState>,
+    // Keep page scroll state across sidebar excursions and nested page content.
+    // This belongs to the Settings instance, not a frame-local rendered group.
+    pub(super) pages: HashMap<usize, PageState>,
 }
 
 /// Options for rendering setting item.
@@ -389,16 +412,19 @@ pub struct SelectIndex {
 impl RenderOnce for Settings {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = window.use_keyed_state(self.id.clone(), cx, |window, cx| {
-            let search_input = cx.new(|cx| {
-                InputState::new(window, cx)
-                    .placeholder(t!("Settings.search_placeholder"))
-                    .default_value("")
+            let search_input = self.search_input.clone().unwrap_or_else(|| {
+                cx.new(|cx| {
+                    InputState::new(window, cx)
+                        .placeholder(t!("Settings.search_placeholder"))
+                        .default_value("")
+                })
             });
 
             SettingsState {
                 search_input,
                 selected_index: self.default_selected_index,
                 deferred_scroll_group_ix: None,
+                pages: HashMap::new(),
             }
         });
 

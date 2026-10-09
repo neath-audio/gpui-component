@@ -233,6 +233,147 @@ fn resetting_search_results_leaves_hidden_settings_unchanged(cx: &mut TestAppCon
     assert!(hidden.get());
 }
 
+#[gpui::test]
+fn custom_page_content_replaces_the_page_and_restores_overview_scroll(cx: &mut TestAppContext) {
+    use std::{cell::Cell, rc::Rc};
+
+    let (host, cx) = setup(cx);
+    let detail = Rc::new(Cell::new(false));
+    cx.update(|_, cx| {
+        host.update(cx, |host, cx| {
+            let detail = detail.clone();
+            host.pages[1] = SettingPage::new("Appearance")
+                .sidebar_groups_visible({
+                    let detail = detail.clone();
+                    move |_| !detail.get()
+                })
+                .title_suffix(|_, _| {
+                    div()
+                        .child("Overview")
+                        .debug_selector(|| "overview-title".into())
+                })
+                .groups([
+                    SettingGroup::new().item(item_with_height("theme", 900.)),
+                    SettingGroup::new()
+                        .title("Colors")
+                        .item(item_with_height("theme", 900.)),
+                    SettingGroup::new()
+                        .title("Fonts")
+                        .item(item_with_height("theme", 900.)),
+                ])
+                .content(move |options, _, _| {
+                    assert_eq!(options.page_ix(), 1);
+                    detail.get().then(|| {
+                        let detail = detail.clone();
+                        div()
+                            .size_full()
+                            .debug_selector(|| "detail-page".into())
+                            .child(
+                                crate::button::Button::new("back")
+                                    .label("Back")
+                                    .on_click(move |_, window, _| {
+                                        detail.set(false);
+                                        window.refresh();
+                                    })
+                                    .debug_selector(|| "back-overview".into()),
+                            )
+                    })
+                });
+            cx.notify();
+        });
+    });
+    draw(cx);
+    click_nav(156., cx);
+    cx.simulate_event(gpui::ScrollWheelEvent {
+        position: point(px(500.), px(300.)),
+        delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-70.))),
+        ..Default::default()
+    });
+    draw(cx);
+    let before = cx.debug_bounds("setting-1-2-0").unwrap();
+    assert!(
+        before.top() < px(70.),
+        "fixture is scrolled inside the final group"
+    );
+
+    detail.set(true);
+    cx.update(|window, _| window.refresh());
+    draw(cx);
+    let page = cx
+        .debug_bounds("detail-page")
+        .expect("custom content replaces the page");
+    assert_eq!(page.top(), px(0.));
+    assert!(page.left() > px(0.), "sidebar keeps its own region");
+    assert!(cx.debug_bounds("overview-title").is_none());
+    assert!(cx.debug_bounds("setting-1-2-0").is_none());
+    // Keep the original list state alive across multiple detail frames.
+    cx.update(|window, _| window.refresh());
+    draw(cx);
+    let back = cx.debug_bounds("back-overview").unwrap();
+    cx.simulate_click(back.center(), Default::default());
+    draw(cx);
+    assert!(cx.debug_bounds("detail-page").is_none());
+    assert_eq!(cx.debug_bounds("setting-1-2-0").unwrap(), before);
+    click_nav(156., cx);
+    assert_eq!(
+        selection(&host, cx),
+        (1, Some(2)),
+        "selected group links reopen on Back"
+    );
+    cx.simulate_event(gpui::ScrollWheelEvent {
+        position: point(px(500.), px(300.)),
+        delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-70.))),
+        ..Default::default()
+    });
+    draw(cx);
+
+    detail.set(true);
+    cx.update(|window, _| window.refresh());
+    draw(cx);
+    click_nav(60., cx);
+    assert_eq!(selection(&host, cx), (0, None));
+    assert!(cx.debug_bounds("setting-0-0-0").is_some());
+    assert!(cx.debug_bounds("detail-page").is_none());
+    click_nav(92., cx);
+    let back = cx.debug_bounds("back-overview").unwrap();
+    cx.simulate_click(back.center(), Default::default());
+    draw(cx);
+    assert_eq!(
+        cx.debug_bounds("setting-1-2-0").unwrap(),
+        before,
+        "sidebar excursions retain the overview position too"
+    );
+}
+
+#[gpui::test]
+fn custom_content_hides_irrelevant_group_links_and_search_reveals_matching_settings(
+    cx: &mut TestAppContext,
+) {
+    let (host, cx) = setup(cx);
+    cx.update(|_, cx| {
+        host.update(cx, |host, cx| {
+            host.pages[1] = host.pages[1]
+                .clone()
+                .sidebar_groups_visible(|_| false)
+                .content(|_, _, _| Some(div().size_full().debug_selector(|| "detail-page".into())));
+            cx.notify();
+        });
+    });
+    draw(cx);
+    assert!(cx.debug_bounds("detail-page").is_some());
+    // Editor follows Appearance directly; its hidden overview groups cannot
+    // change the selected group or its retained scroll behind the detail page.
+    click_nav(124., cx);
+    assert_eq!(selection(&host, cx), (2, None));
+    click_nav(92., cx);
+    assert!(cx.debug_bounds("detail-page").is_some());
+    search(&host, "font", cx);
+    assert!(cx.debug_bounds("detail-page").is_none());
+    assert!(cx.debug_bounds("setting-1-2-1").is_some());
+    search(&host, "", cx);
+    assert!(cx.debug_bounds("detail-page").is_some());
+}
+
 struct VariantHost {
     pages: Vec<SettingPage>,
     outline: bool,
@@ -325,7 +466,7 @@ fn selecting_a_group_from_another_page_scrolls_to_it(cx: &mut TestAppContext) {
         draw(cx);
     };
 
-    // Leaving the page drops its list state; the jump back must not land at the top.
+    // Returning to a specific group must honor the jump, not the retained top.
     select(0, None, cx);
     select(1, Some(2), cx);
     let target = cx.debug_bounds("setting-1-2-1").unwrap();

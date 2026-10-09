@@ -17,6 +17,8 @@ use crate::{
     v_flex,
 };
 
+type ContentRenderer = Rc<dyn Fn(&RenderOptions, &mut Window, &mut App) -> Option<AnyElement>>;
+
 /// A setting page that can contain multiple setting groups.
 #[derive(Clone)]
 pub struct SettingPage {
@@ -28,6 +30,8 @@ pub struct SettingPage {
     pub(super) description: Option<SharedString>,
     pub(super) groups: Vec<SettingGroup>,
     pub(super) header_style: StyleRefinement,
+    content: Option<ContentRenderer>,
+    pub(super) sidebar_groups_visible: Option<Rc<dyn Fn(&App) -> bool>>,
 }
 
 impl SettingPage {
@@ -41,6 +45,8 @@ impl SettingPage {
             description: None,
             groups: Vec::new(),
             header_style: StyleRefinement::default(),
+            content: None,
+            sidebar_groups_visible: None,
         }
     }
 
@@ -108,6 +114,36 @@ impl SettingPage {
         self
     }
 
+    /// Optionally replace the page header and groups with application content.
+    ///
+    /// Return `None` for the normal settings page. Its group list and scroll
+    /// position are retained across content changes and sidebar navigation.
+    /// A nonempty settings search always shows the matching normal groups. The
+    /// application owns custom content sizing, scrolling, focus, and navigation
+    /// state, and must notify its owning view when that state changes.
+    pub fn content<F, E>(mut self, render: F) -> Self
+    where
+        E: IntoElement,
+        F: Fn(&RenderOptions, &mut Window, &mut App) -> Option<E> + 'static,
+    {
+        self.content = Some(Rc::new(move |options, window, cx| {
+            render(options, window, cx).map(IntoElement::into_any_element)
+        }));
+        self
+    }
+
+    /// Set whether the page's groups appear in the sidebar (default: visible).
+    ///
+    /// This only affects navigation links, not page content or search matching.
+    /// Search results always expose their matching group links.
+    pub fn sidebar_groups_visible<F>(mut self, visible: F) -> Self
+    where
+        F: Fn(&App) -> bool + 'static,
+    {
+        self.sidebar_groups_visible = Some(Rc::new(visible));
+        self
+    }
+
     fn is_resettable(&self, query: &str, cx: &App) -> bool {
         self.resettable
             && self
@@ -139,25 +175,20 @@ impl SettingPage {
             .collect::<Vec<_>>();
         let groups_count = groups.len();
 
-        let page_state = window.use_keyed_state(
-            SharedString::from(format!("list-state:{}", ix)),
-            cx,
-            |_, _| PageState {
+        let (list_state, changed) = state.update(cx, |state, _| {
+            let page = state.pages.entry(ix).or_insert_with(|| PageState {
                 list: ListState::new(groups_count, ListAlignment::Top, px(100.)),
                 query: query.clone(),
                 groups: group_indices.to_vec(),
-            },
-        );
-        let changed =
-            page_state.read(cx).query != query || page_state.read(cx).groups != group_indices;
-        let list_state = page_state.read(cx).list.clone();
-        if changed {
-            page_state.update(cx, |state, _| {
-                state.list.reset(groups_count);
-                state.query = query.clone();
-                state.groups = group_indices.to_vec();
             });
-        }
+            let changed = page.query != query || page.groups != group_indices;
+            if changed {
+                page.list.reset(groups_count);
+                page.query = query.clone();
+                page.groups = group_indices.to_vec();
+            }
+            (page.list.clone(), changed)
+        });
 
         let deferred_scroll_group_ix = state.read(cx).deferred_scroll_group_ix;
         let scroll_group_ix = deferred_scroll_group_ix.or_else(|| {
@@ -171,12 +202,23 @@ impl SettingPage {
         if let Some(group_ix) = scroll_group_ix
             && let Some(visible_ix) = group_indices.iter().position(|&ix| ix == group_ix)
         {
-            // Scroll by index: after a page switch the list is rebuilt unmeasured,
-            // and `scroll_to_reveal_item` would resolve to the top.
+            // Scroll by index so jumps also work before the target groups have
+            // been measured; `scroll_to_reveal_item` would resolve to the top.
             list_state.scroll_to(ListOffset {
                 item_ix: visible_ix,
                 offset_in_item: px(0.),
             });
+        }
+
+        // Search must reveal its matched controls, including while a nested
+        // application page is open. The application keeps its own draft state.
+        if query.is_empty()
+            && let Some(content) = self
+                .content
+                .as_ref()
+                .and_then(|render| render(&options.with_page_ix(ix), window, cx))
+        {
+            return div().id(ix).size_full().child(content).into_any_element();
         }
 
         v_flex()
@@ -263,10 +305,11 @@ impl SettingPage {
                     )
                     .vertical_scrollbar(&list_state),
             )
+            .into_any_element()
     }
 }
 
-struct PageState {
+pub(super) struct PageState {
     list: ListState,
     query: SharedString,
     groups: Vec<usize>,
