@@ -41,11 +41,9 @@ impl AssetSource for AppAssets {
 
 #[cfg(not(target_family = "wasm"))]
 fn main() {
-    let path = std::env::args().nth(1).unwrap_or_else(|| {
-        gpui_kit_assets::IconName::Accessibility
-            .path()
-            .to_string()
-    });
+    let path = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| gpui_kit_assets::IconName::Accessibility.path().to_string());
     let source: &dyn AssetSource = std::hint::black_box(&AppAssets);
     let bytes = std::hint::black_box(source.load(&path).unwrap());
     println!("{:?}", bytes.map(|bytes| bytes.len()));

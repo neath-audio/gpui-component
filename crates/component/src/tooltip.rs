@@ -261,9 +261,7 @@ struct TooltipTrigger {
     bounds: Bounds<Pixels>,
 }
 
-pub trait ManagedTooltipExt:
-    StatefulInteractiveElement + crate::ElementExt + Sized
-{
+pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Sized {
     fn managed_tooltip(
         self,
         build_tooltip: impl Fn(&mut Window, &mut App) -> AnyView + 'static,

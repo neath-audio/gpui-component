@@ -1708,20 +1708,23 @@ impl Render for PopupMenu {
                             .filter(|(ix, item)| !(*ix + 1 == items_count && item.is_separator()))
                             .map(|(ix, item)| self.render_item(ix, item, options, window, cx)),
                     )
-                    .on_prepaint(move |bounds, _, cx| {
-                        view.update(cx, |menu, cx| {
-                            let width_changed = menu.bounds.size.width != bounds.size.width;
-                            menu.bounds = bounds;
-                            if width_changed {
-                                if let Some(parent) = menu
-                                    .parent_menu
-                                    .as_ref()
-                                    .and_then(|parent| parent.upgrade())
-                                {
-                                    parent.update(cx, |_, cx| cx.notify());
+                    .on_prepaint({
+                        let view = view.clone();
+                        move |bounds, _, cx| {
+                            view.update(cx, |menu, cx| {
+                                let width_changed = menu.bounds.size.width != bounds.size.width;
+                                menu.bounds = bounds;
+                                if width_changed {
+                                    if let Some(parent) = menu
+                                        .parent_menu
+                                        .as_ref()
+                                        .and_then(|parent| parent.upgrade())
+                                    {
+                                        parent.update(cx, |_, cx| cx.notify());
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        }
                     }),
             )
             // Measure the surface outside the scroll area: on_prepaint adds
@@ -1791,7 +1794,7 @@ mod tests {
             menu.bounds
         });
         assert!(bounds.bottom() < px(320.));
-        cx.simulate_event(gpui::ScrollWheelEvent {
+        cx.simulate_event(gpui::ScrollEvent {
             position: bounds.center(),
             delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-10000.))),
             ..Default::default()

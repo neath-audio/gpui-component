@@ -15,7 +15,7 @@ use gpui_base::{ResizeHandleRenderer, ResizeHandleState, Transition, transition}
 
 pub use gpui_base::{
     HandleEdge, ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState,
-    ResizeHandle, ResizeHandleContext, resizable_panel, resize_handle,
+    ResizeHandle, ResizeHandleContext, resizable_panel,
 };
 
 use crate::theme::ActiveTheme as _;

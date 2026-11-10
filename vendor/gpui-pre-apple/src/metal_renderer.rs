@@ -104,9 +104,16 @@ struct BackdropBlurRegions {
     snapshot: TextureRegion,
 }
 
-#[derive(Default)]
 struct TwoEntryLru<T> {
     entries: Vec<(f32, T)>,
+}
+
+impl<T> Default for TwoEntryLru<T> {
+    fn default() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
 }
 
 impl<T> TwoEntryLru<T> {
@@ -1208,8 +1215,8 @@ impl MetalRenderer {
 
         let kernel = self.ensure_gaussian_kernel(blur.blur_radius.0.max(1.0));
         let destination = regions.destination;
-        // SAFETY: The clip rect lies within both same-sized textures, which the
-        // renderer retains along with the kernel until the command buffer completes.
+        // SAFETY: The clip rect lies within both same-sized textures, and Metal
+        // retains the textures and encoded kernel work until the command buffer completes.
         unsafe {
             kernel.setClipRect(destination.mtl_region());
             kernel.setOffset(MPSOffset {
@@ -2424,6 +2431,7 @@ impl gpui::PlatformHeadlessRenderer for MetalHeadlessRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui::{Corners, Quad, rgba};
     use objc2_core_foundation::{CFDictionary, CFType};
     use objc2_core_video::{
         CVPixelBufferCreate, CVPixelBufferGetBaseAddressOfPlane,
@@ -2659,12 +2667,7 @@ mod tests {
         scene.insert_primitive(Quad {
             bounds,
             content_mask: ContentMask {
-                bounds: rect(
-                    0.,
-                    0.,
-                    BLUR_SCENE_WIDTH as f32,
-                    BLUR_SCENE_HEIGHT as f32,
-                ),
+                bounds: rect(0., 0., BLUR_SCENE_WIDTH as f32, BLUR_SCENE_HEIGHT as f32),
             },
             background: rgba(color).into(),
             ..Default::default()
@@ -2818,12 +2821,7 @@ mod tests {
     #[test]
     fn composites_translucent_quads_with_source_over_alpha_on_transparent_target() -> Result<()> {
         let mut scene = Scene::default();
-        let bounds = rect(
-            0.,
-            0.,
-            BLUR_SCENE_WIDTH as f32,
-            BLUR_SCENE_HEIGHT as f32,
-        );
+        let bounds = rect(0., 0., BLUR_SCENE_WIDTH as f32, BLUR_SCENE_HEIGHT as f32);
         insert_quad(&mut scene, bounds, 0xffffff66);
         insert_quad(&mut scene, bounds, 0xffffffcc);
         scene.finish();

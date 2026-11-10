@@ -35,17 +35,19 @@ pub(crate) fn component() -> syn::Result<TokenStream> {
             let kit = found_crate_path(found);
             Ok(quote!(#kit::component))
         }
-        Err(kit_error) => crate_name("gpui-neath").map(found_crate_path).map_err(
-            |component_error| {
-                syn::Error::new(
-                    Span::call_site(),
-                    format!(
-                        "IntoPlot requires a direct dependency on `gpui-kit` or `gpui-neath`: \
+        Err(kit_error) => {
+            crate_name("gpui-neath")
+                .map(found_crate_path)
+                .map_err(|component_error| {
+                    syn::Error::new(
+                        Span::call_site(),
+                        format!(
+                            "IntoPlot requires a direct dependency on `gpui-kit` or `gpui-neath`: \
                          gpui-kit lookup failed: {kit_error}; gpui-neath lookup failed: \
                          {component_error}"
-                    ),
-                )
-            },
-        ),
+                        ),
+                    )
+                })
+        }
     }
 }

@@ -142,15 +142,10 @@ impl RenderOnce for ResizablePanelGroup {
             v_flex()
         };
 
-        // Sync panels to the state. `sync_panel_fixed` must run before the
-        // group's `on_prepaint` calls `adjust_to_container_size`, so the
-        // `.fixed(true)` panels are exempted from the proportional rescale
-        // even on the first frame after a container size change.
+        // Sync panels to the state
         let panels_count = self.children.len();
-        let fixed_flags: Vec<bool> = self.children.iter().map(|c| c.fixed).collect();
         state.update(cx, |state, cx| {
             state.sync_panels_count(self.axis, panels_count, cx);
-            state.sync_panel_fixed(&fixed_flags);
         });
 
         container
@@ -219,24 +214,23 @@ impl RenderOnce for ResizablePanelGroup {
 /// Implements [`Styled`], so call sites can override the panel's
 /// rendered styles. User overrides are applied **between** the panel's
 /// flex defaults and its size management — the caller can override the
-/// internal `flex_grow: 1` and add their own padding / colors / borders,
-/// while the panel's runtime size constraints (`min_w`/`max_w`/`flex_basis`
-/// driven by `ResizableState`) always win.
+/// internal `flex_grow: 1` (e.g. via `.flex_none()`) and add their own
+/// padding / colors / borders, while the panel's runtime size
+/// constraints (`min_w`/`max_w`/`flex_basis` driven by `ResizableState`)
+/// always win.
 ///
-/// For sized panels that should hold their pixel size — both when a sibling
-/// collapses *and* when the group's container resizes — use `.fixed(true)`.
-/// It applies `flex_grow: 0` + `flex_shrink: 0` internally and excludes the
-/// panel from [`ResizableState`]'s proportional reflow, replacing the older
-/// `.flex_none()` pattern.
+/// A common override is `.flex_none()`: the panel sets `flex_grow: 1`
+/// internally, so a sized panel that should hold its width when a
+/// sibling collapses needs to opt out of growth via `.flex_none()`.
 ///
 /// To keep a panel's size when the group's container resizes, use
 /// [`ResizablePanel::fixed`].
 ///
 /// ```ignore
 /// h_resizable("layout")
-///     .child(resizable_panel().size(px(220.)).fixed(true).child(sidebar))
+///     .child(resizable_panel().size(px(220.)).flex_none().child(sidebar))
 ///     .child(resizable_panel().child(content))                // flex
-///     .child(resizable_panel().size(px(280.)).fixed(true).child(metadata))
+///     .child(resizable_panel().size(px(280.)).flex_none().child(metadata))
 /// ```
 ///
 /// **Reserved styles**: do not call these from outside — they fight the
@@ -256,7 +250,6 @@ pub struct ResizablePanel {
     size_range: Range<Pixels>,
     children: Vec<AnyElement>,
     visible: bool,
-    pub(super) fixed: bool,
     style: StyleRefinement,
     handle_appearance: Option<ResizeHandleRenderer>,
     fixed: bool,
@@ -273,7 +266,6 @@ impl ResizablePanel {
             axis: Axis::Horizontal,
             children: vec![],
             visible: true,
-            fixed: false,
             style: StyleRefinement::default(),
             handle_appearance: None,
             fixed: false,
@@ -369,10 +361,7 @@ impl RenderOnce for ResizablePanel {
             .when(self.initial_size.is_none(), |this| this.flex_shrink_1())
             .when_some(self.initial_size, |this, initial_size| {
                 // The `self.size` is None, that mean the initial size for the panel,
-                // so we pin grow/shrink to 0 to keep the initial size. `flex_none()`
-                // is safe here (unlike the `.fixed` branch below) only because
-                // `.flex_basis(initial_size)` runs AFTER it and re-applies the basis
-                // that `flex_none()` resets to `Auto` (gpui #58142).
+                // so we need set `flex_shrink_0` To let it keep the initial size.
                 this.when(
                     panel_state.size.is_none() && !initial_size.is_zero(),
                     |this| this.flex_none(),

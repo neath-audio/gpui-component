@@ -17,9 +17,9 @@ use crate::{
     v_flex,
 };
 
+/// A setting page that can contain multiple setting groups.
 type ContentRenderer = Rc<dyn Fn(&RenderOptions, &mut Window, &mut App) -> Option<AnyElement>>;
 
-/// A setting page that can contain multiple setting groups.
 #[derive(Clone)]
 pub struct SettingPage {
     pub(super) icon: Option<Icon>,
@@ -114,6 +114,25 @@ impl SettingPage {
         self
     }
 
+    fn is_resettable(&self, query: &str, cx: &App) -> bool {
+        self.resettable
+            && self
+                .groups
+                .iter()
+                .any(|group| group.is_resettable(query, cx))
+    }
+
+    fn reset_all(&self, query: &str, window: &mut Window, cx: &mut App) {
+        for group in &self.groups {
+            group.reset(query, window, cx);
+        }
+    }
+
+    /// The group the sidebar marks for the given scroll position: the titled
+    /// group at or above the top of the viewport. At the end of the list the
+    /// last groups cannot reach the top, so a group selected below the top
+    /// stays marked, and the last group is marked otherwise. `None` marks the
+    /// page itself.
     /// Optionally replace the page header and groups with application content.
     ///
     /// Return `None` for the normal settings page. Its group list and scroll
@@ -144,25 +163,6 @@ impl SettingPage {
         self
     }
 
-    fn is_resettable(&self, query: &str, cx: &App) -> bool {
-        self.resettable
-            && self
-                .groups
-                .iter()
-                .any(|group| group.is_resettable(query, cx))
-    }
-
-    fn reset_all(&self, query: &str, window: &mut Window, cx: &mut App) {
-        for group in &self.groups {
-            group.reset(query, window, cx);
-        }
-    }
-
-    /// The group the sidebar marks for the given scroll position: the titled
-    /// group at or above the top of the viewport. At the end of the list the
-    /// last groups cannot reach the top, so a group selected below the top
-    /// stays marked, and the last group is marked otherwise. `None` marks the
-    /// page itself.
     fn group_at_scroll_top(
         &self,
         group_indices: &[usize],
@@ -206,6 +206,9 @@ impl SettingPage {
             .collect::<Vec<_>>();
         let groups_count = groups.len();
 
+        // Page state lives on the settings state rather than keyed window
+        // state: nested application content replaces the list element, and
+        // keyed state would be dropped with it.
         let (list_state, changed) = state.update(cx, |state, _| {
             let page = state.pages.entry(ix).or_insert_with(|| PageState {
                 list: ListState::new(groups_count, ListAlignment::Top, px(100.)),
@@ -213,16 +216,6 @@ impl SettingPage {
                 groups: group_indices.to_vec(),
                 scroll_top: ListOffset::default(),
                 scrolled_programmatically: false,
-            },
-        );
-        let changed =
-            page_state.read(cx).query != query || page_state.read(cx).groups != group_indices;
-        let list_state = page_state.read(cx).list.clone();
-        if changed {
-            page_state.update(cx, |state, _| {
-                state.list.reset(groups_count);
-                state.query = query.clone();
-                state.groups = group_indices.to_vec();
             });
             let changed = page.query != query || page.groups != group_indices;
             if changed {
@@ -245,32 +238,24 @@ impl SettingPage {
         if let Some(group_ix) = scroll_group_ix
             && let Some(visible_ix) = group_indices.iter().position(|&ix| ix == group_ix)
         {
-            // Scroll by index so jumps also work before the target groups have
-            // been measured; `scroll_to_reveal_item` would resolve to the top.
+            // Scroll by index: after a page switch the list is rebuilt unmeasured,
+            // and `scroll_to_reveal_item` would resolve to the top.
             list_state.scroll_to(ListOffset {
                 item_ix: visible_ix,
                 offset_in_item: px(0.),
             });
         }
 
-        // Search must reveal its matched controls, including while a nested
-        // application page is open. The application keeps its own draft state.
-        if query.is_empty()
-            && let Some(content) = self
-                .content
-                .as_ref()
-                .and_then(|render| render(&options.with_page_ix(ix), window, cx))
-        {
-            return div().id(ix).size_full().child(content).into_any_element();
         // Follow the scroll position in the sidebar, like a table of contents.
         let scroll_top = list_state.logical_scroll_top();
         let programmatic = changed || scroll_group_ix.is_some();
-        let scrolled = !programmatic
-            && !page_state.read(cx).scrolled_programmatically
-            && page_state.read(cx).scroll_top != scroll_top;
-        page_state.update(cx, |state, _| {
-            state.scroll_top = scroll_top;
-            state.scrolled_programmatically = programmatic;
+        let scrolled = state.update(cx, |state, _| {
+            let page = state.pages.get_mut(&ix).expect("page state inserted above");
+            let scrolled =
+                !programmatic && !page.scrolled_programmatically && page.scroll_top != scroll_top;
+            page.scroll_top = scroll_top;
+            page.scrolled_programmatically = programmatic;
+            scrolled
         });
         if scrolled {
             let selected_group_ix = state.read(cx).selected_index.group_ix;
@@ -287,6 +272,17 @@ impl SettingPage {
             }
         }
 
+        // Search must reveal its matched controls, including while a nested
+        // application page is open. The application keeps its own draft state.
+        if query.is_empty()
+            && let Some(content) = self
+                .content
+                .as_ref()
+                .and_then(|render| render(&options.with_page_ix(ix), window, cx))
+        {
+            return div().id(ix).size_full().child(content).into_any_element();
+        }
+
         v_flex()
             .id(ix)
             .size_full()
@@ -297,19 +293,14 @@ impl SettingPage {
                     .border_b_1()
                     .border_color(cx.theme().border)
                     .refine_style(&self.header_style)
-                    // The page title is the page's one heading — semibold so it
-                    // outranks the group titles below, which stay regular. Size
-                    // is inherited, so `header_style` can re-tier it without
-                    // touching the description (whose Settings size still wins).
                     .child(
                         h_flex()
                             .justify_between()
                             .child(
-                                // Keep the title semibold (fork) while carrying
-                                // upstream's optional suffix slot (e.g. a help
-                                // icon) alongside it in the same header row.
                                 h_flex()
                                     .gap_1()
+                                    // The page title is the page's one heading,
+                                    // so it outranks the regular group titles.
                                     .child(
                                         div()
                                             .font_weight(FontWeight::SEMIBOLD)

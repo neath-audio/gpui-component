@@ -273,9 +273,9 @@ mod tests {
         cx.update(|window, cx| window.draw(cx).clear(cx));
         assert!(cx.debug_bounds("hover-card-surface-content").is_none());
         assert!(cx.debug_bounds("hover-card-trigger").is_some());
+    }
 
     use crate::{button::Button, h_flex};
-    use gpui::{Context, Render, point, px};
 
     struct TriggerStyleHarness {
         styled: bool,

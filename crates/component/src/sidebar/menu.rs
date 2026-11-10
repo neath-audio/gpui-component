@@ -487,6 +487,9 @@ mod tests {
             submenu.style().gap,
             "top-level settings/sidebar rows must use the 4px submenu gap, not gap_2"
         );
+    }
+
+    #[test]
     fn submenu_caret_is_named_after_the_item() {
         let item =
             SidebarMenuItem::new("Projects").children(vec![SidebarMenuItem::new("Overview")]);

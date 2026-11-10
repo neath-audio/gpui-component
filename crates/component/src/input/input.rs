@@ -2,9 +2,10 @@ use std::rc::Rc;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AnyElement, App, DefiniteLength, Edges, ElementId, Entity, Global, Hsla,
-    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Rems, RenderOnce, Role,
-    SharedString, StyleRefinement, Styled, TextAlign, TouchPhase, Window, div, px, relative,
+    AbsoluteLength, AnyElement, App, DefiniteLength, Edges, ElementId, Entity, Global, Hsla,
+    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Pixels, Rems,
+    RenderOnce, Role, SharedString, StyleRefinement, Styled, TextAlign, TouchPhase, Window, div,
+    px, relative,
 };
 
 use crate::button::{Button, ButtonRounded, ButtonVariants as _};

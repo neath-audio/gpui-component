@@ -1,4 +1,6 @@
 use crate::common;
+use gpui_kit::test::{TestQueryExt, TestSupportExt, TestWindowExt};
+use gpui_kit::{AppContext, Context, Entity, TestAppContext, Window, div, prelude::*, px, size};
 use gpui_neath::{
     Disableable, TitleBar,
     button::{Button, DropdownButton},
@@ -7,8 +9,6 @@ use gpui_neath::{
     popover::Popover,
     progress::{Progress, ProgressCircle},
 };
-use gpui_kit::test::{TestQueryExt, TestSupportExt, TestWindowExt};
-use gpui_kit::{AppContext, Context, Entity, TestAppContext, Window, div, prelude::*, px, size};
 
 struct Controls {
     input: Entity<InputState>,

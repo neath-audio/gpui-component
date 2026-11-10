@@ -467,7 +467,7 @@ impl StockTableDelegate {
 
     /// A percentage, tinted over the whole cell as ticker tables do.
     fn render_percent(&self, col: &Column, val: f64, text: String, cx: &mut App) -> AnyElement {
-        self.value_cell(col)
+        self.value_cell(col, cx)
             .when_some(change_colors(val, cx), |this, (foreground, background)| {
                 this.text_color(foreground).bg(background.alpha(0.05))
             })
@@ -477,7 +477,7 @@ impl StockTableDelegate {
 
     /// A signed change, colored by its direction.
     fn render_change(&self, col: &Column, val: f64, text: String, cx: &mut App) -> AnyElement {
-        self.value_cell(col)
+        self.value_cell(col, cx)
             .when_some(change_colors(val, cx), |this, (foreground, _)| {
                 this.text_color(foreground)
             })
@@ -513,7 +513,7 @@ impl TableDelegate for StockTableDelegate {
         // Use the same size refinement as the cells and header. Custom pixel
         // sizes keep the story's inherited `text_sm`.
         let font_size = div()
-            .table_cell_size(self.size)
+            .table_cell_size(self.size, cx)
             .style()
             .text
             .font_size
@@ -758,7 +758,7 @@ impl TableDelegate for StockTableDelegate {
 
         let Some((text, weight)) = format_cell(stock, &col.key) else {
             return self
-                .value_cell(col)
+                .value_cell(col, cx)
                 .text_color(cx.theme().muted_foreground)
                 .child("--")
                 .into_any_element();
@@ -766,13 +766,13 @@ impl TableDelegate for StockTableDelegate {
 
         match col.key.as_ref() {
             "id" => self
-                .value_cell(col)
+                .value_cell(col, cx)
                 .text_color(cx.theme().muted_foreground)
                 .when(col.align == TextAlign::Center, |this| this.justify_center())
                 .child(text)
                 .into_any_element(),
             "market" => self
-                .value_cell(col)
+                .value_cell(col, cx)
                 .map(|this| {
                     if stock.counter.market == "US" {
                         this.text_color(cx.theme().blue)
@@ -783,7 +783,7 @@ impl TableDelegate for StockTableDelegate {
                 .child(text)
                 .into_any_element(),
             "name" => self
-                .value_cell(col)
+                .value_cell(col, cx)
                 .child(div().truncate().child(text))
                 .into_any_element(),
             "change" => self.render_change(col, stock.change, text, cx),
@@ -794,7 +794,7 @@ impl TableDelegate for StockTableDelegate {
             "pre_market_percent" => self.render_percent(col, stock.pre_market_percent, text, cx),
             "post_market_percent" => self.render_percent(col, stock.post_market_percent, text, cx),
             _ => self
-                .value_cell(col)
+                .value_cell(col, cx)
                 .font_weight(weight)
                 .child(text)
                 .into_any_element(),

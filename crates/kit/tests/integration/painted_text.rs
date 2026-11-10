@@ -1,8 +1,8 @@
 use crate::common;
-use gpui_neath::{avatar::Avatar, button::Button, kbd::Kbd, label::Label, text::TextView};
 use gpui_kit::base::test_support::texts;
 use gpui_kit::test::TestWindowExt;
 use gpui_kit::{AppContext, Context, Keystroke, TestAppContext, Window, div, prelude::*, px, size};
+use gpui_neath::{avatar::Avatar, button::Button, kbd::Kbd, label::Label, text::TextView};
 
 struct Painted;
 impl Render for Painted {

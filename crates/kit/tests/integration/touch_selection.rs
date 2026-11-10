@@ -3,17 +3,17 @@
 
 use crate::common;
 use gpui_base::TextSelection;
-use gpui_neath::{
-    Root, WindowExt as _,
-    input::{Input, InputState},
-    text::{TextView, TextViewState},
-};
 use gpui_kit::test::{TestSupportExt as _, TestWindowExt};
 use gpui_kit::{
     AppContext, Context, DispatchPhase, Entity, InputEvent as _, LongPressEvent, Modifiers,
     MouseButton, MouseDownEvent, MouseUpEvent, Pixels, Point, ScrollDelta, ScrollEvent,
     StyleRefinement, TestAppContext, TouchDragEvent, TouchPhase, Window, WindowHandle, canvas, div,
     prelude::*, px,
+};
+use gpui_neath::{
+    Root, WindowExt as _,
+    input::{Input, InputState},
+    text::{TextView, TextViewState},
 };
 
 struct Screen {

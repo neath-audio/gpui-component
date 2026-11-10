@@ -1946,6 +1946,7 @@ where
         let movable = self.col_movable && col_group.column.movable;
         let name = col_group.column.name.clone();
         let icon = col_group.column.icon.clone();
+        let paddings = col_group.column.paddings;
 
         h_flex()
             .h_full()
@@ -2878,90 +2879,92 @@ where
                                 }
                             }))
                             .child(
-                            uniform_list(
-                                "table-uniform-list",
-                                render_rows_count,
-                                cx.processor(
-                                    move |table, visible_range: Range<usize>, window, cx| {
-                                        // Use `col.width` (always up-to-date) rather than
-                                        // `col.bounds.size.width`, which is only set after
-                                        // prepaint and is therefore zero on the first frame.
-                                        let col_sizes: Rc<Vec<gpui::Size<Pixels>>> = Rc::new(
-                                            table
-                                                .col_groups
-                                                .get(scrollable_cols.clone())
-                                                .unwrap_or_default()
-                                                .iter()
-                                                .map(|col| gpui::Size {
-                                                    width: col.width,
-                                                    height: px(0.),
-                                                })
-                                                .collect(),
-                                        );
-
-                                        table.load_more_if_need(
-                                            rows_count,
-                                            visible_range.end,
-                                            window,
-                                            cx,
-                                        );
-                                        table.update_visible_range_if_need(
-                                            visible_range.clone(),
-                                            rows_count,
-                                            Axis::Vertical,
-                                            window,
-                                            cx,
-                                        );
-
-                                        if visible_range.end > rows_count {
-                                            table.scroll_to_row(
-                                                std::cmp::min(
-                                                    visible_range.start,
-                                                    rows_count.saturating_sub(1),
-                                                ),
-                                                cx,
+                                uniform_list(
+                                    "table-uniform-list",
+                                    render_rows_count,
+                                    cx.processor(
+                                        move |table, visible_range: Range<usize>, window, cx| {
+                                            // Use `col.width` (always up-to-date) rather than
+                                            // `col.bounds.size.width`, which is only set after
+                                            // prepaint and is therefore zero on the first frame.
+                                            let col_sizes: Rc<Vec<gpui::Size<Pixels>>> = Rc::new(
+                                                table
+                                                    .col_groups
+                                                    .get(scrollable_cols.clone())
+                                                    .unwrap_or_default()
+                                                    .iter()
+                                                    .map(|col| gpui::Size {
+                                                        width: col.width,
+                                                        height: px(0.),
+                                                    })
+                                                    .collect(),
                                             );
-                                        }
 
-                                        let mut items = Vec::with_capacity(
-                                            visible_range.end.saturating_sub(visible_range.start),
-                                        );
-
-                                        // Render fake rows to fill the table
-                                        visible_range.for_each(|row_ix| {
-                                            // Render real rows for available data
-                                            items.push(table.render_table_row(
-                                                row_ix,
+                                            table.load_more_if_need(
                                                 rows_count,
-                                                scrollable_cols.clone(),
-                                                col_sizes.clone(),
-                                                columns_count,
-                                                is_filled,
+                                                visible_range.end,
                                                 window,
                                                 cx,
-                                            ));
-                                        });
+                                            );
+                                            table.update_visible_range_if_need(
+                                                visible_range.clone(),
+                                                rows_count,
+                                                Axis::Vertical,
+                                                window,
+                                                cx,
+                                            );
 
-                                        items
-                                    },
-                                ),
-                            )
-                            .flex_grow_1()
-                            .size_full()
-                            .with_sizing_behavior(ListSizingBehavior::Auto)
-                            .track_scroll(&self.vertical_scroll_handle)
-                            .map(|rows| {
-                                gpui_base::ScrollBounce::new(
-                                    "table-scroll-bounce",
-                                    &self.vertical_scroll_handle,
-                                    rows,
+                                            if visible_range.end > rows_count {
+                                                table.scroll_to_row(
+                                                    std::cmp::min(
+                                                        visible_range.start,
+                                                        rows_count.saturating_sub(1),
+                                                    ),
+                                                    cx,
+                                                );
+                                            }
+
+                                            let mut items = Vec::with_capacity(
+                                                visible_range
+                                                    .end
+                                                    .saturating_sub(visible_range.start),
+                                            );
+
+                                            // Render fake rows to fill the table
+                                            visible_range.for_each(|row_ix| {
+                                                // Render real rows for available data
+                                                items.push(table.render_table_row(
+                                                    row_ix,
+                                                    rows_count,
+                                                    scrollable_cols.clone(),
+                                                    col_sizes.clone(),
+                                                    columns_count,
+                                                    is_filled,
+                                                    window,
+                                                    cx,
+                                                ));
+                                            });
+
+                                            items
+                                        },
+                                    ),
                                 )
-                                .when_some(self.options.scroll_bounce, |bounce, on| {
-                                    bounce.enabled(on)
+                                .flex_grow_1()
+                                .size_full()
+                                .with_sizing_behavior(ListSizingBehavior::Auto)
+                                .track_scroll(&self.vertical_scroll_handle)
+                                .map(|rows| {
+                                    gpui_base::ScrollBounce::new(
+                                        "table-scroll-bounce",
+                                        &self.vertical_scroll_handle,
+                                        rows,
+                                    )
+                                    .when_some(self.options.scroll_bounce, |bounce, on| {
+                                        bounce.enabled(on)
+                                    })
                                 })
-                            })
-                            .into_any_element(),
-                        ),
+                                .into_any_element(),
+                            ),
                     )
                 }
             });
@@ -3680,6 +3683,3 @@ mod neath_tests {
         assert_eq!(table.read_with(cx, |s, _| s.selected_row()), None);
     }
 }
-
-#[cfg(test)]
-mod header_height_tests;

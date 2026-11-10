@@ -3865,95 +3865,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpui-component"
-version = "0.9.1"
-dependencies = [
- "anyhow",
- "block2 0.6.2",
- "chrono",
- "core-text",
- "cpal",
- "enum-iterator",
- "gpui-base",
- "gpui-component-macros",
- "gpui-fast",
- "gpui-kit-assets",
- "gpui-pre",
- "gpui-pre-macros",
- "gpui-pre-sum-tree",
- "indoc",
- "instant",
- "itertools 0.13.0",
- "log",
- "lsp-types 0.97.0",
- "markdown",
- "notify",
- "num-traits",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-av-foundation",
- "objc2-avf-audio",
- "objc2-foundation 0.3.2",
- "objc2-speech",
- "once_cell",
- "paste",
- "raw-window-handle",
- "regex",
- "resvg 0.45.1",
- "ropey",
- "rust-i18n",
- "schemars",
- "serde",
- "serde_json",
- "serde_repr",
- "similar",
- "smallvec",
- "smol",
- "syntect",
- "tracing",
- "tree-sitter",
- "tree-sitter-astro-next",
- "tree-sitter-bash",
- "tree-sitter-c",
- "tree-sitter-c-sharp",
- "tree-sitter-cmake",
- "tree-sitter-cpp",
- "tree-sitter-css",
- "tree-sitter-diff",
- "tree-sitter-elixir",
- "tree-sitter-embedded-template",
- "tree-sitter-go",
- "tree-sitter-graphql",
- "tree-sitter-html",
- "tree-sitter-java",
- "tree-sitter-javascript",
- "tree-sitter-jsdoc",
- "tree-sitter-json",
- "tree-sitter-kotlin-sg",
- "tree-sitter-lua",
- "tree-sitter-make",
- "tree-sitter-md",
- "tree-sitter-php",
- "tree-sitter-proto",
- "tree-sitter-python",
- "tree-sitter-ruby",
- "tree-sitter-rust",
- "tree-sitter-scala",
- "tree-sitter-sequel",
- "tree-sitter-svelte-next",
- "tree-sitter-swift",
- "tree-sitter-toml-ng",
- "tree-sitter-typescript",
- "tree-sitter-yaml",
- "tree-sitter-zig",
- "two-face",
- "unicode-segmentation",
- "unicode-width",
- "uuid",
- "windows 0.58.0",
-]
-
-[[package]]
 name = "gpui-component-macros"
 version = "0.9.1"
 dependencies = [
@@ -4347,11 +4258,11 @@ version = "0.9.1"
 dependencies = [
  "chrono",
  "gpui-base",
- "gpui-component",
  "gpui-fast",
  "gpui-fast-platform",
  "gpui-fast-web",
  "gpui-kit-assets",
+ "gpui-neath",
  "gpui-pre",
  "gpui-pre-macros",
  "gpui-pre-platform",
@@ -4383,10 +4294,97 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-neath"
+version = "0.9.1"
+dependencies = [
+ "anyhow",
+ "block2 0.6.2",
+ "chrono",
+ "core-text",
+ "cpal",
+ "enum-iterator",
+ "gpui-base",
+ "gpui-component-macros",
+ "gpui-fast",
+ "gpui-kit-assets",
+ "gpui-pre",
+ "gpui-pre-macros",
+ "gpui-pre-sum-tree",
+ "indoc",
+ "instant",
+ "itertools 0.13.0",
+ "log",
+ "lsp-types 0.97.0",
+ "markdown",
+ "notify",
+ "num-traits",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-av-foundation",
+ "objc2-avf-audio",
+ "objc2-foundation 0.3.2",
+ "objc2-speech",
+ "once_cell",
+ "paste",
+ "raw-window-handle",
+ "regex",
+ "resvg 0.45.1",
+ "ropey",
+ "rust-i18n",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "similar",
+ "smallvec",
+ "smol",
+ "syntect",
+ "tracing",
+ "tree-sitter",
+ "tree-sitter-astro-next",
+ "tree-sitter-bash",
+ "tree-sitter-c",
+ "tree-sitter-c-sharp",
+ "tree-sitter-cmake",
+ "tree-sitter-cpp",
+ "tree-sitter-css",
+ "tree-sitter-diff",
+ "tree-sitter-elixir",
+ "tree-sitter-embedded-template",
+ "tree-sitter-go",
+ "tree-sitter-graphql",
+ "tree-sitter-html",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-jsdoc",
+ "tree-sitter-json",
+ "tree-sitter-kotlin-sg",
+ "tree-sitter-lua",
+ "tree-sitter-make",
+ "tree-sitter-md",
+ "tree-sitter-php",
+ "tree-sitter-proto",
+ "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-scala",
+ "tree-sitter-sequel",
+ "tree-sitter-svelte-next",
+ "tree-sitter-swift",
+ "tree-sitter-toml-ng",
+ "tree-sitter-typescript",
+ "tree-sitter-yaml",
+ "tree-sitter-zig",
+ "two-face",
+ "unicode-segmentation",
+ "unicode-width",
+ "uuid",
+ "windows 0.58.0",
+]
+
+[[package]]
 name = "gpui-pre"
 version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29db89613527079737f53752eab27fb65c9a7dd94979256c65a0e590c9fd34d8"
 dependencies = [
  "accesskit",
  "anyhow",
@@ -4458,8 +4456,6 @@ dependencies = [
 [[package]]
 name = "gpui-pre-apple"
 version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a460605ec4e8cbcc9b213462a84b1d6cc3efe4ed8f0e18669659f07b2d5c6aec"
 dependencies = [
  "anyhow",
  "async-task",
@@ -4486,6 +4482,7 @@ dependencies = [
  "objc2-core-video",
  "objc2-foundation 0.3.2",
  "objc2-metal 0.3.2",
+ "objc2-metal-performance-shaders",
  "objc2-quartz-core 0.3.2",
  "objc2-security",
  "parking_lot",
@@ -4630,8 +4627,6 @@ dependencies = [
 [[package]]
 name = "gpui-pre-macos"
 version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2de7d3f4ad51ac387e822495db363fcc1188d349793365731d054444c4cb06ee"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -4888,8 +4883,6 @@ dependencies = [
 [[package]]
 name = "gpui-pre-windows"
 version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7201762420222d5b5ce5bdf0056996199212a3349bfb2457a3a0238c688681f3"
 dependencies = [
  "accesskit",
  "accesskit_windows",
@@ -4942,11 +4935,11 @@ dependencies = [
  "flate2",
  "fs2",
  "gpui-base",
- "gpui-component",
  "gpui-fast",
  "gpui-fast-platform",
  "gpui-fps",
  "gpui-kit",
+ "gpui-neath",
  "gpui-pre",
  "gpui-pre-platform",
  "gpui-pre-reqwest",
@@ -7226,6 +7219,18 @@ dependencies = [
  "dispatch2",
  "objc2 0.6.4",
  "objc2-foundation 0.3.2",
+]
+
+[[package]]
+name = "objc2-metal-performance-shaders"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46a10f15ff4e2045f947ffca8a17fc351b155c321de16f04278a008a1f446784"
+dependencies = [
+ "bitflags 2.13.1",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2",
+ "objc2-metal 0.3.2",
 ]
 
 [[package]]

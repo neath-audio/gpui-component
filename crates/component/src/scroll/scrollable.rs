@@ -137,6 +137,9 @@ where
             }
             .into_any_element(),
         );
+        self
+    }
+
     /// Bounce at the vertical boundaries. On by default on iOS, Android and
     /// macOS, off elsewhere; horizontal-only areas do not bounce.
     pub fn scroll_bounce(mut self, enabled: bool) -> Self {

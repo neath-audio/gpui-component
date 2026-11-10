@@ -15,11 +15,11 @@ mod history;
 mod lifecycle;
 #[path = "input/textarea.rs"]
 mod textarea;
-use gpui_neath::input::{Input, InputState};
 use gpui_kit::test::TestWindowExt;
 use gpui_kit::{
     AppContext, Context, Entity, TestAppContext, Window, WindowHandle, div, prelude::*, px,
 };
+use gpui_neath::input::{Input, InputState};
 
 struct Inputs {
     first: Entity<InputState>,

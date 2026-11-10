@@ -5,7 +5,7 @@ use gpui_base::TestSupportExt as _;
 use std::{rc::Rc, sync::LazyLock, time::Duration};
 
 use gpui::{
-    Action, Anchor, AnyElement, App, BoxShadow, ClickEvent, Edges, FocusHandle, Hsla,
+    Action, Anchor, AnyElement, App, BoxShadow, ClickEvent, Corners, Edges, FocusHandle, Hsla,
     InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, SharedString,
     StyleRefinement, Styled, Window, WindowControlArea, anchored, div, hsla, point,
     prelude::FluentBuilder, px,

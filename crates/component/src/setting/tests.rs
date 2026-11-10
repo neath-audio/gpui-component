@@ -445,7 +445,7 @@ fn custom_page_content_replaces_the_page_and_restores_overview_scroll(cx: &mut T
     });
     draw(cx);
     click_nav(156., cx);
-    cx.simulate_event(gpui::ScrollWheelEvent {
+    cx.simulate_event(gpui::ScrollEvent {
         position: point(px(500.), px(300.)),
         delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-70.))),
         ..Default::default()
@@ -481,7 +481,7 @@ fn custom_page_content_replaces_the_page_and_restores_overview_scroll(cx: &mut T
         (1, Some(2)),
         "selected group links reopen on Back"
     );
-    cx.simulate_event(gpui::ScrollWheelEvent {
+    cx.simulate_event(gpui::ScrollEvent {
         position: point(px(500.), px(300.)),
         delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-70.))),
         ..Default::default()
