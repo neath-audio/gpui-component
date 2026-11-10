@@ -867,18 +867,36 @@ where
         count.max(1)
     }
 
+    /// A right press anywhere in the body starts with no target. This runs in
+    /// the capture phase, before any row: the row under the press then claims
+    /// it while bubbling, and a press nothing claimed is the empty area's.
+    ///
+    /// The row must not stop the press to keep its claim. The table's context
+    /// menu listens outside the rows and hears the press after them, so a
+    /// stopped press never opens the menu.
+    fn begin_body_right_click(&mut self, event: &MouseDownEvent) {
+        if event.button == MouseButton::Right {
+            self.right_clicked_row = None;
+            self.right_clicked_cell = None;
+        }
+    }
+
     fn on_row_right_click(
         &mut self,
         _: &MouseDownEvent,
-        row_ix: Option<usize>,
+        row_ix: usize,
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // Stop the right-click from bubbling to the table-body empty-area
-        // handler (below), which would otherwise immediately reset
-        // `right_clicked_row` back to `None` right after a real row set it.
-        cx.stop_propagation();
-        self.update_right_clicked_row_from_mouse(row_ix, cx);
+        self.update_right_clicked_row_from_mouse(Some(row_ix), cx);
+    }
+
+    /// Reports a right press on empty table space, once every row has had its
+    /// chance to claim it.
+    fn on_empty_area_right_click(&mut self, cx: &mut Context<Self>) {
+        if self.right_clicked_row.is_none() && self.right_clicked_cell.is_none() {
+            cx.emit(TableEvent::RightClickedRow(None));
+        }
     }
 
     fn on_cell_right_click(
@@ -2563,7 +2581,7 @@ where
                 .on_mouse_down(
                     MouseButton::Right,
                     cx.listener(move |this, e, window, cx| {
-                        this.on_row_right_click(e, Some(row_ix), window, cx);
+                        this.on_row_right_click(e, row_ix, window, cx);
                     }),
                 )
                 .on_click(cx.listener(move |this, e, window, cx| {
@@ -2864,13 +2882,17 @@ where
                             .id("table-body")
                             .flex_grow_1()
                             .size_full()
-                            // Empty-area clicks: real rows claim their own clicks and
-                            // `cx.stop_propagation()` before they bubble here, so anything
-                            // that reaches this handler landed on empty table space.
+                            // Empty-area right-clicks: the capture listener clears
+                            // the target before the rows hear the press, a row under
+                            // it claims it, and the bubble listener reports a press
+                            // no row claimed.
+                            .capture_any_mouse_down(cx.listener(|table, e, _, _| {
+                                table.begin_body_right_click(e);
+                            }))
                             .on_mouse_down(
                                 MouseButton::Right,
-                                cx.listener(|table, e, window, cx| {
-                                    table.on_row_right_click(e, None, window, cx);
+                                cx.listener(|table, _, _, cx| {
+                                    table.on_empty_area_right_click(cx);
                                 }),
                             )
                             .on_click(cx.listener(|table, _, _, cx| {
@@ -3555,6 +3577,121 @@ mod neath_tests {
                 .count(),
             1,
             "plain selected rows must use the semantic table-active surface"
+        );
+    }
+
+    /// Records which menu the table asked for: `Some(row)` for a row's menu,
+    /// `None` for the empty-area menu. The menus stay empty, so no popup
+    /// opens and covers the next click.
+    struct MenuDelegate {
+        built: Rc<std::cell::RefCell<Vec<Option<usize>>>>,
+    }
+
+    impl TableDelegate for MenuDelegate {
+        fn columns_count(&self, _cx: &App) -> usize {
+            1
+        }
+
+        fn rows_count(&self, _cx: &App) -> usize {
+            3
+        }
+
+        fn column(&self, _col_ix: usize, _cx: &App) -> Column {
+            Column::new("col", "Col")
+        }
+
+        fn render_td(
+            &mut self,
+            row_ix: usize,
+            _col_ix: usize,
+            _window: &mut Window,
+            _cx: &mut Context<TableState<Self>>,
+        ) -> impl IntoElement {
+            div().child(format!("row {row_ix}"))
+        }
+
+        fn context_menu(
+            &mut self,
+            row_ix: usize,
+            menu: PopupMenu,
+            _window: &mut Window,
+            _cx: &mut Context<TableState<Self>>,
+        ) -> PopupMenu {
+            self.built.borrow_mut().push(Some(row_ix));
+            menu
+        }
+
+        fn context_menu_empty(
+            &mut self,
+            menu: PopupMenu,
+            _window: &mut Window,
+            _cx: &mut Context<TableState<Self>>,
+        ) -> PopupMenu {
+            self.built.borrow_mut().push(None);
+            menu
+        }
+    }
+
+    struct MenuRoot {
+        table: Entity<TableState<MenuDelegate>>,
+    }
+
+    impl Render for MenuRoot {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(300.)).h(px(400.)).child(self.table.clone())
+        }
+    }
+
+    #[gpui::test]
+    fn right_click_builds_the_row_menu_and_the_empty_area_menu(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let built = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let (root, cx) = cx.add_window_view({
+            let built = built.clone();
+            move |window, cx| MenuRoot {
+                table: cx.new(|cx| TableState::new(MenuDelegate { built }, window, cx)),
+            }
+        });
+        let cx: &mut VisualTestContext = cx;
+        cx.run_until_parked();
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        let table = root.read_with(cx, |root, _| root.table.clone());
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let _subscription = cx.update(|_, cx| {
+            let events = events.clone();
+            cx.subscribe(&table, move |_, event: &TableEvent, _| {
+                if let TableEvent::RightClickedRow(row) = event {
+                    events.borrow_mut().push(*row);
+                }
+            })
+        });
+
+        cx.simulate_mouse_down(row_0_point(), MouseButton::Right, Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(
+            *built.borrow(),
+            [Some(0)],
+            "a row right-click must reach the table's context menu and build the row's menu"
+        );
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), Some(0));
+
+        cx.update(|window, cx| {
+            let _ = window.draw(cx);
+        });
+        cx.simulate_mouse_down(empty_area_point(), MouseButton::Right, Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(
+            *built.borrow(),
+            [Some(0), None],
+            "an empty-area right-click must build the empty-area menu, not the last row's"
+        );
+        assert_eq!(table.read_with(cx, |s, _| s.right_clicked_row()), None);
+        assert_eq!(
+            *events.borrow(),
+            [Some(0), None],
+            "each right-click reports its target once"
         );
     }
 
