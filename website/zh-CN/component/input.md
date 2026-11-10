@@ -254,6 +254,25 @@ Textarea::new(&self.composer).on_paste(move |item, _, cx| {
 
 已知限制：在 web 上 `read_from_clipboard()` 为 `None`（文本经由平台输入处理器到达）；那里的图片粘贴需要异步剪贴板访问和权限，不在本次范围内。
 
+### 光标闪烁
+
+获得焦点的输入框中，光标每 500 ms 闪烁一次。设置 `Theme::cursor_blink` 可修改应用中所有 Input、Textarea、Editor 和 OTP 输入框的光标策略，已获得焦点的输入框也会立即生效：
+
+```rust
+use std::time::Duration;
+use gpui_kit::component::{Theme, input::CursorBlink};
+
+Theme::update(cx, |theme| {
+    theme.cursor_blink = CursorBlink::blinking(Duration::from_millis(530))
+        .with_idle_timeout(Duration::from_secs(5));
+});
+
+// 光标保持显示，不闪烁。
+Theme::update(cx, |theme| theme.cursor_blink = CursorBlink::steady());
+```
+
+`Theme::update` 会把策略同步到 Base，因此切换主题或明暗模式后策略依然保留。计时规则见 [Base Input](../base/primitives/input.md#光标闪烁)。
+
 ## 示例
 
 ### 搜索输入框
@@ -351,6 +370,24 @@ Input::new(&input)
 
 单击会先选中 token 再打开引用；拖选或 Shift 扩选不会打开引用。只读输入允许打开引用，禁用输入不允许。若要为打开选中的整块 token 提供快捷键，可以将 `ActivateToken` 绑定到自己选择的按键；辅助技术通过 token 的 click 操作触发同一个监听器。当应用能为引用给出明确名称（例如“打开文件”）时，可以通过 `context_menu` 自行添加菜单项。
 
+### 悬停显示提示或预览
+
+使用 `on_token_hover` 响应指针悬停，不改变文档内容。悬停不会选中或编辑，只报告进入与离开，应用据此显示 tooltip、预览或状态详情：
+
+```rust
+use gpui_kit::component::input::InlineTokenHoverEvent;
+
+Input::new(&input)
+    .on_token_hover(|event: &InlineTokenHoverEvent, _, _| {
+        if event.is_hovered() {
+            // 根据 event.token().id() 查找并显示预览。
+        }
+        // `false` 表示指针离开 token：关闭预览。
+    });
+```
+
+事件携带 token、字节 `range()`、测量得到的 `bounds()` 与 `is_hovered()`。禁用 token 从不上报悬停进入，与点击规则一致；只读 token 会上报。删除、替换或禁用正在悬停的 token 时仍会发送其退出事件，提示应随之关闭。悬停与选中样式应保持尺寸一致，避免行在指针下抖动。
+
 如果 token 内含按钮，应消费按钮的 mouse-down 和 click 事件，避免同时打开引用。所有子操作（包括无障碍操作）都应遵守 `token.is_disabled()`；会修改内容的操作还应遵守 `token.is_readonly()`。
 
 ### 保存、恢复与提交
@@ -406,6 +443,9 @@ this.input.set_value({
 new Input(this.input)
   .on_token_click((event, cx) => {
     // 根据 event.token.id 查找并打开资源。
+  })
+  .on_token_hover((event, cx) => {
+    // event.hovered 为 true 表示进入，为 false 表示离开；据此显示或关闭预览。
   });
 ```
 

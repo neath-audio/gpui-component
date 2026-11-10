@@ -20,6 +20,7 @@ use crate::{
     button::{Button, ButtonCustomVariant, ButtonVariants as _},
     h_flex,
     progress::ProgressCircle,
+    scroll::ScrollableMask,
     shimmer::{ShimmerStyle, ShimmerText},
     spinner::Spinner,
     tooltip::Tooltip,
@@ -1342,7 +1343,7 @@ impl RenderOnce for AttachmentGroup {
             .track_scroll(&handle)
             // Scrolling only moves the offset; the fades need a render to follow.
             .when(fades.is_some(), |this| {
-                this.on_scroll_wheel(move |_, _, cx| cx.notify(view_id))
+                this.on_scroll(move |_, _, cx| cx.notify(view_id))
             })
             .refine_style(&self.style)
             .children(self.children);
@@ -1370,15 +1371,18 @@ impl RenderOnce for AttachmentGroup {
                 ))
         };
 
-        div().relative().w_full().min_w_0().child(row).when_some(
-            fades,
-            |this, (color, leading, trailing)| {
+        div()
+            .relative()
+            .w_full()
+            .min_w_0()
+            .child(row)
+            .child(ScrollableMask::vertical_wheel(&handle))
+            .when_some(fades, |this, (color, leading, trailing)| {
                 this.when(leading > 0., |this| this.child(fade(color, leading, true)))
                     .when(trailing > 0., |this| {
                         this.child(fade(color, trailing, false))
                     })
-            },
-        )
+            })
     }
 }
 

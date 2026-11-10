@@ -52,6 +52,7 @@ collapsed: false
 - [DatePicker](date-picker) - Date selection with calendar
 - [TimeField](time-field) - Segmented time-of-day input
 - [OtpInput](otp-input) - One-time password input
+- [Speech](speech) - Dictation through the system recognizer or your own
 - [ColorPicker](color-picker) - Color selection interface
 - [Form](form) - Form container and layout
 
@@ -73,6 +74,7 @@ collapsed: false
 
 ### Advanced Components
 
+- [Diff](./diff.md) - Readonly patch display for code review and change previews
 - [Calendar](calendar) - Calendar display and navigation
 - [Carousel](carousel) - Browse through a set of related items
 - [Command](command) - Command palette for search and quick actions
@@ -82,6 +84,7 @@ collapsed: false
 - [Settings](settings) - Settings UI
 - [DataTable](data-table) - High-performance data tables
 - [Dock](dock) - Production-ready dock layouts with tabs, splits, and persistent state
+- [GridLayout](grid-layout) - Draggable, resizable grid for dashboards and widget boards
 - [Tabs](tabs) - Tabbed interface
 - [Tree](tree) - Hierarchical tree data display
 - [VirtualList](virtual-list) - Virtualized list for large datasets

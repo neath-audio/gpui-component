@@ -1,7 +1,7 @@
 // One checked relationship for every gallery route. Some inventory surfaces
 // (such as Plot) share the Rust Story that owns their example.
 export const coveredBy = [
-  { route: "introduction", registrations: ["Link"] },
+  { route: "introduction", registrations: ["Link", "TitleBar"] },
   { route: "accordion", registrations: ["Accordion"] },
   { route: "alert", registrations: ["Alert"] },
   { route: "alert-dialog", registrations: ["AlertDialog"] },
@@ -24,11 +24,13 @@ export const coveredBy = [
   { route: "date-picker", registrations: ["DatePicker"] },
   { route: "description-list", registrations: ["DescriptionList"] },
   { route: "dialog", registrations: ["Dialog"] },
+  { route: "diff", registrations: ["Diff"] },
   { route: "dock", registrations: [] },
   { route: "dropdown-button", registrations: ["DropdownButton"] },
   { route: "editor", registrations: ["Editor", "Text"] },
   { route: "empty", registrations: ["Empty"] },
   { route: "form", registrations: ["Form"] },
+  { route: "grid-layout", registrations: ["GridLayout"] },
   { route: "group-box", registrations: ["GroupBox"] },
   { route: "hover-card", registrations: ["HoverCard"] },
   { route: "icon", registrations: ["Icon"] },
@@ -62,6 +64,7 @@ export const coveredBy = [
   { route: "sidebar", registrations: ["Sidebar"] },
   { route: "skeleton", registrations: ["Skeleton"] },
   { route: "slider", registrations: ["Slider"] },
+  { route: "speech", registrations: [] },
   { route: "spinner", registrations: ["Spinner"] },
   { route: "status-bar", registrations: ["StatusBar"] },
   { route: "stepper", registrations: ["Stepper"] },

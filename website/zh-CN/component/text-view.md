@@ -46,6 +46,14 @@ TextView::markdown("preview", markdown_source)
 TextView::html("html-preview", "<strong>Hello</strong>")
 ```
 
+### 放在有底色的容器里
+
+没有显式设置 `.style()` 的 `TextView` 会跟随容器的文字颜色。如果底色与页面明暗相反，例如 `Filled` 样式的 [Bubble](bubble.md)，链接、次要文字、代码和表格背景、边框、选择色也会从这个颜色推算，并且不使用语法高亮，所以内容不需要额外设置样式：
+
+```rust
+Bubble::new().child(TextView::markdown("reply", text))
+```
+
 ### 流式文字淡入
 
 聊天回复是分块到达的。`stream_fade(true)` 会让每一块新文字在落点处淡入，而不是直接蹦出来，观感与 Claude 展示回复的方式一致：
@@ -97,6 +105,41 @@ fn highlight_matches(
 
 内容变化时，高亮会跟随它所在的块，保留到这个块里文字开始变化的位置为止。流式追加的文字（无论通过 `push_str` 还是 `set_text`）不影响前面的高亮；修改某处时，修改前后的高亮都会保留。表格单元格只按位置区分，因此修改表格内部时，被修改的那一行及其后各行单元格的高亮都会失效。视图会发出通知：观察这个 state，重新在新的 `rendered_text()` 里搜索即可。请在同一次 state 更新中计算范围并调用 `set_range_highlights`，确保范围对应当前文本。属于文字本身的背景（例如 `<mark>` 和语法高亮）会覆盖在范围高亮之上（行内代码的背景在高亮之下），高亮也不会随流式文字一起淡入。HTML 视图不支持范围高亮。
 
+如果应用保存的是 Markdown 源码里的范围，例如用户评论某段文字时 `selected_source_range()` 返回的范围，就在同一个 `rendered_text()` 上用 `range_for_source` 逐个转换：
+
+```rust
+use std::ops::Range;
+
+use gpui_kit::component::{
+    ActiveTheme as _,
+    text::{RangeHighlight, RangeHighlightError, TextViewState},
+};
+
+fn highlight_comments(
+    state: &mut TextViewState,
+    markdown: &str,
+    comments: &[Range<usize>],
+    cx: &mut Context<TextViewState>,
+) -> Result<(), RangeHighlightError> {
+    let text = state.rendered_text();
+    // 范围对应的是 `markdown`。它解析完成之前，视图显示的仍是之前的源码；
+    // 等视图发出通知后再转换一次。
+    if text.source() != markdown {
+        return Ok(());
+    }
+    let color = cx.theme().info.opacity(0.3);
+    let highlights = comments
+        .iter()
+        .filter_map(|comment| text.range_for_source(comment.clone()))
+        .map(|range| RangeHighlight::new(range, color));
+    state.set_range_highlights(highlights, cx)
+}
+```
+
+`range_for_source` 返回能包含该源码范围所渲染出的全部字符的最小范围。不渲染任何文字的源码（强调符号、标题和列表标记、代码围栏、表格竖线、链接地址）不影响结果，因此 `**bold**` 和 `bold` 转换出的范围相同。只要字符的源码有一部分落在范围内，这个字符就会被包含：`&amp;` 的一部分对应 `&`，inline plugin 对象源码的一部分对应该对象的全部文字。把选区报告的源码范围转换回来，得到的就是原来选中的范围；只是块之间的换行不对应任何源码，落在选区两端时不会包含在内：全选转换回来的范围不含最后一个块之后的换行。
+
+`rendered_text().source()` 是最近一次完成解析的源码。用 `push_str` 追加文字时，它是交给视图的文本的前缀；用 `set_text` 替换内容后，在新文本解析完成之前，它可能仍是之前那段不相干的文本。因此转换前要像示例那样，先确认它就是范围所对应的源码。范围为空、超出范围或不在字符边界上，或者没有渲染出任何文字时返回 `None`；HTML 视图总是返回 `None`。
+
 ### 滚动到范围
 
 `reveal_range` 滚动到同一份文本里的某个范围，比如用户跳到下一个结果时的当前结果：
@@ -130,6 +173,30 @@ TextView::new(&state).on_reveal(move |line, _, _| {
 在触摸屏上，长按会选中手指下的单词，手指按住不放时选区跟随手指移动。抬起手指后，选区上方会出现包含 `复制` 和 `全选` 的编辑菜单，并在选区两端各显示一个拖动 handle。拖动 handle 会移动对应的一端，另一端保持不动；`全选` 选中被按下的那个视图，其 handle 仍可继续调整结果。
 
 handle 和菜单由 [`Root`](./root.md) 为整个窗口选区绘制，因此跨多个视图的选区也能覆盖到。点击其他位置会清除它们；手指滚动内容时菜单会暂时让开。
+
+## 任务列表
+
+Markdown 任务列表项（`- [ ]`、`- [x]`）会显示一个复选框，默认不可交互。使用
+`on_task_toggle` 让用户勾选或取消勾选，回调收到一个 `TaskToggleEvent`：
+
+- `checked()` 是该项现在应有的勾选状态。
+- `item_range()` 是被点击的列表项在源文本中的字节范围，包括嵌套的子列表。
+- `marker_range()` 是它的 `[ ]` 或 `[x]` 标记的字节范围。
+
+```rust
+use gpui_kit::component::text::markdown;
+
+let view = cx.entity().downgrade();
+markdown(self.source.clone()).on_task_toggle(move |event, _window, cx| {
+    _ = view.update(cx, |this, cx| {
+        let marker = if event.checked() { "[x]" } else { "[ ]" };
+        this.source.replace_range(event.marker_range(), marker);
+        cx.notify();
+    });
+})
+```
+
+`TextView` 不会修改自己的文本：源文本归应用所有，由应用替换标记并渲染新的文本。
 
 ## 图片
 
@@ -299,3 +366,42 @@ markdown(source)
         gpui_kit::div().child(format!("Run {}", code_block.lang().unwrap_or_default()))
     })
 ```
+
+## 行内代码样式
+
+通过 `TextView::inline_code_style(StyleRefinement)` 覆盖行内代码样式。覆盖在主题、显式样式和表面颜色适配之后应用；未指定的属性保留默认值，指定的颜色在反色表面上也保持不变。
+
+现有 `TextViewStyle::inline_code(HighlightStyle)` 保持兼容；视图上的覆盖样式具有更高优先级，公开的 `TextViewStyle` 结构字段不变。
+
+```rust
+use gpui_kit::{StyleRefinement, Styled as _, rems};
+use gpui_kit::component::ActiveTheme as _;
+
+TextView::markdown("notes", "Run `cargo build` first.")
+    .inline_code_style(
+        StyleRefinement::default()
+            .text_size(rems(1.))
+            .px(rems(0.25))
+            .border_1()
+            .border_color(cx.theme().border),
+    )
+```
+
+支持字体、字号、字体特性、后备字体、字重、斜体、文字颜色、下划线、删除线、背景、边框宽度／颜色／线型、圆角和内边距。字号使用像素或相对于窗口的 rem；非有限值和非正值会被忽略。默认字号仍为周围文字的 0.875 倍，默认不绘制边框。内边距和边框宽度参与换行与表格列宽计算。外边距、定位、flex、显式容器尺寸、overflow 和交互属性不参与渲染；行高由段落控制。
+
+## 列表与引用块样式
+
+通过 `TextView::list_style(StyleRefinement)` 和 `blockquote_style(StyleRefinement)` 覆盖列表标记和引用块样式。覆盖在主题、显式样式和表面颜色适配之后应用；未指定的属性保留默认值，指定的颜色在反色表面上也保持不变。公开的 `TextViewStyle` 结构字段不变。
+
+```rust
+use gpui_kit::{StyleRefinement, Styled as _};
+use gpui_kit::component::ActiveTheme as _;
+
+TextView::markdown("notes", "1. First\n2. Second\n\n> Quoted")
+    .list_style(StyleRefinement::default().text_color(cx.theme().primary))
+    .blockquote_style(StyleRefinement::default().border_color(cx.theme().primary))
+```
+
+列表标记样式作用于每个列表项的项目符号或序号列，叠加在默认样式之上：次要文字颜色、以列表缩进为最小宽度、文字右对齐、右内边距为缩进的 0.3 倍。颜色、字体、字号、字重等文字属性用于标记本身；宽度、内边距等盒模型属性会改变标记列。其文字颜色也用于未勾选任务复选框的边框；已勾选的复选框仍使用链接颜色。
+
+引用块样式作用于引用容器，叠加在默认样式之上：次要文字颜色、边框颜色的 2px 左边框、左内边距为正文字号的 0.9 倍。边框宽度和颜色用于引用竖线；文字属性、背景、内边距和圆角作用于引用及其内部内容。子块显式设置的样式仍优先，例如标题和表格的字号。其他元素属性与普通 `div` 一样作用于容器。代码块、表格、分隔线和已完成任务仍使用共享的次要文字颜色和边框颜色。

@@ -17,6 +17,9 @@ pub(crate) struct HighlighterUpdate<'a> {
     pub(super) old_text: &'a Rope,
     pub(super) new_text: &'a Rope,
     pub(super) change_text: &'a str,
+    /// An edit already computed for this replacement. When absent, the
+    /// highlighter derives one from the fields above.
+    pub(super) input_edit: Option<InputEdit>,
     pub(super) force: bool,
 }
 
@@ -237,8 +240,12 @@ impl LayoutMode {
     /// Grow the row count to fit the content.
     ///
     /// Callers gate this on the input being multi-line; a single-line field
-    /// keeps its one row.
+    /// keeps its one row. Only auto grow follows the content: in the other
+    /// modes `rows` is the configured height.
     pub(super) fn update_auto_grow(&mut self, display_map: &DisplayMap) {
+        if !self.is_auto_grow() {
+            return;
+        }
         let wrapped_lines = display_map.wrap_row_count();
         self.set_rows(wrapped_lines);
     }
@@ -303,12 +310,14 @@ impl LayoutMode {
                     return;
                 }
 
-                let edit = replacement_input_edit(
-                    update.old_text,
-                    update.new_text,
-                    update.selected_range,
-                    update.change_text,
-                );
+                let edit = update.input_edit.unwrap_or_else(|| {
+                    replacement_input_edit(
+                        update.old_text,
+                        update.new_text,
+                        update.selected_range,
+                        update.change_text,
+                    )
+                });
                 M::drive_highlighter(highlighter, edit, update.new_text, *folding, window, cx);
             }
             _ => {}

@@ -739,6 +739,7 @@ impl StoryState {
             "MessageStory" => story!(MessageStory),
             "MessageScrollerStory" => story!(MessageScrollerStory),
             "DialogStory" => story!(DialogStory),
+            "DiffStory" => story!(DiffStory),
             "SeparatorStory" => story!(SeparatorStory),
             "ShimmerStory" => story!(ShimmerStory),
             "PopoverStory" => story!(PopoverStory),
@@ -1074,6 +1075,7 @@ impl StoryRoot {
                     content.child(with_command_entries(
                         Command::new(&theme_palette)
                             .bordered(false)
+                            .rounded(cx.theme().radius_lg)
                             .placeholder("Search themes...")
                             .max_h(px(400.))
                             .on_select(move |index, _, cx| {
@@ -1153,6 +1155,7 @@ impl StoryRoot {
                     content.child(with_command_entries(
                         Command::new(&component_palette)
                             .bordered(false)
+                            .rounded(cx.theme().radius_lg)
                             .placeholder("Search components...")
                             .max_h(px(400.))
                             .on_confirm(move |index, window, cx| {

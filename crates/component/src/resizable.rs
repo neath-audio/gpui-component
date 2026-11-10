@@ -8,14 +8,14 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, Axis, ElementId, IntoElement, ParentElement as _, Pixels, Styled as _, Window,
-    deferred, div, prelude::FluentBuilder as _, px,
+    AnyElement, App, Axis, ElementId, IntoElement, ParentElement as _, Pixels, Render, Styled as _,
+    Window, deferred, div, prelude::FluentBuilder as _, px,
 };
 use gpui_base::{ResizeHandleRenderer, ResizeHandleState, Transition, transition};
 
 pub use gpui_base::{
     HandleEdge, ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState,
-    ResizeHandleContext, resizable_panel, resize_handle,
+    ResizeHandle, ResizeHandleContext, resizable_panel, resize_handle,
 };
 
 use crate::theme::ActiveTheme as _;
@@ -31,6 +31,17 @@ pub fn h_resizable(id: impl Into<ElementId>) -> ResizablePanelGroup {
 /// Create a [`ResizablePanelGroup`] with vertical resizing.
 pub fn v_resizable(id: impl Into<ElementId>) -> ResizablePanelGroup {
     gpui_base::v_resizable(id).with_handle_appearance(resize_handle_appearance())
+}
+
+/// Create a standalone [`ResizeHandle`] wearing this design system's divider,
+/// for an edge no [`ResizablePanelGroup`] owns -- an application's sidebar,
+/// say. What the drag resizes is the caller's; see
+/// [`gpui_base::resize_handle`].
+pub fn resize_handle<T: 'static, E: 'static + Render>(
+    id: impl Into<ElementId>,
+    axis: Axis,
+) -> ResizeHandle<T, E> {
+    gpui_base::resize_handle(id, axis).with_appearance(resize_handle_appearance())
 }
 
 /// This design system's divider appearance, for a handle that base does not
@@ -76,13 +87,16 @@ pub(crate) fn render_resize_handle(
         window,
         cx,
     );
+    // An overshooting theme curve may carry the length past its target, but
+    // the opacity has to stay a valid alpha.
     let opacity = transition(
         "resizable-handle-indicator-opacity",
         target_opacity,
         policy,
         window,
         cx,
-    );
+    )
+    .clamp(0., 1.);
 
     div()
         // The hairline fills the handle's content area exactly, so it has

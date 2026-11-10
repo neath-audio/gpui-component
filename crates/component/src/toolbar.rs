@@ -251,9 +251,9 @@ impl RenderOnce for Toolbar {
             .items_center()
             .flex_shrink_0()
             .map(|this| match size {
-                Size::XSmall => this.h_7().p_1().gap_1().text_ui_sm(cx),
-                Size::Small => this.h_8().p_1().gap_1().text_ui(cx),
-                _ => this.h_12().p_2().gap_2().text_ui(cx),
+                Size::XSmall => this.min_h_7().p_1().gap_1().text_ui_sm(cx),
+                Size::Small => this.min_h_8().p_1().gap_1().text_ui(cx),
+                _ => this.min_h_12().p_2().gap_2().text_ui(cx),
             })
             .refine_style(&self.style)
             .children(items)

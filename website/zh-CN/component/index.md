@@ -36,12 +36,14 @@ collapsed: false
 - [DatePicker](date-picker) - 日期选择器
 - [TimeField](time-field) - 分段时间输入
 - [OtpInput](otp-input) - 一次性验证码输入
+- [Speech](speech) - 通过系统或自定义识别器进行语音输入
 - [ColorPicker](color-picker) - 颜色选择器
 - [Questionnaire](questionnaire) - 可组合的多步骤问卷与答案
 - [Form](form) - 表单容器与布局
 
 ## 布局与高级组件
 
+- [Diff](./diff.md) - 用于代码审阅与变更预览的只读 patch 展示
 - [Root](root) - 窗口级的主题、对话框与通知的根提供者
 - [Theme](theme) - 定制颜色、字体与明暗外观
 - [Command](command) - 用于搜索与快捷操作的命令面板
@@ -56,5 +58,6 @@ collapsed: false
 - [Carousel](carousel) - 浏览一组相关内容
 - [DataTable](data-table) - 高性能数据表格
 - [Dock](dock) - 支持标签、分割与状态持久化的生产级 Dock 布局
+- [GridLayout](grid-layout) - 可拖动、可调整大小的网格，适用于仪表盘和小组件面板
 - [Tree](tree) - 树形结构组件
 - [VirtualList](virtual-list) - 大数据量虚拟列表

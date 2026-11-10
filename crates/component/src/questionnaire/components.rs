@@ -864,6 +864,7 @@ impl RenderOnce for QuestionnaireChoice {
             .as_ref()
             .is_some_and(|focus_handle| focus_handle.is_focused(window));
         let has_children = !self.children.is_empty();
+        let check_path = crate::resolve_icon_path(IconName::Check.path(), cx);
 
         let default_indicator = || {
             div()
@@ -891,7 +892,7 @@ impl RenderOnce for QuestionnaireChoice {
                     this.child(
                         svg()
                             .size(metrics.indicator_check_size)
-                            .path(IconName::Check.path())
+                            .path(check_path.clone())
                             .text_color(colors.primary_foreground),
                     )
                 })
@@ -941,11 +942,12 @@ impl RenderOnce for QuestionnaireChoice {
             })
             .children(self.children);
 
+        let os = cx.platform_info().os;
         let default_shortcut = || {
             let Some(shortcut) = shortcut.clone() else {
                 return gpui::Empty.into_any_element();
             };
-            let Ok(keystroke) = gpui::Keystroke::parse(&shortcut.to_lowercase()) else {
+            let Ok(keystroke) = gpui::Keystroke::parse_with_os(&shortcut.to_lowercase(), os) else {
                 return gpui::Empty.into_any_element();
             };
             Kbd::new(keystroke)
@@ -1416,8 +1418,8 @@ mod tests {
     };
 
     use gpui_base::questionnaire::{
-        QuestionnaireChoiceDefinition, QuestionnaireInputDefinition, QuestionnaireItemDefinition,
-        QuestionnaireShortcutMode,
+        QuestionnaireChoiceDefinition, QuestionnaireEvent, QuestionnaireInputDefinition,
+        QuestionnaireItemDefinition, QuestionnaireShortcutMode,
     };
 
     #[test]
@@ -1570,7 +1572,8 @@ mod tests {
     }
 
     fn simulate_key(cx: &mut VisualTestContext, key: &str, is_held: bool, simulate_ime: bool) {
-        let mut keystroke = Keystroke::parse(key).unwrap();
+        let os = cx.update(|_, cx| cx.platform_info().os);
+        let mut keystroke = Keystroke::parse_with_os(key, os).unwrap();
         if simulate_ime {
             keystroke = keystroke.with_simulated_ime();
         }
@@ -1975,6 +1978,248 @@ mod tests {
             );
             assert!(state.answer("first").unwrap().choices().is_empty());
         });
+    }
+
+    /// A single-answer item, a multiple-answer item, then a last single-answer
+    /// item with a freeform input; each choice sits in a wrapper the test can
+    /// click by its debug selector.
+    struct ChooseHarness {
+        state: Entity<QuestionnaireState>,
+        submits: usize,
+        _subscription: gpui::Subscription,
+    }
+
+    impl Render for ChooseHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let state = &self.state;
+            let choice = |item: &'static str, value: &'static str| {
+                div()
+                    .id(SharedString::from(format!("choice-{item}-{value}")))
+                    .debug_selector(move || format!("choice-{item}-{value}"))
+                    .child(QuestionnaireChoice::new(state, item, value))
+            };
+            Questionnaire::new(state)
+                .size(px(480.))
+                .child(
+                    QuestionnaireItem::new(state, "first").child(
+                        QuestionnaireChoices::new(state, "first")
+                            .child(choice("first", "alpha"))
+                            .child(choice("first", "beta")),
+                    ),
+                )
+                .child(
+                    QuestionnaireItem::new(state, "second").child(
+                        QuestionnaireChoices::new(state, "second")
+                            .child(choice("second", "x"))
+                            .child(choice("second", "y")),
+                    ),
+                )
+                .child(
+                    QuestionnaireItem::new(state, "third")
+                        .child(
+                            QuestionnaireChoices::new(state, "third")
+                                .child(choice("third", "omega")),
+                        )
+                        .child(QuestionnaireInput::new(state, "third")),
+                )
+        }
+    }
+
+    fn choose_harness(
+        cx: &mut TestAppContext,
+    ) -> (
+        &mut VisualTestContext,
+        Entity<ChooseHarness>,
+        Entity<QuestionnaireState>,
+    ) {
+        cx.update(crate::init);
+        let (view, cx) = cx.add_window_view(|window, cx| {
+            let input = cx.new(|cx| crate::input::InputState::new(window, cx));
+            let state = cx.new(|cx| {
+                QuestionnaireState::new(
+                    vec![
+                        QuestionnaireItemDefinition::new("first", "First").with_choices([
+                            QuestionnaireChoiceDefinition::new("alpha", "Alpha"),
+                            QuestionnaireChoiceDefinition::new("beta", "Beta"),
+                        ]),
+                        QuestionnaireItemDefinition::new("second", "Second")
+                            .with_multiple(true)
+                            .with_choices([
+                                QuestionnaireChoiceDefinition::new("x", "X"),
+                                QuestionnaireChoiceDefinition::new("y", "Y"),
+                            ]),
+                        QuestionnaireItemDefinition::new("third", "Third")
+                            .with_choice(QuestionnaireChoiceDefinition::new("omega", "Omega"))
+                            .with_input(QuestionnaireInputDefinition::new(input, "Other")),
+                    ],
+                    cx,
+                )
+                .unwrap()
+                .with_shortcuts(QuestionnaireShortcutMode::Numbers)
+            });
+            let subscription = cx.subscribe(&state, |this: &mut ChooseHarness, _, event, _| {
+                if matches!(event, QuestionnaireEvent::Submit(_)) {
+                    this.submits += 1;
+                }
+            });
+            ChooseHarness {
+                state,
+                submits: 0,
+                _subscription: subscription,
+            }
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let state = cx.update(|_, cx| view.read(cx).state.clone());
+        cx.update(|window, cx| {
+            let focus_handle = state.read(cx).focus_handle().clone();
+            focus_handle.focus(window, cx);
+        });
+        (cx, view, state)
+    }
+
+    /// Past the hold a newly chosen single answer keeps before confirming.
+    fn wait_out_hold(cx: &mut VisualTestContext) {
+        cx.executor()
+            .advance_clock(std::time::Duration::from_millis(200));
+        cx.run_until_parked();
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+    }
+
+    fn click_choice(cx: &mut VisualTestContext, item: &str, value: &str) {
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let selector = Box::leak(format!("choice-{item}-{value}").into_boxed_str());
+        let bounds = cx.debug_bounds(selector).expect("choice rendered");
+        cx.simulate_click(bounds.center(), gpui::Modifiers::default());
+    }
+
+    fn press(cx: &mut VisualTestContext, key: &str) {
+        let os = cx.update(|_, cx| cx.platform_info().os);
+        let keystroke = Keystroke::parse_with_os(key, os).unwrap();
+        cx.simulate_event(KeyDownEvent {
+            keystroke: keystroke.clone(),
+            is_held: false,
+            prefer_character_input: false,
+        });
+        cx.simulate_event(gpui::KeyUpEvent { keystroke });
+    }
+
+    fn focus_choice(
+        cx: &mut VisualTestContext,
+        state: &Entity<QuestionnaireState>,
+        item: &str,
+        value: &str,
+    ) {
+        cx.update(|window, cx| {
+            let focus_handle = state
+                .read(cx)
+                .choice_focus_handle(item, value)
+                .unwrap()
+                .clone();
+            focus_handle.focus(window, cx);
+        });
+    }
+
+    fn current(cx: &mut VisualTestContext, state: &Entity<QuestionnaireState>) -> SharedString {
+        cx.update(|_, cx| state.read(cx).current_item().unwrap().clone())
+    }
+
+    fn choices(
+        cx: &mut VisualTestContext,
+        state: &Entity<QuestionnaireState>,
+        item: &str,
+    ) -> Vec<SharedString> {
+        cx.update(|_, cx| state.read(cx).answer(item).unwrap().choices().to_vec())
+    }
+
+    #[gpui::test]
+    fn clicking_a_single_choice_shows_it_then_advances(cx: &mut TestAppContext) {
+        let (cx, view, state) = choose_harness(cx);
+
+        click_choice(cx, "first", "alpha");
+        cx.run_until_parked();
+        assert_eq!(
+            choices(cx, &state, "first"),
+            vec![SharedString::from("alpha")]
+        );
+        assert_eq!(current(cx, &state), "first", "the selection paints first");
+        wait_out_hold(cx);
+        assert_eq!(current(cx, &state), "second");
+
+        click_choice(cx, "second", "x");
+        wait_out_hold(cx);
+        assert_eq!(current(cx, &state), "second", "a checkbox only toggles");
+        assert_eq!(choices(cx, &state, "second"), vec![SharedString::from("x")]);
+
+        cx.update(|window, cx| state.update(cx, |state, cx| state.go_next(window, cx)));
+        focus_input(cx, &state, "third");
+        cx.simulate_input("draft");
+        wait_out_hold(cx);
+        assert_eq!(current(cx, &state), "third", "typing never advances");
+
+        click_choice(cx, "third", "omega");
+        click_choice(cx, "third", "omega");
+        wait_out_hold(cx);
+        assert_eq!(
+            cx.update(|_, cx| view.read(cx).submits),
+            1,
+            "a double click on the last item submits once"
+        );
+
+        // Choosing the selected answer again after going back confirms it.
+        cx.update(|window, cx| {
+            state
+                .update(cx, |state, cx| state.set_current_item("first", window, cx))
+                .unwrap();
+        });
+        click_choice(cx, "first", "alpha");
+        assert_eq!(current(cx, &state), "second");
+    }
+
+    #[gpui::test]
+    fn shortcuts_and_space_advance_while_arrows_only_move(cx: &mut TestAppContext) {
+        let (cx, _, state) = choose_harness(cx);
+
+        focus_choice(cx, &state, "first", "alpha");
+        press(cx, "down");
+        wait_out_hold(cx);
+        assert_eq!(
+            choices(cx, &state, "first"),
+            vec![SharedString::from("beta")]
+        );
+        assert_eq!(
+            current(cx, &state),
+            "first",
+            "an arrow moves the selection only"
+        );
+
+        simulate_key(cx, "1", false, true);
+        cx.run_until_parked();
+        assert_eq!(
+            choices(cx, &state, "first"),
+            vec![SharedString::from("alpha")]
+        );
+        assert_eq!(current(cx, &state), "first");
+        wait_out_hold(cx);
+        assert_eq!(current(cx, &state), "second");
+
+        simulate_key(cx, "2", false, true);
+        wait_out_hold(cx);
+        assert_eq!(
+            current(cx, &state),
+            "second",
+            "a multiple-answer shortcut toggles"
+        );
+        assert_eq!(choices(cx, &state, "second"), vec![SharedString::from("y")]);
+
+        cx.update(|window, cx| state.update(cx, |state, cx| state.go_previous(window, cx)));
+        focus_choice(cx, &state, "first", "beta");
+        press(cx, "space");
+        wait_out_hold(cx);
+        assert_eq!(
+            choices(cx, &state, "first"),
+            vec![SharedString::from("beta")]
+        );
+        assert_eq!(current(cx, &state), "second", "Space chooses and advances");
     }
 
     #[test]

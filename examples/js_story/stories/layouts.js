@@ -22,6 +22,16 @@ export const stories = [
     api: "Carousel",
   }),
   pendingStory({
+    id: "grid-layout",
+    title: "GridLayout",
+    group: "Layout & advanced",
+    rustStory: "GridLayoutStory",
+    description: "A grid whose items are dragged and resized into place.",
+    states: ["arranged", "dragging", "resizing", "locked item"],
+    availability: "pending",
+    api: "GridLayout",
+  }),
+  pendingStory({
     id: "chart",
     title: "Chart",
     group: "Layout & advanced",
@@ -50,6 +60,16 @@ export const stories = [
     states: ["split", "tab group", "side dock", "dragging"],
     availability: "infrastructure",
     api: "Dock",
+  }),
+  pendingStory({
+    id: "diff",
+    title: "Diff",
+    group: "Layout & advanced",
+    rustStory: "DiffStory",
+    description: "Readonly patch viewer.",
+    states: ["unified", "split", "multiple files"],
+    availability: "pending",
+    api: "Diff",
   }),
   pendingStory({
     id: "editor",

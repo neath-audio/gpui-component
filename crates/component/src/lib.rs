@@ -1,3 +1,6 @@
+#[cfg(feature = "gpui-fast")]
+extern crate gpui_fast as gpui;
+
 use gpui::App;
 use std::ops::Deref;
 use std::sync::LazyLock;
@@ -47,9 +50,11 @@ pub mod combobox;
 pub mod command;
 pub mod description_list;
 pub mod dialog;
+pub mod diff;
 pub mod dock;
 pub mod empty;
 pub mod form;
+pub mod grid_layout;
 pub mod group_box;
 pub mod highlighter;
 pub mod history;
@@ -83,6 +88,7 @@ pub mod shimmer;
 pub mod sidebar;
 pub mod skeleton;
 pub mod slider;
+pub mod speech;
 pub mod spinner;
 pub mod status_bar;
 pub mod stepper;
@@ -102,8 +108,6 @@ pub use global_state::GlobalState;
 pub use gpui_base::Root;
 pub use gpui_base::TextSelection;
 pub use gpui_base::animation;
-#[doc(hidden)]
-pub(crate) use gpui_base::resize_handle;
 pub use gpui_base::{
     AxisExt, Edges, FocusTrapElement, InteractiveElementExt, LengthExt, Measure, OngoingScrollExt,
     Placement, Side, measure, measure_if,
@@ -116,7 +120,7 @@ pub use input::{Rope, RopeExt, RopeLines};
 pub use inspector::*;
 pub use resizable::{
     ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState, h_resizable,
-    resizable_panel, resize_handle_appearance, v_resizable,
+    resizable_panel, resize_handle, resize_handle_appearance, v_resizable,
 };
 pub use styled::*;
 pub use theme::*;
@@ -126,7 +130,7 @@ pub use tooltip::ManagedTooltipExt;
 pub use truncate::*;
 pub use typography::{StyledTypography, TextSize, UiTypography};
 pub use virtual_list::{VirtualList, VirtualListScrollHandle, h_virtual_list, v_virtual_list};
-pub use window_border::{WindowBorder, window_border, window_paddings};
+pub use window_border::{WindowBorder, window_border, window_corner_radii, window_paddings};
 pub use window_ext::WindowExt;
 
 rust_i18n::i18n!("locales", fallback = "en");
@@ -142,6 +146,7 @@ pub fn init(cx: &mut App) {
     root::init(cx);
     gpui_base::init(cx);
     input::init(cx);
+    diff::init(cx);
     date_picker::init(cx);
     dock::init(cx);
     sheet::init(cx);
@@ -174,4 +179,13 @@ pub fn set_locale(locale: &str) {
 pub(crate) fn measure_enable() -> bool {
     static MEASURE_ENABLED: LazyLock<bool> = LazyLock::new(gpui_base::measurement_enabled);
     *MEASURE_ENABLED
+}
+
+/// Draws a frame that re-renders every view. GPUI Fast replays retained
+/// subtrees when nothing was invalidated, so a bare `window.draw` in a test
+/// would skip `render`/`paint` and any side-channel recording they do.
+#[cfg(test)]
+pub(crate) fn test_redraw(window: &mut gpui::Window, cx: &mut gpui::App) {
+    window.refresh();
+    window.draw(cx).clear(cx);
 }

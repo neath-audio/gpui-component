@@ -10,7 +10,7 @@ order: -2.625
 
 ## 绑定一条命令
 
-`KeyBinding::new(keys, action, context)` 接收按键字符串、Action 值和可选的 context predicate。在初始化时调用 `cx.bind_keys(...)`。`None` 使 binding 在整个应用中有匹配资格；`Some("Editor")` 要求当前 Focus 路径上有 `Editor` context。
+`KeyBinding::new(keys, action, context)` 接收静态按键字符串（`&'static str`）、Action 值和可选的 context predicate。在初始化时调用 `cx.bind_keys(...)`。`None` 使 binding 在整个应用中有匹配资格；`Some("Editor")` 要求当前 Focus 路径上有 `Editor` context。
 
 ```rust
 use gpui_kit::*;
@@ -20,7 +20,11 @@ const EDITOR_CONTEXT: &str = "Editor";
 
 fn init_keys(cx: &mut App) {
     cx.bind_keys([
-        KeyBinding::new("secondary-s", SaveDocument, Some(EDITOR_CONTEXT)),
+        KeyBinding::new(
+            if cx.platform_info().is_mac() { "cmd-s" } else { "ctrl-s" },
+            SaveDocument,
+            Some(EDITOR_CONTEXT),
+        ),
         KeyBinding::new("up", MoveSelectionUp, Some(EDITOR_CONTEXT)),
     ]);
 }
@@ -57,7 +61,7 @@ Handler 使用 GPUI 的常规签名，例如 `on_action_save_document`。这里�
 | `up`、`escape`、`space`、`backspace` | 具名按键。 |
 | `cmd-k left` | 连续按两次：平台修饰键加 K，然后 Left。 |
 
-GPUI 还识别 `fn`、`ctrl`、`alt`、`shift`、`cmd`、`super`、`win` 与 `secondary`。常见的跨平台 Command/Control 快捷键应使用 `secondary`；所有平台都必须使用 Control 时才写 `ctrl`。大写 ASCII 字母如 `A` 表示 Shift+A，显式写 `shift-a` 更容易阅读。如果按键字符串或 context predicate 无法解析，`KeyBinding::new` 会 **panic**；静态定义应便于检查，用户输入则要先验证。
+GPUI 还识别 `fn`、`ctrl`、`alt`、`shift`、`cmd`、`super` 与 `win`。`KeyBinding::new` 要求显式指定 modifier；跨平台 Command/Control 快捷键应根据 `cx.platform_info().is_mac()` 选择 `cmd` 或 `ctrl`。动态字符串或 `secondary` 别名需要通过 `KeyBinding::load(..., cx)` 加载，以便按运行时操作系统解析；单个按键使用 `Keystroke::parse_with_os(keys, cx.platform_info().os)`。所有平台都必须使用 Control 时才写 `ctrl`。大写 ASCII 字母如 `A` 表示 Shift+A，显式写 `shift-a` 更容易阅读。如果按键字符串或 context predicate 无法解析，`KeyBinding::new` 会 **panic**；静态定义应便于检查，用户输入则要先验证。
 
 操作系统或窗口管理器可能先于 GPUI 占用快捷键。应在每个支持的平台测试预定组合，尤其是 `cmd`/`super`/`win` 组合以及 `alt-f4` 等系统快捷键。Binding 能成功解析，并不代表按键事件一定会到达应用。
 
@@ -183,12 +187,12 @@ GPUI 提供 Action registry 和 keymap 机制，但**用户 keymap 文件格式*
 
 ## 排查快捷键问题
 
-1. **按键：**检查当前平台实际使用的修饰键。`secondary-s` 在 macOS 上是 Command+S，在其他平台是 Control+S；Windows 上的 `cmd-s` 不是 Control+S。
-2. **Focus：**检查哪个 `FocusHandle` 获得 Focus，以及已渲染元素是否用它调用 `track_focus`。只有点击后才生效，通常说明 Focus 路径有问题。
-3. **Context：**检查 predicate 是否匹配路径上的 `key_context`。声明 context 用 `mode=normal`，测试它用 `mode == normal`。
-4. **竞争：**检查更深层 context、同深度后注册的 binding 和 chord 前缀。`None` binding 可能排在较浅的 scoped binding 前面。
-5. **Handler：**检查匹配的 Action 在当前 Focus 路径上是否有 `on_action` handler，以及更具体的 handler 是否提前消费了它。
-6. **菜单与重载：**菜单仍显示旧快捷键时，在安装新 keymap 后再次调用 `cx.set_menus(...)`。组件快捷键在重载后消失时，确认 `clear_key_bindings()` 之后重新运行了所有组件初始化。
+1. **按键**：检查当前平台实际使用的修饰键。`secondary-s` 在 macOS 上是 Command+S，在其他平台是 Control+S；Windows 上的 `cmd-s` 不是 Control+S。
+2. **Focus**：检查哪个 `FocusHandle` 获得 Focus，以及已渲染元素是否用它调用 `track_focus`。只有点击后才生效，通常说明 Focus 路径有问题。
+3. **Context**：检查 predicate 是否匹配路径上的 `key_context`。声明 context 用 `mode=normal`，测试它用 `mode == normal`。
+4. **竞争**：检查更深层 context、同深度后注册的 binding 和 chord 前缀。`None` binding 可能排在较浅的 scoped binding 前面。
+5. **Handler**：检查匹配的 Action 在当前 Focus 路径上是否有 `on_action` handler，以及更具体的 handler 是否提前消费了它。
+6. **菜单与重载**：菜单仍显示旧快捷键时，在安装新 keymap 后再次调用 `cx.set_menus(...)`。组件快捷键在重载后消失时，确认 `clear_key_bindings()` 之后重新运行了所有组件初始化。
 
 ## 用仓库示例验证
 

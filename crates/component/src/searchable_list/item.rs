@@ -167,10 +167,11 @@ impl RenderOnce for SearchableListItemElement {
                             .children(self.children),
                     )
                     .when_some(self.check_icon, |this, icon| {
+                        // The check inherits the row's text color, so it stays
+                        // legible on the accent fill alongside the label.
                         this.child(
                             icon.xsmall()
                                 .flex_shrink_0()
-                                .text_color(cx.theme().foreground)
                                 .when(!self.checked, |this| this.invisible()),
                         )
                     }),

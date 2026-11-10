@@ -107,6 +107,11 @@
           "minimum": 0,
           "default": null
         },
+        "window.radius": {
+          "description": "The corner radius of client-decorated windows, default is 0 (square).",
+          "type": ["number", "null"],
+          "default": 0
+        },
         "shadow": {
           "description": "Set shadows in the theme, for example the Input and Button, default is true.",
           "type": [

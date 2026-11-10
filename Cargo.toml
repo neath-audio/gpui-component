@@ -1,5 +1,13 @@
 [workspace]
 default-members = ["crates/story"]
+# Neath's patched GPUI crates. They are selected by `[patch.crates-io]` below
+# and are not members: the published packages cannot build their own tests.
+exclude = [
+    "vendor/gpui-pre",
+    "vendor/gpui-pre-apple",
+    "vendor/gpui-pre-macos",
+    "vendor/gpui-pre-windows",
+]
 members = [
     "crates/kit",
     "crates/base",
@@ -17,6 +25,8 @@ members = [
     "examples/hello_world",
     "examples/input",
     "examples/editor",
+    "examples/syntect",
+    "examples/tig",
     "examples/brush",
     "examples/dock",
     "examples/html",
@@ -29,6 +39,7 @@ members = [
     "examples/system_monitor",
     "examples/focus_trap",
     "examples/tooltip_top_edge",
+    "examples/link_tooltip",
     "examples/sidebar",
     "examples/text_max_lines",
     "examples/text_selection",
@@ -36,9 +47,8 @@ members = [
     "examples/table_in_scrollable",
     "examples/markdown_table",
     "examples/ai_recipes",
+    "examples/speech",
     "crates/shell",
-    "crates/shell/rquickjs-compat",
-    "crates/component-shell",
 ]
 resolver = "2"
 
@@ -47,35 +57,50 @@ publish = false
 edition = "2024"
 
 [workspace.dependencies]
-gpui-kit = { path = "crates/kit", version = "0.7.0" }
-gpui-component = { path = "crates/component", version = "0.7.0" }
-gpui-base = { path = "crates/base", version = "0.7.0" }
-gpui-component-macros = { path = "crates/component-macros", version = "0.7.0" }
-gpui-component-assets = { path = "crates/assets", version = "0.7.0" }
-gpui-fps = { path = "crates/fps", version = "0.7.0" }
-gpui-shell = { path = "crates/shell", version = "0.7.0" }
-gpui-wry = { path = "crates/webview", version = "0.7.0" }
-gpui-component-shell = { path = "crates/component-shell", version = "0.7.0" }
+gpui-kit = { path = "crates/kit", version = "0.9.1" }
+gpui-component = { path = "crates/component", version = "0.9.1" }
+gpui-base = { path = "crates/base", version = "0.9.1" }
+gpui-component-macros = { path = "crates/component-macros", version = "0.9.1" }
+gpui-kit-assets = { path = "crates/assets", version = "0.9.1" }
+gpui-fps = { path = "crates/fps", version = "0.9.1" }
+gpui-shell = { path = "crates/shell", version = "0.9.1" }
+gpui-webview = { path = "crates/webview", version = "0.9.1" }
 story = { path = "crates/story" }
 
-# Keep every GPUI consumer on the same official Zed revision. Neath applies
-# its separately reviewed native extensions through a root Cargo patch.
-gpui = { git = "https://github.com/zed-industries/zed", rev = "7fdb97cad51694f2cdfd36abcb11265f4c4dafe2", version = "=0.2.2" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "7fdb97cad51694f2cdfd36abcb11265f4c4dafe2", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui_web = { git = "https://github.com/zed-industries/zed", rev = "7fdb97cad51694f2cdfd36abcb11265f4c4dafe2" }
-gpui_macros = { git = "https://github.com/zed-industries/zed", rev = "7fdb97cad51694f2cdfd36abcb11265f4c4dafe2" }
-reqwest_client = { git = "https://github.com/zed-industries/zed", rev = "7fdb97cad51694f2cdfd36abcb11265f4c4dafe2" }
-sum-tree = { git = "https://github.com/zed-industries/zed", rev = "7fdb97cad51694f2cdfd36abcb11265f4c4dafe2", package = "sum_tree" }
-reqwest = { git = "https://github.com/zed-industries/reqwest.git", rev = "33bc764aa15ff7b200bf7c93bd96e24878d53e14", package = "zed-reqwest", version = "0.12.15-zed", default-features = false, features = [
-    "charset", "http2", "macos-system-configuration", "multipart",
-    "rustls-tls-native-roots", "socks", "stream",
+# GPUI comes from the `gpui-pre-*` snapshots of Zed's crates, and any snapshot
+# may change GPUI's API. These requirements are what the published gpui-kit
+# crates carry to crates.io, so they pin the exact snapshot the release was
+# built against: a caret requirement let the weekly release move applications
+# onto a newer snapshot that gpui-component did not compile with (#3156). Bump
+# every snapshot crate together with its Cargo.lock entry; `script/check-gpui-pin.ts`
+# fails CI when a pin is not exact.
+gpui = { package = "gpui-pre", version = "=0.3.12" }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.12", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui_web = { package = "gpui-pre-web", version = "=0.3.12" }
+# Fast is optional; existing crates select it through their gpui-fast feature.
+# Explicit package fields make Cargo use these dependency keys as Rust crate names;
+# the packages declare the same library names as the pre backend.
+gpui-fast = { package = "gpui-fast", version = "0.1.14", features = ["windows-manifest-provided-by-host"] }
+gpui-fast-platform = { package = "gpui-fast-platform", version = "0.1.14", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui-fast-web = { package = "gpui-fast-web", version = "0.1.14" }
+gpui_macros = { package = "gpui-pre-macros", version = "=0.3.12" }
+reqwest_client = { package = "gpui-pre-reqwest-client", version = "=0.3.12" }
+sum-tree = { package = "gpui-pre-sum-tree", version = "=0.3.12" }
+reqwest = { package = "gpui-pre-reqwest", version = "=0.12.15", default-features = false, features = [
+    "charset",
+    "http2",
+    "macos-system-configuration",
+    "multipart",
+    "rustls-tls-native-roots",
+    "socks",
+    "stream",
 ] }
 
 anyhow = "1"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 log = "0.4"
 lsp-types = { version = "0.97.0", features = ["proposed"] }
-notify = "7.0.0"
+notify = "8.2.0"
 raw-window-handle = "0.6.2"
 ropey = { version = "=2.0.0-beta.1", features = [
     "metric_chars",
@@ -95,6 +120,7 @@ syntect = { version = "5.3.0", default-features = false, features = [
     "default-syntaxes",
     "regex-fancy",
 ] }
+two-face = { version = "0.4.5", default-features = false, features = ["syntect-fancy"] }
 tracing = "0.1.41"
 wasm-bindgen = "0.2.113"
 # Use errno stub for WASM
@@ -123,25 +149,33 @@ type_complexity = "allow"
 # https://github.com/longbridge/gpui-kit/pull/2149
 useless_conversion = "allow"
 
+# Keep Cargo's default of 256 codegen units. Incremental builds re-codegen
+# whole units, so with 16 units a one-line change in gpui-component or
+# gpui-base took about 50% more CPU to rebuild.
 [profile.dev]
-codegen-units = 16
 debug = "limited"
 split-debuginfo = "unpacked"
 
+# These speed up the debug application at run time; opt-level 1 rendered the
+# `text_view_scroll` bench frames 22-25% slower to save about 9% of a clean
+# build's CPU, and nothing on an incremental one. Proc-macro crates are left
+# out: they only run inside the compiler, and expanding gpui's macros takes as
+# long unoptimized, so optimizing them only adds compile time.
 [profile.dev.package]
 resvg = { opt-level = 3 }
 rustybuzz = { opt-level = 3 }
 taffy = { opt-level = 3 }
 ttf-parser = { opt-level = 3 }
 smol = { opt-level = 3 }
-gpui = { opt-level = 3 }
-gpui_platform = { opt-level = 3 }
-gpui_macros = { opt-level = 3 }
+gpui-pre = { opt-level = 3 }
+gpui-fast = { opt-level = 3 }
+gpui-fast-platform = { opt-level = 3 }
+gpui-pre-platform = { opt-level = 3 }
 tree-sitter = { opt-level = 3 }
-sum_tree = { opt-level = 3 }
+gpui-pre-sum-tree = { opt-level = 3 }
 ropey = { opt-level = 3 }
 lsp-types = { opt-level = 3 }
-reqwest_client = { opt-level = 3 }
+gpui-pre-reqwest-client = { opt-level = 3 }
 markdown = { opt-level = 3 }
 xml5ever = { opt-level = 3 }
 # `quickjs-jit` is a facade that re-exports `quickjs-jit-core`, so naming it alone
@@ -155,11 +189,10 @@ quickjs-jit-sys = { opt-level = 3 }
 quickjs-jit-core = { opt-level = 3 }
 cap-std = { opt-level = 3 }
 
-[patch.crates-io]
-# LLRT's public modules still name their compatible binding dependency
-# `rquickjs`. Route those dependencies through a source-compatible facade so
-# the shell and LLRT share the exact same quickjs-jit types and VM.
-rquickjs = { path = "crates/shell/rquickjs-compat" }
+# Stripping the symbol table costs no build time and removes about a quarter of
+# a release binary (`gpui-shell`: 106 MB to 78 MB on Linux x86_64).
+[profile.release]
+strip = "symbols"
 
 [workspace.metadata.typos]
 files.extend-exclude = ["**/fixtures/*"]
@@ -170,12 +203,13 @@ consts = "consts"
 [workspace.metadata.cargo-machete]
 ignored = ["log", "anyhow", "serde"]
 
-# Retained native drag and material capabilities, based on the upstream pin above.
-[patch."https://github.com/zed-industries/zed"]
-gpui = { git = "https://github.com/neath-audio/zed", rev = "fdf4160c27b40e82d3d34700b1ffd886343cf26e", version = "=0.2.2" }
-gpui_platform = { git = "https://github.com/neath-audio/zed", rev = "fdf4160c27b40e82d3d34700b1ffd886343cf26e" }
-gpui_macros = { git = "https://github.com/neath-audio/zed", rev = "fdf4160c27b40e82d3d34700b1ffd886343cf26e" }
-gpui_tokio = { git = "https://github.com/neath-audio/zed", rev = "fdf4160c27b40e82d3d34700b1ffd886343cf26e" }
-gpui_web = { git = "https://github.com/neath-audio/zed", rev = "fdf4160c27b40e82d3d34700b1ffd886343cf26e" }
-reqwest_client = { git = "https://github.com/neath-audio/zed", rev = "fdf4160c27b40e82d3d34700b1ffd886343cf26e" }
-sum_tree = { git = "https://github.com/neath-audio/zed", rev = "fdf4160c27b40e82d3d34700b1ffd886343cf26e" }
+# GPUI with Neath's changes (backdrop blur, native file drag-out,
+# `FocusHandle::is_rendered`). Each crate's `NEATH-PATCH.md` records the
+# published source it was taken from. `crates/component/src/material.rs` needs
+# the blur, so the fork does not build on the unpatched snapshot. Applications
+# patch the same four crates from this repository at the rev they pin.
+[patch.crates-io]
+gpui-pre = { path = "vendor/gpui-pre" }
+gpui-pre-apple = { path = "vendor/gpui-pre-apple" }
+gpui-pre-macos = { path = "vendor/gpui-pre-macos" }
+gpui-pre-windows = { path = "vendor/gpui-pre-windows" }

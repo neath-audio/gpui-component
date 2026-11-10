@@ -10,6 +10,7 @@ use gpui::{
     WindowControlArea, WindowOptions, div, linear_color_stop, linear_gradient,
     prelude::FluentBuilder as _, px,
 };
+use gpui_base::TestSupportExt as _;
 use smallvec::SmallVec;
 
 pub const TITLE_BAR_HEIGHT: Pixels = px(34.);
@@ -206,6 +207,7 @@ impl RenderOnce for ControlIcon {
 
         div()
             .id(self.id())
+            .test_support()
             .flex()
             .w(TITLE_BAR_HEIGHT)
             .h_full()
@@ -251,7 +253,7 @@ struct WindowControls {
 impl RenderOnce for WindowControls {
     fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
         if cfg!(target_os = "macos") || cfg!(target_family = "wasm") {
-            return div().id("window-controls");
+            return div().id("window-controls").test_support();
         }
 
         // Under server-side decorations the window manager already renders
@@ -265,7 +267,7 @@ impl RenderOnce for WindowControls {
         // title bar's window-menu overlay.
         #[cfg(target_os = "linux")]
         if !matches!(window.window_decorations(), Decorations::Client { .. }) {
-            return div().id("window-controls");
+            return div().id("window-controls").test_support();
         }
 
         // The window manager declares which controls it can honor; a tiling
@@ -275,6 +277,7 @@ impl RenderOnce for WindowControls {
 
         h_flex()
             .id("window-controls")
+            .test_support()
             .items_center()
             .flex_shrink_0()
             .h_full()
@@ -323,6 +326,7 @@ impl RenderOnce for TitleBar {
         let is_macos = cfg!(target_os = "macos");
 
         let state = window.use_state(cx, |_, _| TitleBarState { should_move: false });
+        let radii = crate::window_corner_radii(window, cx);
 
         div().flex_shrink_0().child(
             div()
@@ -333,6 +337,8 @@ impl RenderOnce for TitleBar {
                 .justify_between()
                 .h(TITLE_BAR_HEIGHT)
                 .pl(TITLE_BAR_LEFT_PADDING)
+                .rounded_tl(radii.top_left)
+                .rounded_tr(radii.top_right)
                 .border_b_1()
                 .border_color(cx.theme().title_bar_border)
                 .bg(default_title_bar_background(
@@ -346,6 +352,8 @@ impl RenderOnce for TitleBar {
                 .when(is_macos, |this| {
                     this.on_double_click(|_, window, _| window.titlebar_double_click())
                 })
+                // After `on_double_click`, which is implemented for `Stateful` only.
+                .test_support()
                 .on_mouse_down_out(window.listener_for(&state, |state, _, _, _| {
                     state.should_move = false;
                 }))
