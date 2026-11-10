@@ -13,12 +13,12 @@ GPUI Kit 的核心架构包含五个层次：
 - **`gpui`**：底层 UI 运行时，提供 Entity、窗口、Element、布局与渲染。
 - **`gpui-kit`**：应用入口，通过一个依赖重新导出 GPUI，并整合 Base、Component 与默认资源。
 - **`gpui-base`**：无样式的行为、受控状态、Focus、浮层、虚拟列表、Dock 基础设施与语义化设计 token。
-- **`gpui-neath`**：即 GPUI Component，完整的带样式组件库，提供 75+ 个有完整文档的组件与原语，以及主题、数据表格、Dock 布局和代码编辑器。
+- **`gpui-component`**：即 GPUI Component，完整的带样式组件库，提供 75+ 个有完整文档的组件与原语，以及主题、数据表格、Dock 布局和代码编辑器。
 - **`gpui-shell`**：让 Rust 宿主可以被 JavaScript 扩展，能力逐项授予。
 
 普通应用通过 `gpui-kit` 使用 GPUI、Base、Component 与默认资源；需要承载 JavaScript 扩展时另行依赖 `gpui-shell`。它仍是框架核心架构的一层。
 
-使用 `gpui-neath` 可以获得统一、成熟的视觉风格；基于 `gpui-base` 则可以复用可靠的行为与基础设施，同时创建并拥有自己的设计系统。本节文档介绍 GPUI Kit 的入门配置、公共设计与编码指南，以及应用开发。各层 API 请参阅 [GPUI Component](../component/index.md)、[GPUI Base](../base/index.md) 与 [GPUI Shell](../shell/index.md)。
+使用 `gpui-component` 可以获得统一、成熟的视觉风格；基于 `gpui-base` 则可以复用可靠的行为与基础设施，同时创建并拥有自己的设计系统。本节文档介绍 GPUI Kit 的入门配置、公共设计与编码指南，以及应用开发。各层 API 请参阅 [GPUI Component](../component/index.md)、[GPUI Base](../base/index.md) 与 [GPUI Shell](../shell/index.md)。
 
 先读 [Focus](./focus)，理解 `FocusHandle`、Tab 顺序与键盘目标，再读 [Action](./action) 理解命令派发；[KeyBinding](./keybinding) 介绍 Action 的绑定与当前快捷键的展示。[Event](./event) 解释类型化通知以及 Action 与 Event 的关系。
 

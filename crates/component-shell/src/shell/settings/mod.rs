@@ -6,7 +6,7 @@
 use super::support::{Empty, bool_method, reject_style, require_child};
 
 use super::typed_child::{Carrier, take};
-use gpui_neath::{
+use gpui_component::{
     Sizable as _, Size,
     setting::{SelectIndex, SettingField, SettingGroup, SettingItem, SettingPage, Settings},
 };

@@ -7,7 +7,7 @@ use gpui::{
     App, AppContext, Context, IntoElement, ParentElement, Pixels, Render, RenderOnce, Styled,
     TestAppContext, Window, div, px, rems,
 };
-use gpui_neath::{
+use gpui_component::{
     Root, Sizable, StyledTypography as _, TextSize, Theme, ThemeMode, UiTypography, button::Button,
     input::InputGroupButton,
 };
@@ -36,7 +36,7 @@ impl Render for ButtonHost {
 
 #[gpui::test]
 fn explicit_button_text_size_reaches_content_at_each_rem_base(cx: &mut TestAppContext) {
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     let painted_size = Rc::new(Cell::new(px(0.)));
     let (_, cx) = cx.add_window_view(|_, _| ButtonHost(painted_size.clone()));
     for base in [16., 20., 18., 16.] {
@@ -61,7 +61,7 @@ impl Render for AddonHost {
 
 #[gpui::test]
 fn explicit_role_overrides_input_group_button_defaults(cx: &mut TestAppContext) {
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     let painted_size = Rc::new(Cell::new(px(0.)));
     let (_, cx) = cx.add_window_view(|_, _| AddonHost(painted_size.clone()));
     cx.update(|window, cx| {
@@ -112,7 +112,7 @@ impl Render for RolesHost {
 
 #[gpui::test]
 fn root_theme_round_trips_and_live_measurement_share_the_rem_base(cx: &mut TestAppContext) {
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     let seen = Rc::new(RefCell::new(Vec::new()));
     let (_, cx) = cx.add_window_view(|window, cx| {
         let host = cx.new(|_| RolesHost(seen.clone()));
@@ -168,7 +168,7 @@ fn root_theme_round_trips_and_live_measurement_share_the_rem_base(cx: &mut TestA
 
 #[gpui::test]
 fn live_ui_typography_changes_paint_and_measurement_without_changing_rem(cx: &mut TestAppContext) {
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     let seen = Rc::new(RefCell::new(Vec::new()));
     let (_, cx) = cx.add_window_view(|window, cx| {
         let host = cx.new(|_| RolesHost(seen.clone()));
@@ -216,14 +216,14 @@ fn live_ui_typography_changes_paint_and_measurement_without_changing_rem(cx: &mu
 }
 
 struct MenuListHost {
-    menus: Vec<gpui::Entity<gpui_neath::menu::PopupMenu>>,
+    menus: Vec<gpui::Entity<gpui_component::menu::PopupMenu>>,
     list_font: Rc<Cell<Pixels>>,
 }
 
 impl Render for MenuListHost {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div().children(self.menus.iter().cloned()).child(
-            gpui_neath::list::ListItem::new("primary-list")
+            gpui_component::list::ListItem::new("primary-list")
                 .child(FontProbe(self.list_font.clone())),
         )
     }
@@ -231,9 +231,9 @@ impl Render for MenuListHost {
 
 #[gpui::test]
 fn primary_menus_and_lists_resolve_live_control_tier(cx: &mut TestAppContext) {
-    use gpui_neath::menu::{PopupMenu, PopupMenuItem};
+    use gpui_component::menu::{PopupMenu, PopupMenuItem};
 
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     let seen: Vec<_> = (0..4).map(|_| Rc::new(Cell::new(px(0.)))).collect();
     let (_, cx) = cx.add_window_view(|window, cx| {
         let menus = seen[..3]

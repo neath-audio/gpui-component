@@ -10,7 +10,7 @@ for package in \
   gpui-component-macros \
   gpui-base \
   gpui-fps \
-  gpui-neath \
+  gpui-component \
   gpui-wry \
   gpui-kit
 do

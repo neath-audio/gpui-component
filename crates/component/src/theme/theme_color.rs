@@ -437,7 +437,7 @@ pub struct ThemeColor {
 
 macro_rules! define_theme_tokens {
     ($($field:ident),+ $(,)?) => {
-        /// Schema-backed resolved tokens for `gpui-neath` and product roles.
+        /// Schema-backed resolved tokens for `gpui-component` and product roles.
         ///
         /// This is the complete public projection of [`ThemeColor`], including
         /// component-specific and application-owned fields such as `button_primary`,

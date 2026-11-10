@@ -48,7 +48,7 @@ edition = "2024"
 
 [workspace.dependencies]
 gpui-kit = { path = "crates/kit", version = "0.7.0" }
-gpui-neath = { path = "crates/component", version = "0.7.0" }
+gpui-component = { path = "crates/component", version = "0.7.0" }
 gpui-base = { path = "crates/base", version = "0.7.0" }
 gpui-component-macros = { path = "crates/component-macros", version = "0.7.0" }
 gpui-component-assets = { path = "crates/assets", version = "0.7.0" }

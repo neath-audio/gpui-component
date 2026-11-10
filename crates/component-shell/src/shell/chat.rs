@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use gpui_neath::{
+use gpui_component::{
     Sizable as _, Size,
     attachment::{Attachment, AttachmentContent, AttachmentStatus},
     bubble::{Bubble, BubbleVariant},

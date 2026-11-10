@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_neath::{
+use gpui_component::{
     Sizable as _, Size,
     alert::{Alert, AlertVariant},
 };

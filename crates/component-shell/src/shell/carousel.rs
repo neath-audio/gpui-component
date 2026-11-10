@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use gpui_neath::{
+use gpui_component::{
     FocusableExt as _, Sizable as _, Size,
     carousel::{
         Carousel, CarouselContent, CarouselEvent, CarouselItem, CarouselNext, CarouselPagination,

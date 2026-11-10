@@ -10,7 +10,7 @@
 //! can provide an honest searchable-list delegate rather than fabricated
 //! options.
 
-use gpui_neath::{
+use gpui_component::{
     Disableable as _,
     calendar::{Calendar, CalendarState},
     color_picker::{ColorPicker, ColorPickerState},

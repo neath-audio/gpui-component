@@ -1,6 +1,6 @@
 pub(super) use super::support::require_child;
 
-use gpui_neath::{
+use gpui_component::{
     Selectable as _, Sizable as _, Size,
     accordion::{Accordion, AccordionItem},
     radio::{Radio, RadioGroup},

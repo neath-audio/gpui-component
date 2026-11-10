@@ -88,7 +88,7 @@ const src = computed(() => {
 
 const windowTitle = computed(() =>
     storyName.value
-        ? `${storyName.value} — ${kind.value === "base" ? "gpui-base" : "gpui-neath"}`
+        ? `${storyName.value} — ${kind.value === "base" ? "gpui-base" : "gpui-component"}`
         : "",
 );
 

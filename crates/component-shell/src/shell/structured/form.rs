@@ -1,7 +1,7 @@
 use super::bool_method;
 use super::common::{TypedChildElement, nonnegative_f32, positive_u16, take_element};
 use super::require_child;
-use gpui_neath::{
+use gpui_component::{
     Sizable as _, Size,
     form::{Field, h_form, v_form},
 };

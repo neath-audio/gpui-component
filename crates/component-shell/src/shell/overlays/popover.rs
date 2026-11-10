@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_neath::{
+use gpui_component::{
     button::{Button, ButtonVariants as _},
     popover::Popover,
 };

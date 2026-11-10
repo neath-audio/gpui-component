@@ -1,4 +1,4 @@
-//! The gpui-neath appearance for the dock area: the outer frame, the
+//! The gpui-component appearance for the dock area: the outer frame, the
 //! split frames, and one dock's chrome.
 
 use std::{ops::Deref as _, rc::Rc, sync::Arc};

@@ -4,7 +4,7 @@ use gpui::{
     App, Context, IntoElement, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, Render, Styled,
     TestAppContext, Window, div, prelude::*, px,
 };
-use gpui_neath::{
+use gpui_component::{
     Disableable,
     checkbox::Checkbox,
     radio::{Radio, RadioGroup},
@@ -95,7 +95,7 @@ impl Render for Harness {
 
 #[gpui::test]
 fn controlled_change_callbacks_preserve_activation_and_replace_aliases(cx: &mut TestAppContext) {
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     for control in [
         Control::Checkbox,
         Control::Switch,
@@ -179,7 +179,7 @@ fn owner_applies_requested_value_before_the_next_activation(cx: &mut TestAppCont
         }
     }
 
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     let (owner, visual) = cx.add_window_view(|_, _| Owner {
         checked: false,
         requests: vec![],

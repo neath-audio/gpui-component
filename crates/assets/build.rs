@@ -95,10 +95,10 @@ fn main() {
     // Exported only to cross the assets/component crate boundary, not as a
     // supported extension point for applications or other crates.
     code.push_str(concat!(
-        "/// Internal compatibility macro exclusively for `gpui-neath`.\n",
+        "/// Internal compatibility macro exclusively for `gpui-component`.\n",
         "///\n",
         "/// This is not a supported public API and may change or be removed\n",
-        "/// without notice. Crates other than `gpui-neath` must not use it.\n",
+        "/// without notice. Crates other than `gpui-component` must not use it.\n",
         "/// Use the public `gpui_component_assets::IconName` API instead.\n",
     ));
     code.push_str("#[doc(hidden)]\n#[macro_export]\nmacro_rules! __component_icon_names {\n    ($callback:ident) => { $callback! {\n");

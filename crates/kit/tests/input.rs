@@ -19,7 +19,7 @@ use gpui::{
     AppContext, Context, Entity, TestAppContext, Window, WindowHandle, div, prelude::*, px,
 };
 use gpui_kit::test::TestWindowExt;
-use gpui_neath::input::{Input, InputState};
+use gpui_component::input::{Input, InputState};
 
 struct Inputs {
     first: Entity<InputState>,
@@ -49,7 +49,7 @@ impl Render for Inputs {
     }
 }
 fn inputs(cx: &mut TestAppContext) -> (WindowHandle<gpui_kit::base::Root>, Entity<Inputs>) {
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     common::open_window(cx, None, |window, cx| {
         cx.new(|cx| Inputs {
             first: cx.new(|cx| InputState::new(window, cx)),
@@ -174,7 +174,7 @@ impl Render for ScopedInputs {
 fn scoped_inputs(
     cx: &mut TestAppContext,
 ) -> (WindowHandle<gpui_kit::base::Root>, Entity<ScopedInputs>) {
-    cx.update(gpui_neath::init);
+    cx.update(gpui_component::init);
     common::open_window(cx, None, |window, cx| {
         cx.new(|cx| ScopedInputs {
             left: cx.new(|cx| InputState::new(window, cx)),

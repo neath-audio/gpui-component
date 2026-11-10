@@ -1,4 +1,4 @@
-use gpui_neath::{
+use gpui_component::{
     IndexPath,
     searchable_list::{SearchableListDelegate, SearchableListItem},
     select::{Select, SelectEvent, SelectState},

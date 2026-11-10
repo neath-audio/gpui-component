@@ -1,5 +1,5 @@
 _version: 2
-gpui_neath:
+gpui_component:
   Calendar:
     week.0:
       fr: Di

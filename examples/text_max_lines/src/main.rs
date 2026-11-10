@@ -241,7 +241,7 @@ fn main() {
 
         // The document embeds remote images; without an HTTP client they
         // silently never load.
-        let http_client = reqwest_client::ReqwestClient::user_agent("gpui-neath/example")
+        let http_client = reqwest_client::ReqwestClient::user_agent("gpui-component/example")
             .expect("Failed to create the HTTP client");
         cx.set_http_client(std::sync::Arc::new(http_client));
 

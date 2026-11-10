@@ -71,7 +71,7 @@ impl Workspace {
 }
 
 fn main() {
-    let mut workspace = Workspace::new("gpui-neath");
+    let mut workspace = Workspace::new("gpui-component");
     workspace.index("src/main.rs", 128);
     workspace.index("src/editor.rs", 372);
     println!("{}", workspace.summary());

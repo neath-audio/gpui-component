@@ -22,7 +22,7 @@ Documentation: <https://gpui-kit.com>
 ```text
 gpui-kit             The one crate applications depend on
 ├── gpui-base        Unstyled behavior, state, and infrastructure
-└── gpui-neath   GPUI Component: the complete styled UI system
+└── gpui-component   GPUI Component: the complete styled UI system
 ```
 
 `gpui-kit` pins the matching GPUI release and re-exports GPUI, base, component,
@@ -53,12 +53,12 @@ See the [executable application recipe and AI-assisted development acceptance ch
 
 ### Three layers. One ecosystem.
 
-Use `gpui-neath` to keep the application coherent with one complete visual
+Use `gpui-component` to keep the application coherent with one complete visual
 and interaction system. Use `gpui-base` when your product needs to create and
 own that system itself. Use `gpui-shell` when the application should be
 extensible in JavaScript after it ships.
 
-| **`gpui-neath`**             | **`gpui-base`**                               | **`gpui-shell`**                           |
+| **`gpui-component`**             | **`gpui-base`**                               | **`gpui-shell`**                           |
 | -------------------------------- | --------------------------------------------- | ------------------------------------------ |
 | Complete, styled components      | Unstyled behavior and infrastructure          | JavaScript runtime hosted by Rust          |
 | Productive defaults with theming | Full control over structure and visual design | Capabilities granted one at a time         |
@@ -71,7 +71,7 @@ extensible in JavaScript after it ships.
               │                   │                   │
               ▼                   ▼                   ▼
     ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
-    │  gpui-neath  │ │ Your Design      │ │    gpui-shell    │
+    │  gpui-component  │ │ Your Design      │ │    gpui-shell    │
     │    Styled UI     │ │ System           │ │  JS extensions   │
     └────────┬─────────┘ └────────┬─────────┘ └────────┬─────────┘
              │                    │                    │
@@ -88,7 +88,7 @@ extensible in JavaScript after it ships.
 
 > **Behavior belongs to the foundation. Presentation belongs to the application.**
 
-Use **`gpui-neath`** when you want polished controls ready to ship. Build on
+Use **`gpui-component`** when you want polished controls ready to ship. Build on
 **`gpui-base`** when your application should own its component source, layout,
 styling, and motion while reusing difficult interaction behavior. Add
 **`gpui-shell`** when contributors should extend the product without a fork or
@@ -101,7 +101,7 @@ The layering follows the same separation that makes the
 | ------------------------------------ | ------------------------------- |
 | GPUI                                 | HTML + Tailwind CSS             |
 | [`gpui-base`](crates/base/README.md) | [Base UI](https://base-ui.com)  |
-| `gpui-neath`                     | shadcn's styled component layer |
+| `gpui-component`                     | shadcn's styled component layer |
 
 [Explore the architecture →](docs/ARCHITECTURE.md)
 
@@ -122,9 +122,9 @@ commercial desktop application rather than designed in isolation.
 gpui-kit = "0.7"
 ```
 
-`gpui-kit` always brings in GPUI and `gpui-base`; `gpui-neath` and the
+`gpui-kit` always brings in GPUI and `gpui-base`; `gpui-component` and the
 default icon set are on by default. Turn default
-features off to keep only the layers you use. The `gpui-neath` features (`inspector`, `decimal`,
+features off to keep only the layers you use. The `gpui-component` features (`inspector`, `decimal`,
 `tree-sitter`, and each `tree-sitter-<language>`) are available under the same
 names.
 

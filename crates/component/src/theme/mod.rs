@@ -510,7 +510,7 @@ impl Theme {
     ///
     /// The Base layer holds its own copy of the theme — the semantic tokens
     /// plus the scrollbar and resize-handle styles — because it paints those
-    /// without going through `gpui-neath`. [`Theme::change`] refreshes that
+    /// without going through `gpui-component`. [`Theme::change`] refreshes that
     /// copy, but writing to the theme's public fields directly does not, so a
     /// scrollbar keeps painting with the radius and colors it was last given.
     ///

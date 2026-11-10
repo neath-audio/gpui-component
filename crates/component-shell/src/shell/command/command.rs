@@ -1,7 +1,7 @@
 use super::bool_method;
 use super::{Carrier, take};
 use super::{reject_style, require_child};
-use gpui_neath::{
+use gpui_component::{
     Disableable as _,
     command::{Command, CommandGroup, CommandItem, CommandState},
 };

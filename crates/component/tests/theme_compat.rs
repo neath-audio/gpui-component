@@ -1,4 +1,4 @@
-use gpui_neath::theme::{ThemeConfig, ThemeConfigColors, ThemeMode};
+use gpui_component::theme::{ThemeConfig, ThemeConfigColors, ThemeMode};
 
 #[test]
 fn legacy_chart_keys_load_and_serialize_with_current_names() {
@@ -17,7 +17,7 @@ fn legacy_chart_keys_load_and_serialize_with_current_names() {
 
 #[test]
 fn legacy_text_view_style_struct_literal_shape_is_unchanged() {
-    use gpui_neath::text::TextViewStyle;
+    use gpui_component::text::TextViewStyle;
 
     let defaults = TextViewStyle::default();
     let _ = TextViewStyle {
@@ -56,7 +56,7 @@ fn legacy_theme_config_struct_literal_shape_is_unchanged() {
 #[test]
 fn runtime_ui_typography_does_not_change_theme_serialization() {
     use gpui::rems;
-    use gpui_neath::{TextSize, Theme, UiTypography};
+    use gpui_component::{TextSize, Theme, UiTypography};
     let mut theme = Theme::default();
     let saved = serde_json::to_value(&theme).unwrap();
     theme.set_ui_typography(UiTypography::default().with_size(TextSize::Default, rems(0.75)));

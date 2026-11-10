@@ -401,7 +401,7 @@ the parser construct and attach `FrontmatterPlugin` to render top-level mappings
 as a `DescriptionList`:
 
 ```rust
-use gpui_neath::text::{markdown, FrontmatterPlugin, MarkdownExtensions};
+use gpui_component::text::{markdown, FrontmatterPlugin, MarkdownExtensions};
 
 let extensions = MarkdownExtensions::default().frontmatter();
 
