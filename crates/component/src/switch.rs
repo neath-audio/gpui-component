@@ -1,6 +1,6 @@
 use crate::{
-    ActiveTheme, Disableable, FocusableExt, Side, Sizable, Size, StyledExt, ThemeStyled as _,
-    text::Text, tooltip::ComponentTooltip,
+    ActiveTheme, Colorize as _, Disableable, FocusableExt, Side, Sizable, Size, StyledExt,
+    ThemeStyled as _, text::Text, tooltip::ComponentTooltip,
 };
 use gpui::{
     App, Background, ElementId, Hsla, InteractiveElement, IntoElement, MouseButton,
@@ -183,15 +183,40 @@ impl RenderOnce for Switch {
             .map(Background::from)
             .unwrap_or(cx.theme().tokens.switch_checked.into());
         let unchecked_bg: Background = cx.theme().tokens.switch.into();
+        // Zed's track edge in theme colors: unchecked, the input border, as on
+        // an unchecked Radio; checked, the checked fill mixed 30% toward the
+        // foreground.
+        let border_color = if checked {
+            self.color
+                .unwrap_or(cx.theme().switch_checked)
+                .mix_oklab(cx.theme().foreground, 0.7)
+        } else {
+            cx.theme().input
+        };
         // GPUI's element opacity multiplies each primitive's alpha instead of
         // compositing the subtree as one group, so fading the whole control
-        // would let the track show through the thumb. Fading the track alone
-        // lands on the pixels a grouped fade would: the thumb is `background`.
+        // would let the track show through the thumb. The track and its edge
+        // fade to half; the thumb takes the opaque color a grouped fade would
+        // leave over the page.
         let disabled_bg = if checked { checked_bg } else { unchecked_bg }.opacity(0.5);
-        let toggle_bg: Background = if checked {
-            cx.theme().tokens.switch_thumb_checked.into()
+        let border_color = if self.disabled {
+            border_color.opacity(0.5)
         } else {
-            cx.theme().tokens.switch_thumb.into()
+            border_color
+        };
+        let toggle_bg: Background = match (checked, self.disabled) {
+            (true, false) => cx.theme().tokens.switch_thumb_checked.into(),
+            (false, false) => cx.theme().tokens.switch_thumb.into(),
+            (true, true) => cx
+                .theme()
+                .switch_thumb_checked
+                .mix_oklab(cx.theme().background, 0.5)
+                .into(),
+            (false, true) => cx
+                .theme()
+                .switch_thumb
+                .mix_oklab(cx.theme().background, 0.5)
+                .into(),
         };
         let disabled_label_color = cx.theme().muted_foreground;
 
@@ -276,7 +301,7 @@ impl RenderOnce for Switch {
                             // lands within a few values of `switch.background`
                             // in both default modes.
                             .border_1()
-                            .border_color(cx.theme().transparent)
+                            .border_color(border_color)
                             .px(inset - px(1.))
                             .when(!checked, |this| this.bg(unchecked_bg))
                             .styles(|styles| {

@@ -1007,12 +1007,14 @@ impl ThemeColor {
         let active_darken = if config.mode.is_dark() { 0.2 } else { 0.1 };
         let hover_opacity = 0.9;
         let transparent = gpui::transparent_black();
-        let button_background = if config.mode.is_dark() {
+        // `Theme::input_background`: the surface of inputs, buttons, an
+        // unchecked Radio and an unchecked Switch track.
+        let input_surface = if config.mode.is_dark() {
             self.input.mix_oklab(transparent, 0.3)
         } else {
             self.background
         };
-        apply_background_color!(button, fallback = button_background);
+        apply_background_color!(button, fallback = input_surface);
         apply_color!(button_foreground, fallback = self.foreground);
         apply_background_color!(
             button_hover,
@@ -1216,8 +1218,10 @@ impl ThemeColor {
         apply_background_color!(skeleton, fallback = tokens.secondary);
         apply_background_color!(slider_bar, fallback = tokens.primary);
         apply_background_color!(slider_thumb, fallback = self.primary_foreground);
-        apply_background_color!(switch, fallback = tokens.secondary_active);
-        apply_background_color!(switch_thumb, fallback = tokens.background);
+        // An unchecked Switch looks like an unchecked Radio: the input surface,
+        // with a muted thumb. A page-colored thumb read as a hole in the track.
+        apply_background_color!(switch, fallback = input_surface);
+        apply_background_color!(switch_thumb, fallback = self.muted_foreground);
         apply_background_color!(tab, fallback = tokens.background);
         apply_background_color!(tab_active, fallback = tokens.background);
         apply_color!(tab_active_foreground, fallback = self.foreground);
@@ -1289,7 +1293,20 @@ impl ThemeColor {
         apply_color!(card_selected_border, fallback = self.list_active_border);
 
         apply_background_color!(switch_checked, fallback = tokens.primary);
-        apply_background_color!(switch_thumb_checked, fallback = tokens.switch_thumb);
+        // A theme's own thumb color carries to the checked thumb. Without one,
+        // the checked thumb is the content color on primary, as the Radio dot.
+        let theme_sets_switch_thumb = colors
+            .switch_thumb
+            .as_ref()
+            .is_some_and(|value| try_parse_theme_token(value).is_ok());
+        apply_background_color!(
+            switch_thumb_checked,
+            fallback = if theme_sets_switch_thumb {
+                tokens.switch_thumb
+            } else {
+                ThemeToken::from(self.primary_foreground)
+            }
+        );
 
         apply_background_color!(transport, fallback = tokens.background);
         apply_color!(transport_border, fallback = self.border);
@@ -2103,6 +2120,43 @@ mod tests {
         assert_eq!(
             theme.tokens.waveform_segment_active.background,
             theme.tokens.primary.background
+        );
+    }
+
+    #[test]
+    fn a_themes_own_switch_thumb_carries_to_the_checked_thumb() {
+        let config = |colors: serde_json::Value| {
+            let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
+                "name": "Switch",
+                "mode": "dark",
+                "colors": colors,
+            }))
+            .unwrap();
+            let mut theme = Theme::default();
+            theme.apply_config(&std::rc::Rc::new(config));
+            theme
+        };
+
+        let unset = config(serde_json::json!({
+            "primary.background": "#2383E2",
+            "primary.foreground": "#FFFFFF",
+        }));
+        assert_eq!(
+            unset.switch_thumb_checked,
+            try_parse_color("#FFFFFF").unwrap(),
+            "without a thumb color, the checked thumb is the content color on primary"
+        );
+
+        let own = config(serde_json::json!({
+            "primary.background": "#2383E2",
+            "primary.foreground": "#FFFFFF",
+            "switch.thumb.background": "#DAECFF",
+        }));
+        assert_eq!(own.switch_thumb, try_parse_color("#DAECFF").unwrap());
+        assert_eq!(
+            own.switch_thumb_checked,
+            try_parse_color("#DAECFF").unwrap(),
+            "a theme's thumb color stays on when the switch is checked"
         );
     }
 

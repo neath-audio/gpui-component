@@ -1,8 +1,8 @@
 use std::ops::Range;
 
 use gpui::{
-    App, HighlightStyle, IntoElement, ParentElement, RenderOnce, SharedString, StyleRefinement,
-    Styled, StyledText, Window, div, prelude::FluentBuilder, rems,
+    App, HighlightStyle, IntoElement, ParentElement, Rems, RenderOnce, SharedString,
+    StyleRefinement, Styled, StyledText, Window, div, prelude::FluentBuilder,
 };
 
 use gpui_base::TestTextExt as _;
@@ -10,6 +10,12 @@ use gpui_base::TestTextExt as _;
 use crate::{ActiveTheme, Sizable, Size, StyledExt};
 
 const MASKED: &'static str = "•";
+
+/// A Label's line height: one UI line, whatever its text size.
+///
+/// Controls that center an indicator on a label's first line (Radio) use it,
+/// so a `Label` child and plain label text sit on the same line.
+pub(crate) const LINE_HEIGHT: Rems = Rems(1.25);
 
 /// Represents the type of match for highlighting text in a label.
 #[derive(Clone)]
@@ -218,7 +224,7 @@ impl RenderOnce for Label {
         let highlights = self.measure_highlights(text.len(), cx);
 
         div()
-            .line_height(rems(1.25))
+            .line_height(LINE_HEIGHT)
             .text_size(self.size.control_text_size(cx))
             .text_color(cx.theme().foreground)
             .refine_style(&self.style)

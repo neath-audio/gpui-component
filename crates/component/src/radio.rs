@@ -1,8 +1,8 @@
 use std::{rc::Rc, time::Duration};
 
 use crate::{
-    ActiveTheme, AxisExt, Sizable, Size, StyledExt, h_flex, text::Text, tooltip::ComponentTooltip,
-    v_flex,
+    ActiveTheme, AxisExt, Sizable, Size, StyledExt, h_flex, label, text::Text,
+    tooltip::ComponentTooltip, v_flex,
 };
 use crate::{StyleSized as _, ThemeStyled as _};
 use gpui::{
@@ -12,12 +12,14 @@ use gpui::{
 };
 use gpui_base::{Radio as BaseRadio, RadioGroup as BaseRadioGroup};
 
-/// Line height of the label, as a multiple of its text size.
-const LABEL_LINE_HEIGHT: f32 = 1.25;
-
 /// A Radio element.
 ///
 /// This is not included the Radio group implementation, you can manage the group by yourself.
+///
+/// The indicator is centered on the first line of the content, which is one
+/// [`Label`](crate::label::Label) line tall: label text, a `Label` child and
+/// plain text children all sit on it. Smaller text beside the label, such as
+/// a badge, needs its own line height, or it makes that first line taller.
 #[derive(IntoElement)]
 pub struct Radio {
     base: BaseRadio,
@@ -208,10 +210,10 @@ impl RenderOnce for Radio {
             (border_color, bg, cx.theme().primary_foreground)
         };
         // The indicator sits at the top of the row so a wrapped label hangs
-        // below it. This offset centers it on the label's first line.
-        let text_size = self.size.control_text_size(cx);
-        let first_line_offset =
-            rems(((text_size.0 * LABEL_LINE_HEIGHT - indicator_size.0) / 2.).max(0.));
+        // below it. This offset centers it on the first line, a Label line:
+        // a `Label` child fixes its own line height, so deriving the line
+        // from the text size put the indicator 2px high beside one.
+        let first_line_offset = rems(((label::LINE_HEIGHT.0 - indicator_size.0) / 2.).max(0.));
 
         self.base
             .id(self.id.clone())
@@ -274,7 +276,7 @@ impl RenderOnce for Radio {
                 this.child(
                     v_flex()
                         .w_full()
-                        .line_height(relative(LABEL_LINE_HEIGHT))
+                        .line_height(label::LINE_HEIGHT)
                         .gap_1()
                         .when_some(self.label, |this, label| {
                             this.child(
@@ -455,31 +457,49 @@ mod tests {
 
     #[gpui::test]
     fn indicator_is_centered_on_the_first_line_of_its_label(cx: &mut gpui::TestAppContext) {
-        struct Labeled(Size);
+        #[derive(Clone, Copy, Debug)]
+        enum Content {
+            /// `Radio::label`.
+            Text,
+            /// A `Label` child, which fixes its own line height.
+            LabelChild,
+        }
+
+        struct Labeled(Size, Content);
 
         impl gpui::Render for Labeled {
             fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
-                div().flex().child(
-                    Radio::new("radio")
-                        .label("Automatic")
-                        .checked(true)
-                        .with_size(self.0),
-                )
+                let radio = Radio::new("radio").checked(true).with_size(self.0);
+                div().flex().child(match self.1 {
+                    Content::Text => radio.label("Automatic"),
+                    Content::LabelChild => radio.child(
+                        div()
+                            .debug_selector(|| "radio-label".into())
+                            .child(crate::label::Label::new("Automatic")),
+                    ),
+                })
             }
         }
 
         cx.update(crate::init);
-        for size in [Size::XSmall, Size::Small, Size::Medium, Size::Large] {
-            let (_, cx) = cx.add_window_view(move |_, _| Labeled(size));
-            cx.update(|window, cx| window.draw(cx).clear(cx));
-            let indicator = cx.debug_bounds("radio-indicator").unwrap();
-            let label = cx.debug_bounds("radio-label").unwrap();
-            let offset = (indicator.center().y - label.center().y).abs();
-            assert!(
-                offset <= px(0.5),
-                "{size:?}: the indicator sits {offset:?} off the middle of the label's line \
-                 (indicator {indicator:?}, label {label:?})",
-            );
+        for content in [Content::Text, Content::LabelChild] {
+            for size in [Size::XSmall, Size::Small, Size::Medium, Size::Large] {
+                let (_, cx) = cx.add_window_view(move |_, _| Labeled(size, content));
+                cx.update(|window, cx| window.draw(cx).clear(cx));
+                let indicator = cx.debug_bounds("radio-indicator").unwrap();
+                let label = cx.debug_bounds("radio-label").unwrap();
+                let line = cx.update(|window, _| label::LINE_HEIGHT.to_pixels(window.rem_size()));
+                assert_eq!(
+                    label.size.height, line,
+                    "{content:?} {size:?}: the label is one Label line"
+                );
+                let offset = (indicator.center().y - label.center().y).abs();
+                assert!(
+                    offset <= px(0.5),
+                    "{content:?} {size:?}: the indicator sits {offset:?} off the middle of the \
+                     label's line (indicator {indicator:?}, label {label:?})",
+                );
+            }
         }
     }
 
