@@ -2,11 +2,11 @@ use super::*;
 use crate::{
     Root,
     group_box::GroupBoxVariant,
-    setting::{SettingGroup, SettingItem},
+    setting::{SettingGroup, SettingItem, SettingSubPage},
 };
 use gpui::{
-    Context, Focusable as _, KeyBinding, Render, ScrollDelta, ScrollEvent, TestAppContext,
-    VisualTestContext, actions, point, size,
+    Context, Focusable as _, KeyBinding, KeyDownEvent, KeyUpEvent, Keystroke, Render, ScrollDelta,
+    ScrollEvent, TestAppContext, VisualTestContext, actions, point, size,
 };
 
 actions!(settings_test, [Dismiss]);
@@ -123,6 +123,9 @@ fn selection(host: &Entity<SettingsHost>, cx: &mut VisualTestContext) -> (usize,
         (selected.page_ix, selected.group_ix)
     })
 }
+
+/// A point inside the second row of the fixture's sidebar.
+const SECOND_SIDEBAR_ROW: f32 = 100.;
 
 fn click_nav(y: f32, cx: &mut VisualTestContext) {
     // Fixed-size fixture with a 16px rem; click the label area, away from carets.
@@ -687,4 +690,260 @@ fn retained_settings_groups_remeasure_after_typography_changes(cx: &mut TestAppC
         "explicit text size remains authoritative"
     );
     assert_eq!(heights[0], heights[2]);
+}
+
+struct SubPageHost {
+    navigation: Entity<SettingsNavigation>,
+    search: Entity<InputState>,
+    pages: Vec<SettingPage>,
+}
+
+impl Render for SubPageHost {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div().size_full().child(
+            Settings::new("sub-page-test")
+                .navigation(&self.navigation)
+                .search_input(&self.search)
+                .pages(self.pages.clone()),
+        )
+    }
+}
+
+fn marked(selector: &'static str, keyword: &'static str) -> SettingItem {
+    SettingItem::render(move |_, _, _| {
+        div()
+            .h(px(40.))
+            .child("Setting")
+            .debug_selector(move || selector.to_string())
+    })
+    .keywords([keyword])
+}
+
+fn provider_page() -> SettingSubPage {
+    SettingSubPage::new("Provider")
+        .group(SettingGroup::new().item(marked("inside-sub-page", "api key")))
+}
+
+fn sub_page_setup(
+    cx: &mut TestAppContext,
+) -> (
+    Entity<SettingsNavigation>,
+    Entity<InputState>,
+    &mut VisualTestContext,
+) {
+    let (_, navigation, search, cx) = sub_page_host(cx);
+    (navigation, search, cx)
+}
+
+fn sub_page_host(
+    cx: &mut TestAppContext,
+) -> (
+    Entity<SubPageHost>,
+    Entity<SettingsNavigation>,
+    Entity<InputState>,
+    &mut VisualTestContext,
+) {
+    cx.update(|cx| {
+        crate::init(cx);
+        crate::Theme::global_mut(cx).font_size = px(16.);
+    });
+    let pages = vec![
+        SettingPage::new("General").group(SettingGroup::new().title("Providers").items([
+            marked("on-parent-page", "language"),
+            SettingItem::sub_page("Provider", provider_page()),
+        ])),
+        SettingPage::new("Editor").group(SettingGroup::new().item(marked("other-page", "theme"))),
+    ];
+    let mut handles = None;
+    let (_, cx) = cx.add_window_view(|window, cx| {
+        let navigation = cx.new(|_| SettingsNavigation::new());
+        let search = cx.new(|cx| InputState::new(window, cx));
+        let view = cx.new(|_| SubPageHost {
+            navigation: navigation.clone(),
+            search: search.clone(),
+            pages,
+        });
+        handles = Some((view.clone(), navigation, search));
+        Root::new(view, window, cx)
+    });
+    cx.simulate_resize(size(px(1000.), px(700.)));
+    draw(cx);
+    let (host, navigation, search) = handles.unwrap();
+    (host, navigation, search, cx)
+}
+
+fn depth(navigation: &Entity<SettingsNavigation>, cx: &mut VisualTestContext) -> usize {
+    cx.update(|_, cx| navigation.read(cx).depth())
+}
+
+fn click(selector: &'static str, cx: &mut VisualTestContext) {
+    let target = cx.debug_bounds(selector).unwrap();
+    cx.simulate_click(target.center(), Default::default());
+    draw(cx);
+}
+
+fn press_enter(cx: &mut VisualTestContext) {
+    let keystroke = Keystroke::parse("enter").unwrap();
+    cx.simulate_event(KeyDownEvent {
+        keystroke: keystroke.clone(),
+        is_held: false,
+        prefer_character_input: false,
+    });
+    cx.simulate_event(KeyUpEvent { keystroke });
+    draw(cx);
+}
+
+fn type_search(input: &Entity<InputState>, query: &str, cx: &mut VisualTestContext) {
+    cx.update(|window, cx| input.update(cx, |input, cx| input.set_value(query, window, cx)));
+    draw(cx);
+}
+
+#[gpui::test]
+fn a_link_opens_its_sub_page_and_back_returns_to_the_page(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+    assert!(cx.debug_bounds("inside-sub-page").is_none());
+
+    click("setting-sub-page-link", cx);
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+    assert!(cx.debug_bounds("on-parent-page").is_none());
+
+    click("setting-sub-page-back", cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+    assert!(cx.debug_bounds("inside-sub-page").is_none());
+}
+
+#[gpui::test]
+fn going_back_returns_keyboard_focus_to_the_link_that_opened_the_page(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    let options = RenderOptions::new()
+        .with_page_ix(0)
+        .with_group_ix(0)
+        .with_item_ix(1);
+    let link = cx.update(|_, cx| navigation.update(cx, |nav, cx| nav.link_focus(&options, cx)));
+    cx.update(|window, cx| window.focus(&link, cx));
+    draw(cx);
+    press_enter(cx);
+    assert_eq!(
+        depth(&navigation, cx),
+        1,
+        "Enter on the link opens the page"
+    );
+    assert!(!cx.update(|window, _| link.is_focused(window)));
+
+    click("setting-sub-page-back", cx);
+    assert!(cx.update(|window, _| link.is_focused(window)));
+
+    // The link was not drawn while covered; it must really hold focus again.
+    press_enter(cx);
+    assert_eq!(depth(&navigation, cx), 1, "Enter still activates the link");
+}
+
+#[gpui::test]
+fn search_finds_a_link_through_what_its_sub_page_contains(cx: &mut TestAppContext) {
+    let (_, search, cx) = sub_page_setup(cx);
+    type_search(&search, "api key", cx);
+    assert!(cx.debug_bounds("setting-sub-page-link").is_some());
+    assert!(cx.debug_bounds("on-parent-page").is_none());
+    type_search(&search, "no such setting", cx);
+    assert!(cx.debug_bounds("setting-sub-page-link").is_none());
+}
+
+#[gpui::test]
+fn search_shows_results_over_an_open_sub_page_and_clearing_restores_it(cx: &mut TestAppContext) {
+    let (navigation, search, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link", cx);
+
+    type_search(&search, "language", cx);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+    assert!(cx.debug_bounds("inside-sub-page").is_none());
+    assert_eq!(depth(&navigation, cx), 1);
+
+    type_search(&search, "", cx);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+}
+
+#[gpui::test]
+fn leaving_the_page_closes_its_sub_pages(cx: &mut TestAppContext) {
+    let (navigation, search, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link", cx);
+    assert_eq!(depth(&navigation, cx), 1);
+
+    // Only Editor matches, so the selection moves there.
+    type_search(&search, "theme", cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    type_search(&search, "", cx);
+    assert!(cx.debug_bounds("other-page").is_some());
+    assert!(cx.debug_bounds("inside-sub-page").is_none());
+}
+
+#[gpui::test]
+fn clicking_the_sidebar_closes_sub_pages(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link", cx);
+    assert_eq!(depth(&navigation, cx), 1);
+
+    click_nav(SECOND_SIDEBAR_ROW, cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("other-page").is_some());
+}
+
+#[gpui::test]
+fn popping_to_a_depth_keeps_the_pages_below_it(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    let nested = SettingSubPage::new("Model")
+        .group(SettingGroup::new().item(marked("inside-nested-page", "model")));
+    cx.update(|window, cx| {
+        navigation.update(cx, |nav, cx| {
+            nav.push(provider_page(), window, cx);
+            nav.push(nested, window, cx);
+        })
+    });
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 2);
+    assert!(cx.debug_bounds("inside-nested-page").is_some());
+
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.pop_to(1, window, cx)));
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+    assert!(cx.debug_bounds("inside-nested-page").is_none());
+}
+
+#[gpui::test]
+fn opening_a_link_from_search_results_ends_the_search_and_shows_the_page(cx: &mut TestAppContext) {
+    let (navigation, search, cx) = sub_page_setup(cx);
+    type_search(&search, "api key", cx);
+    click("setting-sub-page-link", cx);
+
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.update(|_, cx| search.read(cx).value().is_empty()));
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+}
+
+#[gpui::test]
+fn an_open_sub_page_follows_the_page_as_it_is_rebuilt(cx: &mut TestAppContext) {
+    let (host, navigation, _, cx) = sub_page_host(cx);
+    click("setting-sub-page-link", cx);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+
+    cx.update(|_, cx| {
+        host.update(cx, |host, cx| {
+            let rebuilt = SettingSubPage::new("Provider")
+                .group(SettingGroup::new().item(marked("rebuilt-sub-page", "api key")));
+            host.pages[0] =
+                SettingPage::new("General").group(SettingGroup::new().title("Providers").items([
+                    marked("on-parent-page", "language"),
+                    SettingItem::sub_page("Provider", rebuilt),
+                ]));
+            cx.notify();
+        });
+    });
+    draw(cx);
+
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("rebuilt-sub-page").is_some());
+    assert!(cx.debug_bounds("inside-sub-page").is_none());
 }

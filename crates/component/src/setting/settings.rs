@@ -7,7 +7,7 @@ use crate::{
     h_resizable,
     input::{Escape, Input, InputState},
     resizable_panel,
-    setting::{SettingPage, page::PageState},
+    setting::{SettingPage, SettingsNavigation, page::PageState},
     sidebar::{Sidebar, SidebarMenu, SidebarMenuItem},
 };
 use gpui::{
@@ -43,6 +43,7 @@ pub struct Settings {
     default_selected_index: SelectIndex,
     header_style: StyleRefinement,
     search_input: Option<Entity<InputState>>,
+    navigation: Option<Entity<SettingsNavigation>>,
 }
 
 impl Settings {
@@ -59,6 +60,7 @@ impl Settings {
             default_selected_index: SelectIndex::default(),
             header_style: StyleRefinement::default(),
             search_input: None,
+            navigation: None,
         }
     }
 
@@ -73,6 +75,14 @@ impl Settings {
     /// default selection, changing it requires a new Settings element ID.
     pub fn search_input(mut self, input: &Entity<InputState>) -> Self {
         self.search_input = Some(input.clone());
+        self
+    }
+
+    /// Use an application-owned sub-page stack, to open or close sub-pages from
+    /// code. Like the default selection, changing it requires a new Settings
+    /// element ID.
+    pub fn navigation(mut self, navigation: &Entity<SettingsNavigation>) -> Self {
+        self.navigation = Some(navigation.clone());
         self
     }
 
@@ -235,6 +245,7 @@ impl Settings {
                                         ..Default::default()
                                     };
                                     state.deferred_scroll_group_ix = None;
+                                    state.navigation.update(cx, |nav, cx| nav.clear(cx));
                                     cx.notify();
                                 })
                             }
@@ -264,6 +275,9 @@ impl Settings {
                                                         };
                                                         state.deferred_scroll_group_ix =
                                                             Some(group_ix);
+                                                        state
+                                                            .navigation
+                                                            .update(cx, |nav, cx| nav.clear(cx));
                                                         cx.notify();
                                                     })
                                                 }
@@ -336,6 +350,7 @@ pub(super) struct SettingsState {
     /// If set, defer scrolling to this group index after rendering.
     pub(super) deferred_scroll_group_ix: Option<usize>,
     pub(super) search_input: Entity<InputState>,
+    pub(super) navigation: Entity<SettingsNavigation>,
     // Keep page scroll state across sidebar excursions and nested page content.
     // This belongs to the Settings instance, not a frame-local rendered group.
     pub(super) pages: HashMap<usize, PageState>,
@@ -348,7 +363,7 @@ pub(super) struct SettingsState {
 /// `self` by value, so a nested renderer narrows a copy of its parent options:
 ///
 /// ```ignore
-/// item.render_item(&options.with_item_ix(item_ix), window, cx)
+/// item.render_item(&options.with_item_ix(item_ix), link, window, cx)
 /// ```
 #[derive(Clone, Copy)]
 pub struct RenderOptions {
@@ -461,8 +476,16 @@ impl RenderOnce for Settings {
                 })
             });
 
+            let navigation = self
+                .navigation
+                .clone()
+                .unwrap_or_else(|| cx.new(|_| SettingsNavigation::new()));
+            cx.observe(&navigation, |_, _, cx| cx.notify()).detach();
+            navigation.update(cx, |navigation, _| navigation.set_search(&search_input));
+
             SettingsState {
                 search_input,
+                navigation,
                 selected_index: self.default_selected_index,
                 deferred_scroll_group_ix: None,
                 pages: HashMap::new(),
@@ -485,7 +508,11 @@ impl RenderOnce for Settings {
         let previous = state.read(cx).selected_index;
         let selected = filter.selected_index(previous);
         if selected.page_ix != previous.page_ix || selected.group_ix != previous.group_ix {
-            state.update(cx, |state, _| {
+            state.update(cx, |state, cx| {
+                // Sub-pages belong to the page they opened over.
+                if selected.page_ix != state.selected_index.page_ix {
+                    state.navigation.update(cx, |nav, cx| nav.clear(cx));
+                }
                 state.selected_index = selected;
                 state.deferred_scroll_group_ix = None;
             });

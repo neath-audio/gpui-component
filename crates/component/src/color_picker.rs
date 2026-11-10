@@ -1,69 +1,275 @@
-use crate::StyledTypography as _;
+//! Color selection composed from the retained [`ColorPickerState`] model.
+//!
+//! The popup holds three views of one color: a spectrum plane with hue and alpha
+//! rails, a palette of swatches, and HSLA rails with numeric fields. Only the
+//! visible view is built, and only while the popup is open. Hex edits preview
+//! while typing and commit on Enter or Apply, direct adjustments commit live, and
+//! a palette selection commits and closes the popup.
+
+use std::sync::Arc;
+
 use gpui::{
-    Anchor, AnyElement, App, ElementId, Entity, FocusHandle, Focusable, Hsla,
-    InteractiveElement as _, IntoElement, ParentElement, RenderOnce, SharedString,
-    StatefulInteractiveElement as _, StyleRefinement, Styled, TextAlign, Window, div, hsla,
-    linear_color_stop, linear_gradient, prelude::FluentBuilder as _,
+    Anchor, AnyElement, App, BorderStyle, Corners, ElementId, Entity, FocusHandle, Focusable, Hsla,
+    InteractiveElement, IntoElement, KeyBinding, ParentElement, Pixels, RenderOnce, Rgba, Role,
+    SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Subscription, Window,
+    canvas, checkerboard, div, fill, outline, prelude::FluentBuilder as _, rems,
 };
 use rust_i18n::t;
 
-use gpui_base::{ColorPicker as BaseColorPicker, ColorSwatch};
+use gpui_base::{ColorPicker as BaseColorPicker, actions::Confirm};
 pub use gpui_base::{ColorPickerEvent, ColorPickerState};
 
 use crate::{
-    ActiveTheme as _, Colorize as _, Icon, Selectable, Sizable, Size, StyleSized, StyledExt as _,
-    ThemeStyled as _, h_flex,
-    input::{Input, input_style},
+    ActiveTheme as _, Colorize as _, Disableable, Icon, Selectable, Sizable, Size, StyleSized,
+    StyledExt as _, ThemeStyled as _,
+    actions::Cancel,
+    button::Button,
+    h_flex,
+    input::{Input, InputEvent, input_style},
     popover::Popover,
     select::Caret,
-    separator::Separator,
-    slider::Slider,
     tab::{Tab, TabBar},
     tooltip::{ManagedTooltipExt as _, Tooltip},
     v_flex,
 };
 
-fn color_palettes() -> Vec<Vec<Hsla>> {
-    use crate::theme::DEFAULT_COLORS;
-    use itertools::Itertools as _;
+mod channels;
+mod palette;
+mod spectrum;
+#[cfg(test)]
+mod tests;
 
-    macro_rules! c {
-        ($color:tt) => {
-            DEFAULT_COLORS
-                .$color
-                .keys()
-                .sorted()
-                .map(|k| DEFAULT_COLORS.$color.get(k).map(|c| c.hsla).unwrap())
-                .collect::<Vec<_>>()
-        };
+pub(crate) fn init(cx: &mut App) {
+    cx.bind_keys([KeyBinding::new(
+        "escape",
+        Cancel,
+        Some(spectrum::KEY_CONTEXT),
+    )]);
+}
+
+/// A named preset color. Its color is user data, independent of theme chrome.
+#[derive(Clone)]
+pub struct ColorSwatch {
+    label: SharedString,
+    color: Hsla,
+}
+
+impl ColorSwatch {
+    /// Create a swatch. The label names it in a tooltip and to assistive technology.
+    pub fn new(label: impl Into<SharedString>, color: impl Into<Hsla>) -> Self {
+        Self {
+            label: label.into(),
+            color: color.into(),
+        }
     }
 
-    vec![
-        c!(stone),
-        c!(red),
-        c!(orange),
-        c!(yellow),
-        c!(green),
-        c!(cyan),
-        c!(blue),
-        c!(purple),
-        c!(pink),
-    ]
+    /// The name of this swatch.
+    pub fn label(&self) -> &SharedString {
+        &self.label
+    }
+
+    /// The color of this swatch.
+    pub fn color(&self) -> Hsla {
+        self.color
+    }
+}
+
+/// The views of one color in a [`ColorPicker`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ColorPickerMode {
+    /// A saturation and lightness plane with hue and alpha rails.
+    #[default]
+    Spectrum,
+    /// A grid of preset swatches.
+    Palette,
+    /// A rail and a numeric field for each of hue, saturation, lightness and alpha.
+    Hsla,
+}
+
+impl ColorPickerMode {
+    /// [`ColorPickerState::active_tab`] holds this position in the mode bar.
+    fn from_tab(tab: usize) -> Self {
+        match tab {
+            1 => Self::Palette,
+            2 => Self::Hsla,
+            _ => Self::Spectrum,
+        }
+    }
+}
+
+/// How far apart two colors may be and still be one color once stored as hex.
+///
+/// Hex keeps eight bits per channel, and a truncating writer can move a channel a
+/// whole step, so the bound is one step and half of another for float noise.
+const HEX_PRECISION: f32 = 1.5 / 255.;
+
+fn same_at_hex_precision(a: Hsla, b: Hsla) -> bool {
+    let (a, b) = (Rgba::from(a), Rgba::from(b));
+    [(a.r, b.r), (a.g, b.g), (a.b, b.b), (a.a, b.a)]
+        .into_iter()
+        .all(|(a, b)| (a - b).abs() <= HEX_PRECISION)
+}
+
+/// Formats a color as the hex field shows it: `#RRGGBB`, or `#RRGGBBAA` when
+/// translucent, each channel rounded to the nearest 8-bit step.
+///
+/// The trigger must read the same text as the field, and `Colorize::to_hex`
+/// truncates instead.
+fn hex_label(color: Hsla) -> String {
+    let rgba = Rgba::from(color);
+    let channel = |value: f32| (value.clamp(0., 1.) * 255.).round() as u8;
+    let (r, g, b) = (channel(rgba.r), channel(rgba.g), channel(rgba.b));
+    if rgba.a < 1. {
+        format!("#{r:02X}{g:02X}{b:02X}{:02X}", channel(rgba.a))
+    } else {
+        format!("#{r:02X}{g:02X}{b:02X}")
+    }
+}
+
+/// What the views remember of their own edits between frames.
+struct ColorMemory {
+    /// The full-precision color the views last wrote to the model.
+    exact: Option<Hsla>,
+    _hex_edits: Subscription,
+}
+
+/// The model of one mounted picker, as its views read and write it.
+///
+/// An owner that stores colors as hex hands each change straight back through
+/// [`ColorPickerState::set_value`], reduced to eight bits per channel. Hue has no
+/// value at zero saturation or at black and white, so adopting that echo would
+/// snap the plane to red at its edges, and it would rewrite a numeric field while
+/// it is being typed in. While the model matches the last edit at hex precision,
+/// the views go on editing the exact color.
+#[derive(Clone)]
+pub(super) struct ColorEditor {
+    state: Entity<ColorPickerState>,
+    memory: Entity<ColorMemory>,
+}
+
+impl ColorEditor {
+    fn new(
+        id: &ElementId,
+        state: &Entity<ColorPickerState>,
+        default_mode: Option<ColorPickerMode>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self {
+        let key = (id.clone(), format!("color-{}", state.entity_id().as_u64()));
+        let model = state.clone();
+        let memory = window.use_keyed_state(key, cx, move |window, cx| {
+            if let Some(mode) = default_mode {
+                model.update(cx, |model, cx| model.set_active_tab(mode as usize, cx));
+            }
+            // The first edit after the model writes the field does not reach the
+            // model's own subscriber, so a single-edit paste would not preview.
+            let input = model.read(cx).hex_input().clone();
+            ColorMemory {
+                exact: None,
+                _hex_edits: cx.subscribe_in(
+                    &input,
+                    window,
+                    move |_, input, event: &InputEvent, window, cx| {
+                        if matches!(event, InputEvent::Change) {
+                            let value = input.read(cx).value();
+                            model.update(cx, |model, cx| {
+                                model.preview_hex(value.as_str(), window, cx);
+                            });
+                        }
+                    },
+                ),
+            }
+        });
+        Self {
+            state: state.clone(),
+            memory,
+        }
+    }
+
+    fn resolved(&self, model: Option<Hsla>, cx: &App) -> Option<Hsla> {
+        let exact = self.memory.read(cx).exact;
+        match (model, exact) {
+            (Some(model), Some(exact)) if same_at_hex_precision(model, exact) => Some(exact),
+            _ => model,
+        }
+    }
+
+    /// The color the views show and edit.
+    pub(super) fn color(&self, cx: &App) -> Hsla {
+        self.resolved(self.state.read(cx).displayed_color(), cx)
+            .unwrap_or(cx.theme().primary)
+    }
+
+    /// Writes a directly adjusted color, keeping the popup open. Repeating the
+    /// current color emits nothing.
+    pub(super) fn commit(&self, color: Hsla, window: &mut Window, cx: &mut App) {
+        let model = self.state.read(cx);
+        let unchanged = self.resolved(model.value(), cx) == Some(color)
+            && self.resolved(model.displayed_color(), cx) == Some(color);
+        self.memory
+            .update(cx, |memory, _| memory.exact = Some(color));
+        if !unchanged {
+            self.state
+                .update(cx, |state, cx| state.update_color(color, window, cx));
+        }
+    }
+
+    pub(super) fn state(&self) -> &Entity<ColorPickerState> {
+        &self.state
+    }
+}
+
+/// Applies a requested popup state. Closing drops an uncommitted preview, so an
+/// abandoned hex edit or hovered swatch does not outlive the popup.
+fn request_open(state: &Entity<ColorPickerState>, open: bool, window: &mut Window, cx: &mut App) {
+    state.update(cx, |state, cx| {
+        state.set_open(open, cx);
+        if !open {
+            match state.value() {
+                Some(value) => state.set_value(value, window, cx),
+                None => state.clear_value(window, cx),
+            }
+        }
+    });
+}
+
+/// Keeps a confirm in the text field it was pressed in.
+///
+/// Enter and Space are also bound to [`Confirm`] by every popover and dialog
+/// around the picker. A field's own Enter lets the key travel on, and its
+/// subscriber commits only once the key has been dispatched, so without this the
+/// popover would close first and restore the old value over the typed one.
+fn keep_confirm<E: InteractiveElement>(element: E) -> E {
+    element.on_action(|_: &Confirm, _, _| {})
+}
+
+fn valid_hex(value: &str) -> bool {
+    let value = value.strip_prefix('#').unwrap_or(value);
+    matches!(value.len(), 3 | 4 | 6 | 8) && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 /// A color picker element.
+///
+/// The open popup edits one [`ColorPickerState`], which owns the committed color
+/// and its transient preview. Subscribe to [`ColorPickerEvent::Change`] for
+/// committed colors, and call [`ColorPickerState::set_value`] when the owner's
+/// value changes.
 #[derive(IntoElement)]
 pub struct ColorPicker {
     id: ElementId,
     style: StyleRefinement,
     state: Entity<ColorPickerState>,
     featured_colors: Option<Vec<Hsla>>,
+    swatches: Option<Arc<[ColorSwatch]>>,
+    default_mode: Option<ColorPickerMode>,
     label: Option<SharedString>,
     /// The announced name, when the visible label is not it.
     accessibility_label: Option<SharedString>,
     icon: Option<Icon>,
     size: Size,
     anchor: Anchor,
+    disabled: bool,
+    inline: bool,
     /// Draws the trigger as a framed field, see [`ColorSelect`].
     field: bool,
     placeholder: Option<SharedString>,
@@ -77,11 +283,15 @@ impl ColorPicker {
             style: StyleRefinement::default(),
             state: state.clone(),
             featured_colors: None,
+            swatches: None,
+            default_mode: None,
             size: Size::Medium,
             label: None,
             accessibility_label: None,
             icon: None,
             anchor: Anchor::TopLeft,
+            disabled: false,
+            inline: false,
             field: false,
             placeholder: None,
         }
@@ -90,9 +300,30 @@ impl ColorPicker {
     /// Set the featured colors to be displayed in the color picker.
     ///
     /// This is used to display a set of colors that the user can quickly select from,
-    /// for example provided user's last used colors.
+    /// for example provided user's last used colors. They head the palette.
     pub fn featured_colors(mut self, colors: Vec<Hsla>) -> Self {
         self.featured_colors = Some(colors);
+        self
+    }
+
+    /// Replace the default palette with named swatches.
+    pub fn swatches(mut self, swatches: impl IntoIterator<Item = ColorSwatch>) -> Self {
+        self.swatches = Some(swatches.into_iter().collect());
+        self
+    }
+
+    /// Choose the view shown first. This initializes the view once for a mounted
+    /// picker; the user's later choice is retained.
+    ///
+    /// Default is [`ColorPickerMode::Spectrum`].
+    pub fn default_mode(mut self, mode: ColorPickerMode) -> Self {
+        self.default_mode = Some(mode);
+        self
+    }
+
+    /// Embed the same controls in a panel without an opening trigger.
+    pub fn inline(mut self, inline: bool) -> Self {
+        self.inline = inline;
         self
     }
 
@@ -132,325 +363,185 @@ impl ColorPicker {
         self
     }
 
-    fn render_item(&self, id: impl Into<ElementId>, color: Hsla, cx: &mut App) -> ColorSwatch {
-        let selected = self.state.read(cx).value() == Some(color);
-        let hover_state = self.state.clone();
-        let click_state = self.state.clone();
-
-        ColorSwatch::new(id, color)
-            .selected(selected)
-            .h_5()
-            .w_5()
-            .bg(color)
-            .border_1()
-            .border_color(color.darken(0.1))
-            .hover(|this| this.border_color(color.darken(0.3)).bg(color.lighten(0.1)))
-            .active(|this| this.border_color(color.darken(0.5)).bg(color.darken(0.2)))
-            .on_hover(move |color, entered, window, cx| {
-                if entered {
-                    hover_state.update(cx, |state, cx| state.preview_color(color, window, cx));
-                }
-            })
-            .on_click(move |color, _, window, cx| {
-                click_state.update(cx, |state, cx| state.select_color(color, window, cx));
-            })
+    /// The tier of the popup's controls. A pixel size describes only the trigger.
+    fn panel_size(&self) -> Size {
+        match self.size {
+            Size::Size(_) => Size::Medium,
+            size => size,
+        }
     }
 
-    fn render_colors(&self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        self.state
-            .update(cx, |state, cx| state.sync_pending_value(window, cx));
+    fn accessible_name(&self) -> Option<SharedString> {
+        self.accessibility_label
+            .clone()
+            .or_else(|| self.label.clone())
+    }
 
-        let active_tab = self.state.read(cx).active_tab();
-        let (slider_color, hovered_color) = {
-            let state = self.state.read(cx);
-            let slider_color = state
-                .displayed_color()
-                .unwrap_or_else(|| hsla(0., 0., 0., 1.));
-            (slider_color, state.preview())
-        };
+    fn render_panel(&self, editor: &ColorEditor, window: &mut Window, cx: &mut App) -> AnyElement {
+        let mode = ColorPickerMode::from_tab(self.state.read(cx).active_tab());
+        let color = editor.color(cx);
+        let size = self.panel_size();
+        let disabled = self.disabled;
+        let input = self.state.read(cx).hex_input().clone();
+        let input_value = input.read(cx).value();
+        let valid = valid_hex(&input_value);
         let tab_state = self.state.clone();
+        let apply_state = self.state.clone();
+        // Deliberately build just the visible view. The numeric editors exist only
+        // while the HSLA view is mounted.
+        let content = match mode {
+            ColorPickerMode::Spectrum => {
+                spectrum::panel(self.id.clone(), editor.clone(), disabled, window, cx)
+            }
+            ColorPickerMode::Palette => palette::panel(
+                self.id.clone(),
+                editor,
+                self.featured_colors.as_deref(),
+                self.swatches.as_deref(),
+                disabled,
+                cx,
+            ),
+            ColorPickerMode::Hsla => {
+                channels::panel(self.id.clone(), editor.clone(), size, disabled, window, cx)
+            }
+        };
 
         v_flex()
-            .p_0p5()
+            .id((self.id.clone(), "panel"))
+            .debug_selector(|| "color-picker-panel".into())
+            .when(self.inline, |this| {
+                this.role(Role::Group)
+                    .when_some(self.accessible_name(), |this, name| this.aria_label(name))
+            })
+            .w_full()
+            .min_w_0()
             .gap_3()
             .child(
                 TabBar::new("mode")
                     .segmented()
-                    .selected_index(active_tab)
+                    .with_size(size)
+                    .selected_index(mode as usize)
                     .on_click(move |ix: &usize, _, cx| {
                         tab_state.update(cx, |state, cx| state.set_active_tab(*ix, cx));
                     })
-                    .child(Tab::new().flex_1().label(t!("ColorPicker.Palette")))
-                    .child(Tab::new().flex_1().label(t!("ColorPicker.HSLA"))),
+                    .child(
+                        Tab::new()
+                            .flex_1()
+                            .disabled(disabled)
+                            .label(t!("ColorPicker.Spectrum")),
+                    )
+                    .child(
+                        Tab::new()
+                            .flex_1()
+                            .disabled(disabled)
+                            .label(t!("ColorPicker.Palette")),
+                    )
+                    .child(
+                        Tab::new()
+                            .flex_1()
+                            .disabled(disabled)
+                            .label(t!("ColorPicker.HSLA")),
+                    ),
             )
-            .child(match active_tab {
-                0 => self.render_palette_panel(cx).into_any_element(),
-                _ => self
-                    .render_slider_tab_panel(slider_color, cx)
-                    .into_any_element(),
-            })
-            .when_some(hovered_color, |this, hovered_color| {
-                this.child(Separator::horizontal()).child(
-                    h_flex()
-                        .gap_2()
-                        .items_center()
-                        .child(
-                            div()
-                                .bg(hovered_color)
-                                .flex_shrink_0()
-                                .border_1()
-                                .border_color(hovered_color.darken(0.2))
-                                .size_5()
-                                .rounded(cx.theme().radius),
-                        )
-                        .child(Input::new(self.state.read(cx).hex_input()).small().px_2p5()),
-                )
-            })
-    }
-
-    fn render_palette_panel(&self, cx: &mut App) -> impl IntoElement {
-        let featured_colors = self.featured_colors.clone().unwrap_or(vec![
-            cx.theme().red,
-            cx.theme().red_light,
-            cx.theme().blue,
-            cx.theme().blue_light,
-            cx.theme().green,
-            cx.theme().green_light,
-            cx.theme().yellow,
-            cx.theme().yellow_light,
-            cx.theme().cyan,
-            cx.theme().cyan_light,
-            cx.theme().magenta,
-            cx.theme().magenta_light,
-        ]);
-
-        v_flex()
-            .gap_3()
+            .child(content)
             .child(
-                h_flex().gap_1().children(
-                    featured_colors
-                        .iter()
-                        // Featured slots may contain the same color more than once.
-                        .enumerate()
-                        .map(|(ix, color)| self.render_item(("featured-color", ix), *color, cx)),
-                ),
-            )
-            .child(Separator::horizontal())
-            .child(
-                v_flex()
-                    .gap_1()
-                    .children(color_palettes().iter().enumerate().map(|(ix, sub_colors)| {
-                        h_flex().id(("palette-row", ix)).gap_1().children(
-                            sub_colors.iter().rev().map(|color| {
-                                self.render_item(
-                                    SharedString::from(format!("color-{}", color.to_hex())),
-                                    *color,
-                                    cx,
-                                )
+                h_flex()
+                    .w_full()
+                    .min_w_0()
+                    .gap_2()
+                    .child(
+                        div()
+                            .map(|this| match size {
+                                Size::XSmall => this.size_4(),
+                                Size::Small => this.size_5(),
+                                Size::Large => this.size_8(),
+                                _ => this.size_6(),
+                            })
+                            .flex_none()
+                            .child(color_preview(color, window, cx)),
+                    )
+                    .child(
+                        keep_confirm(div().flex_1().min_w_0()).child(
+                            Input::new(&input)
+                                .with_size(size)
+                                .aria_label(t!("ColorPicker.Hex"))
+                                .disabled(disabled)
+                                .when(!input_value.is_empty() && !valid, |this| {
+                                    this.border_color(cx.theme().danger)
+                                }),
+                        ),
+                    )
+                    .child(
+                        Button::new((self.id.clone(), "apply"))
+                            .with_size(size)
+                            .label(t!("ColorPicker.Apply"))
+                            .disabled(disabled || !valid)
+                            .on_click(move |_, window, cx| {
+                                apply_state.update(cx, |state, cx| {
+                                    let value = state.hex_input().read(cx).value();
+                                    state.commit_hex(value.as_str(), window, cx);
+                                });
                             }),
-                        )
-                    })),
-            )
-    }
-
-    fn render_slider_tab_panel(&self, slider_color: Hsla, cx: &mut App) -> impl IntoElement {
-        let sliders = self.state.read(cx).sliders().clone();
-        let steps = 96usize;
-        let hue_colors = (0..steps)
-            .map(|ix| {
-                let h = ix as f32 / (steps.saturating_sub(1)) as f32;
-                hsla(h, 1.0, 0.5, 1.0)
-            })
-            .collect::<Vec<_>>();
-        let saturation_start = hsla(slider_color.h, 0.0, slider_color.l, 1.0);
-        let saturation_end = hsla(slider_color.h, 1.0, slider_color.l, 1.0);
-        let lightness_colors = (0..steps)
-            .map(|ix| {
-                let l = ix as f32 / (steps.saturating_sub(1)) as f32;
-                hsla(slider_color.h, 1.0, l, 1.0)
-            })
-            .collect::<Vec<_>>();
-        let alpha_start = hsla(slider_color.h, slider_color.s, slider_color.l, 0.0);
-        let alpha_end = hsla(slider_color.h, slider_color.s, slider_color.l, 1.0);
-
-        let label_color = cx.theme().foreground.opacity(0.7);
-
-        v_flex()
-            .gap_2()
-            .child(
-                h_flex()
-                    .gap_2()
-                    .items_center()
-                    .child(
-                        div()
-                            .min_w_16()
-                            .text_ui(cx)
-                            .text_color(label_color)
-                            .child(t!("ColorPicker.Hue")),
-                    )
-                    .child(
-                        div()
-                            .relative()
-                            .flex()
-                            .items_center()
-                            .flex_1()
-                            .h_8()
-                            .child(self.render_slider_track(hue_colors, cx))
-                            .child(
-                                Slider::new(sliders.hue())
-                                    .flex_1()
-                                    .bg(cx.theme().transparent),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .w_10()
-                            .text_ui_sm(cx)
-                            .text_color(label_color)
-                            .text_align(TextAlign::Right)
-                            .child(format!("{:.0}", slider_color.h * 360.)),
                     ),
             )
-            .child(
-                h_flex()
-                    .gap_2()
-                    .items_center()
-                    .child(
-                        div()
-                            .min_w_16()
-                            .text_ui(cx)
-                            .text_color(label_color)
-                            .child(t!("ColorPicker.Saturation")),
-                    )
-                    .child(
-                        div()
-                            .relative()
-                            .flex()
-                            .items_center()
-                            .flex_1()
-                            .h_8()
-                            .child(self.render_slider_track_gradient(
-                                saturation_start,
-                                saturation_end,
-                                cx,
-                            ))
-                            .child(
-                                Slider::new(sliders.saturation())
-                                    .flex_1()
-                                    .bg(cx.theme().transparent),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .w_10()
-                            .text_ui_sm(cx)
-                            .text_color(label_color)
-                            .text_align(TextAlign::Right)
-                            .child(format!("{:.0}", slider_color.s * 100.)),
-                    ),
-            )
-            .child(
-                h_flex()
-                    .gap_2()
-                    .items_center()
-                    .child(
-                        div()
-                            .min_w_16()
-                            .text_ui(cx)
-                            .text_color(label_color)
-                            .child(t!("ColorPicker.Lightness")),
-                    )
-                    .child(
-                        div()
-                            .relative()
-                            .flex()
-                            .items_center()
-                            .flex_1()
-                            .h_8()
-                            .child(self.render_slider_track(lightness_colors, cx))
-                            .child(
-                                Slider::new(sliders.lightness())
-                                    .flex_1()
-                                    .bg(cx.theme().transparent),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .w_10()
-                            .text_ui_sm(cx)
-                            .text_color(label_color)
-                            .text_align(TextAlign::Right)
-                            .child(format!("{:.0}", slider_color.l * 100.)),
-                    ),
-            )
-            .child(
-                h_flex()
-                    .gap_2()
-                    .items_center()
-                    .child(
-                        div()
-                            .min_w_16()
-                            .text_ui(cx)
-                            .text_color(label_color)
-                            .child(t!("ColorPicker.Alpha")),
-                    )
-                    .child(
-                        div()
-                            .relative()
-                            .flex()
-                            .items_center()
-                            .flex_1()
-                            .h_8()
-                            .child(self.render_slider_track_gradient(alpha_start, alpha_end, cx))
-                            .child(
-                                Slider::new(sliders.alpha())
-                                    .flex_1()
-                                    .bg(cx.theme().transparent),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .w_10()
-                            .text_ui_sm(cx)
-                            .text_color(label_color)
-                            .text_align(TextAlign::Right)
-                            .child(format!("{:.0}", slider_color.a * 100.)),
-                    ),
-            )
+            .into_any_element()
     }
+}
 
-    fn render_slider_track(&self, colors: Vec<Hsla>, _: &App) -> impl IntoElement {
-        h_flex()
-            .absolute()
-            .left_0()
-            .right_0()
-            .h_2_5()
-            .overflow_hidden()
-            .children(
-                colors
-                    .into_iter()
-                    .map(|color| div().flex_1().h_full().bg(color)),
-            )
-    }
+/// The current color over a checkerboard, so its alpha is visible.
+fn color_preview(color: Hsla, window: &Window, cx: &App) -> impl IntoElement {
+    let surface = cx.theme().muted;
+    let checker = checkerboard(cx.theme().border, f32::from(window.rem_size()) / 4.);
+    let border = cx.theme().border;
+    let radius = cx.theme().radius_tokens().sm;
 
-    fn render_slider_track_gradient(&self, start: Hsla, end: Hsla, _: &App) -> impl IntoElement {
-        div()
-            .absolute()
-            .left_0()
-            .right_0()
-            .h_2_5()
-            .overflow_hidden()
-            .bg(linear_gradient(
-                90.,
-                linear_color_stop(start, 0.),
-                linear_color_stop(end, 1.),
-            ))
-    }
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, _| {
+            window.paint_quad(fill(bounds, surface).corner_radii(radius));
+            window.paint_quad(fill(bounds, checker).corner_radii(radius));
+            window.paint_quad(fill(bounds, color).corner_radii(radius));
+            window.paint_quad(outline(bounds, border, BorderStyle::Solid).corner_radii(radius));
+        },
+    )
+    .size_full()
+}
+
+/// A keyboard focus ring drawn around a control without taking layout space.
+pub(super) fn focus_outline(
+    focus: FocusHandle,
+    color: Hsla,
+    radius: Pixels,
+    gap: Pixels,
+) -> impl IntoElement {
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, _| {
+            if focus.is_focused(window) && window.last_input_was_keyboard() {
+                let ring = bounds.dilate(gap);
+                window.paint_quad(
+                    outline(ring, color, BorderStyle::Solid)
+                        .corner_radii(Corners::all(radius).clamp_radii_for_quad_size(ring.size)),
+                );
+            }
+        },
+    )
+    .absolute()
+    .top_0()
+    .left_0()
+    .size_full()
 }
 
 impl Sizable for ColorPicker {
     fn with_size(mut self, size: impl Into<Size>) -> Self {
         self.size = size.into();
+        self
+    }
+}
+
+impl Disableable for ColorPicker {
+    fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
         self
     }
 }
@@ -469,9 +560,20 @@ impl Styled for ColorPicker {
 
 impl RenderOnce for ColorPicker {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        self.state
+            .update(cx, |state, cx| state.sync_pending_value(window, cx));
+        let editor = ColorEditor::new(&self.id, &self.state, self.default_mode, window, cx);
+        if self.disabled && self.state.read(cx).is_open() {
+            request_open(&self.state, false, window, cx);
+        }
+
+        if self.inline {
+            return self.render_panel(&editor, window, cx);
+        }
+
         let state = self.state.read(cx);
         let display_title: SharedString = if let Some(value) = state.value() {
-            value.to_hex()
+            hex_label(value)
         } else {
             "".to_string()
         }
@@ -483,27 +585,32 @@ impl RenderOnce for ColorPicker {
         let focused = focus_handle.is_focused(window);
         let open_state = self.state.clone();
         let popover_state = self.state.clone();
+        let disabled = self.disabled;
 
         BaseColorPicker::new(self.id.clone())
             .when(self.field, |this| this.w_full())
             .refine_style(&self.style)
             .open(open)
+            .disabled(disabled)
             .track_focus(&focus_handle)
-            .when_some(
-                self.accessibility_label
-                    .clone()
-                    .or_else(|| self.label.clone()),
-                |this, label| this.accessibility_label(label),
-            )
-            .on_open_change(move |open, _, cx| {
-                open_state.update(cx, |state, cx| state.set_open(open, cx));
+            .when_some(self.accessible_name(), |this, label| {
+                this.accessibility_label(label)
+            })
+            .on_open_change(move |open, window, cx| {
+                request_open(&open_state, open, window, cx);
             })
             .child(
                 Popover::new("popover")
                     .open(open)
-                    .w_72()
-                    .on_open_change(move |open: &bool, _, cx| {
-                        popover_state.update(cx, |state, cx| state.set_open(*open, cx));
+                    .anchor(self.anchor)
+                    .map(|this| match self.panel_size() {
+                        Size::Large => this.w_80(),
+                        _ => this.w(rems(18.5)),
+                    })
+                    .on_open_change(move |open: &bool, window, cx| {
+                        if !(disabled && *open) {
+                            request_open(&popover_state, *open, window, cx);
+                        }
                     })
                     .when(self.field, |this| {
                         this.trigger_style(StyleRefinement::default().w_full())
@@ -522,12 +629,16 @@ impl RenderOnce for ColorPicker {
                         selected: false,
                         field: self.field,
                         focused,
+                        disabled,
                         placeholder: self.placeholder.clone(),
                     })
                     // The popover drops its content while closed, so building the
-                    // palette swatches or slider tracks then is wasted work.
-                    .when(open, |this| this.child(self.render_colors(window, cx))),
+                    // views then is wasted work.
+                    .when(open, |this| {
+                        this.child(self.render_panel(&editor, window, cx))
+                    }),
             )
+            .into_any_element()
     }
 }
 
@@ -557,6 +668,18 @@ impl ColorSelect {
         self
     }
 
+    /// Replace the default palette with named swatches.
+    pub fn swatches(mut self, swatches: impl IntoIterator<Item = ColorSwatch>) -> Self {
+        self.picker = self.picker.swatches(swatches);
+        self
+    }
+
+    /// Choose the view shown first, see [`ColorPicker::default_mode`].
+    pub fn default_mode(mut self, mode: ColorPickerMode) -> Self {
+        self.picker = self.picker.default_mode(mode);
+        self
+    }
+
     /// Set the text shown while no color is selected.
     ///
     /// Default is the same placeholder as [`Select`](crate::select::Select).
@@ -579,6 +702,13 @@ impl Sizable for ColorSelect {
     }
 }
 
+impl Disableable for ColorSelect {
+    fn disabled(mut self, disabled: bool) -> Self {
+        self.picker = self.picker.disabled(disabled);
+        self
+    }
+}
+
 impl Focusable for ColorSelect {
     fn focus_handle(&self, cx: &App) -> FocusHandle {
         self.picker.focus_handle(cx)
@@ -597,134 +727,6 @@ impl RenderOnce for ColorSelect {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use gpui::{AppContext as _, Context, Render, TestAppContext};
-
-    use super::*;
-
-    struct PaletteHarness {
-        state: Entity<ColorPickerState>,
-    }
-
-    impl Render for PaletteHarness {
-        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            let color = color_palettes()[0][0];
-            ColorPicker::new(&self.state)
-                .featured_colors(vec![color, color])
-                .render_palette_panel(cx)
-                .into_any_element()
-        }
-    }
-
-    #[gpui::test]
-    fn repeated_palette_colors_have_independent_focus_stops(cx: &mut TestAppContext) {
-        cx.update(crate::init);
-        let (_, cx) = cx.add_window_view(|window, cx| PaletteHarness {
-            state: cx.new(|cx| ColorPickerState::new(window, cx)),
-        });
-        cx.update(|window, cx| {
-            window.draw(cx).clear(cx);
-            let swatch_count = 2 + color_palettes().iter().map(Vec::len).sum::<usize>();
-            let mut focused = Vec::new();
-            for _ in 0..swatch_count {
-                window.focus_next(cx);
-                let handle = window.focused(cx).expect("each swatch is focusable");
-                assert!(
-                    !focused.contains(&handle),
-                    "equal colors must not share element identity or a focus stop"
-                );
-                focused.push(handle);
-            }
-            window.focus_next(cx);
-            assert_eq!(window.focused(cx), focused.first().cloned());
-        });
-    }
-
-    #[gpui::test]
-    fn an_explicit_accessibility_label_replaces_the_visible_one(cx: &mut TestAppContext) {
-        cx.update(crate::init);
-        let cx = cx.add_empty_window();
-        cx.update(|window, cx| {
-            let state = cx.new(|cx| ColorPickerState::new(window, cx));
-
-            let plain = ColorPicker::new(&state).label("Color");
-            assert_eq!(plain.accessibility_label, None);
-            assert_eq!(plain.label.as_deref(), Some("Color"));
-
-            let named = ColorPicker::new(&state)
-                .label("Color")
-                .accessibility_label("Text color");
-            assert_eq!(
-                named.accessibility_label.as_deref(),
-                Some("Text color"),
-                "an explicit name must win over the visible label"
-            );
-            assert_eq!(
-                named.label.as_deref(),
-                Some("Color"),
-                "and must not change what is drawn"
-            );
-        });
-    }
-
-    #[gpui::test]
-    fn test_color_select_builder(cx: &mut TestAppContext) {
-        cx.update(crate::init);
-        let cx = cx.add_empty_window();
-        cx.update(|window, cx| {
-            let state = cx.new(|cx| ColorPickerState::new(window, cx));
-            let select = ColorSelect::new(&state)
-                .large()
-                .placeholder("Pick a color")
-                .accessibility_label("Theme color")
-                .featured_colors(vec![hsla(0., 1., 0.5, 1.)]);
-
-            assert!(select.picker.field);
-            assert_eq!(select.picker.size, Size::Large);
-            assert_eq!(select.picker.placeholder.as_deref(), Some("Pick a color"));
-            assert_eq!(
-                select.picker.accessibility_label.as_deref(),
-                Some("Theme color")
-            );
-            assert_eq!(
-                select.picker.featured_colors.as_ref().map(Vec::len),
-                Some(1)
-            );
-        });
-    }
-
-    struct SelectHarness {
-        state: Entity<ColorPickerState>,
-    }
-
-    impl Render for SelectHarness {
-        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-            div().w(gpui::px(400.)).child(ColorSelect::new(&self.state))
-        }
-    }
-
-    #[gpui::test]
-    fn a_click_anywhere_on_the_color_select_opens_the_picker(cx: &mut TestAppContext) {
-        cx.update(crate::init);
-        let (view, cx) = cx.add_window_view(|window, cx| SelectHarness {
-            state: cx.new(|cx| ColorPickerState::new(window, cx)),
-        });
-        cx.update(|window, cx| window.draw(cx).clear(cx));
-        let open = cx.update(|_, cx| view.read(cx).state.read(cx).is_open());
-        assert!(!open, "the picker starts closed");
-
-        // Far from the swatch, where only the field frame can take the click.
-        cx.simulate_click(
-            gpui::point(gpui::px(300.), gpui::px(16.)),
-            Default::default(),
-        );
-        cx.update(|window, cx| window.draw(cx).clear(cx));
-        let open = cx.update(|_, cx| view.read(cx).state.read(cx).is_open());
-        assert!(open, "the whole field is the trigger, like a Select");
-    }
-}
-
 #[derive(IntoElement)]
 struct ColorPickerButton {
     id: ElementId,
@@ -736,6 +738,7 @@ struct ColorPickerButton {
     tooltip: Option<SharedString>,
     field: bool,
     focused: bool,
+    disabled: bool,
     placeholder: Option<SharedString>,
 }
 
@@ -761,7 +764,7 @@ impl ColorPickerButton {
     /// The framed trigger of a [`ColorSelect`]: the swatch, the hex value and
     /// a caret, laid out like a [`Select`](crate::select::Select) trigger.
     fn render_field(self, window: &mut Window, cx: &mut App) -> AnyElement {
-        let (bg, fg) = input_style(false, cx);
+        let (bg, fg) = input_style(self.disabled, cx);
         let outline_visible = self.selected || self.focused;
 
         h_flex()
@@ -775,6 +778,7 @@ impl ColorPickerButton {
             .rounded(cx.theme().radius)
             .input_size(self.size)
             .input_text_size(self.size, cx)
+            .when(self.disabled, |this| this.opacity(0.5))
             .when(outline_visible, |this| {
                 this.border_color(cx.theme().ring)
                     .focus_ring_style(window, cx)
@@ -803,7 +807,7 @@ impl ColorPickerButton {
                     .overflow_hidden()
                     .whitespace_nowrap()
                     .map(|this| match self.value {
-                        Some(value) => this.child(value.to_hex()),
+                        Some(value) => this.child(hex_label(value)),
                         None => this.text_color(cx.theme().muted_foreground).child(
                             self.placeholder
                                 .unwrap_or_else(|| t!("Select.placeholder").into()),
@@ -824,7 +828,9 @@ impl RenderOnce for ColorPickerButton {
         let has_icon = self.icon.is_some();
         h_flex()
             .id(self.id)
+            .debug_selector(|| "color-picker-trigger".into())
             .gap_2()
+            .when(self.disabled, |this| this.opacity(0.5))
             .children(self.icon)
             .when(!has_icon, |this| {
                 this.child(

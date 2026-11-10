@@ -69,8 +69,9 @@ impl RenderOnce for Empty {
             .flex_1()
             .items_center()
             .justify_center()
-            .gap_4()
-            .p_6()
+            .gap_3()
+            .py_8()
+            .px_4()
             .rounded(cx.theme().radius_tokens().xl)
             .border_dashed()
             .border_color(cx.theme().border)
@@ -143,7 +144,7 @@ impl RenderOnce for EmptyHeader {
             .max_w(rems(24.))
             .min_w_0()
             .items_center()
-            .gap_2()
+            .gap_3()
             .refine_style(&self.style)
             .when_some(self.media, |this, media| this.child(media))
             .when_some(self.title, |this, title| this.child(title))
@@ -159,7 +160,7 @@ pub enum EmptyMediaVariant {
     /// Unframed content such as an image, avatar, or avatar group.
     #[default]
     Default,
-    /// A muted, rounded two-rem frame for an icon.
+    /// A muted icon at 1.5rem, unframed.
     Icon,
 }
 
@@ -213,14 +214,11 @@ impl RenderOnce for EmptyMedia {
             .flex_shrink_0()
             .items_center()
             .justify_center()
-            .mb_2()
             .when(self.variant == EmptyMediaVariant::Icon, |this| {
-                this.size_8()
-                    .rounded(cx.theme().radius_tokens().lg)
-                    .bg(cx.theme().muted)
-                    .text_color(cx.theme().foreground)
-                    // Icon inherits one rem unless it has an explicit size.
-                    .text_base()
+                this.size_6()
+                    .text_color(cx.theme().muted_foreground)
+                    // Icon inherits the font size unless it has an explicit size.
+                    .text_size(rems(1.5))
             })
             .refine_style(&self.style)
             .children(self.children)
@@ -268,7 +266,7 @@ impl RenderOnce for EmptyTitle {
             .max_w_full()
             .min_w_0()
             .text_ui(cx)
-            .font_medium()
+            .font_semibold()
             .whitespace_normal()
             .refine_style(&self.style)
             .children(self.children)
@@ -314,6 +312,7 @@ impl RenderOnce for EmptyDescription {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         div()
             .w_full()
+            .max_w(rems(22.5))
             .min_w_0()
             .text_ui_sm(cx)
             .line_height(relative(1.625))

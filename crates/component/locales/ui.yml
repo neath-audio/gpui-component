@@ -282,6 +282,38 @@ Dock:
     zh-TW: 目前版本無法顯示此面板。
     it: Questo pannello non è disponibile in questa versione.
 ColorPicker:
+  Spectrum:
+    en: Spectrum
+    pt-BR: "Espectro"
+    ru: "Спектр"
+    zh-CN: 光谱
+    zh-HK: 光譜
+    zh-TW: 光譜
+    it: Spettro
+  Plane:
+    en: Saturation and lightness
+    pt-BR: "Saturação e luminosidade"
+    ru: "Насыщенность и светлота"
+    zh-CN: 饱和度和亮度
+    zh-HK: 飽和度和亮度
+    zh-TW: 飽和度和亮度
+    it: Saturazione e luminosità
+  Hex:
+    en: Hex color
+    pt-BR: "Cor hexadecimal"
+    ru: "Шестнадцатеричный цвет"
+    zh-CN: 十六进制颜色
+    zh-HK: 十六進制顏色
+    zh-TW: 十六進位顏色
+    it: Colore esadecimale
+  Apply:
+    en: Apply
+    pt-BR: "Aplicar"
+    ru: "Применить"
+    zh-CN: 应用
+    zh-HK: 套用
+    zh-TW: 套用
+    it: Applica
   Palette:
     en: Palette
     pt-BR: "Paleta"
@@ -498,6 +530,22 @@ Settings:
     zh-HK: 重置全部
     zh-TW: 全部重設
     it: Resetta Tutto
+  Configure:
+    en: Configure
+    pt-BR: "Configurar"
+    ru: "Настроить"
+    zh-CN: 配置
+    zh-HK: 配置
+    zh-TW: 設定
+    it: Configura
+  Back:
+    en: Back
+    pt-BR: "Voltar"
+    ru: "Назад"
+    zh-CN: 返回
+    zh-HK: 返回
+    zh-TW: 返回
+    it: Indietro
 Pagination:
   previous:
     en: Previous

@@ -1,8 +1,8 @@
 use std::{rc::Rc, time::Duration};
 
 use crate::{
-    ActiveTheme, AxisExt, Sizable, Size, StyledExt, checkbox::checkbox_check_icon, h_flex,
-    text::Text, tooltip::ComponentTooltip, v_flex,
+    ActiveTheme, AxisExt, Sizable, Size, StyledExt, h_flex, switch::choice_colors, text::Text,
+    tooltip::ComponentTooltip, v_flex,
 };
 use crate::{StyleSized as _, ThemeStyled as _};
 use gpui::{
@@ -11,6 +11,8 @@ use gpui::{
     prelude::FluentBuilder, relative, rems,
 };
 use gpui_base::{Radio as BaseRadio, RadioGroup as BaseRadioGroup};
+
+const RADIO_GROUP: &str = "radio";
 
 /// A Radio element.
 ///
@@ -190,19 +192,11 @@ impl RenderOnce for Radio {
             .clone()
             .or_else(|| self.label.as_ref().map(|label| label.get_text(cx)));
 
-        let (border_color, bg) = if checked {
-            (cx.theme().primary, cx.theme().primary)
-        } else {
-            (cx.theme().input, cx.theme().input.opacity(0.5))
-        };
-        let (border_color, bg) = if disabled {
-            (border_color.opacity(0.5), bg.opacity(0.5))
-        } else {
-            (border_color, bg)
-        };
+        let colors = choice_colors(checked, disabled, None, cx);
 
         self.base
             .id(self.id.clone())
+            .group(RADIO_GROUP)
             .checked(self.checked)
             .disabled(self.disabled)
             .track_focus(&focus_handle)
@@ -231,22 +225,30 @@ impl RenderOnce for Radio {
             .refine_style(&self.style)
             .child(
                 div()
-                    .relative()
+                    .id("radio-indicator")
+                    .flex()
+                    .items_center()
+                    .justify_center()
                     .size(indicator_size)
                     // Center on the first 1.25em line, including when the label wraps.
                     .when(has_content, |this| this.mt(indicator_size * 0.125))
                     .flex_shrink_0()
                     .rounded_full_style(cx)
                     .border_1()
-                    .border_color(border_color)
-                    .map(|this| match self.checked {
-                        false => this.bg(cx.theme().input_background()),
-                        true if disabled => this.bg(bg),
-                        true => this.bg(cx.theme().tokens.primary),
+                    .border_color(colors.border)
+                    .bg(colors.background)
+                    .when(!disabled, |this| {
+                        this.group_hover(RADIO_GROUP, |style| style.bg(colors.hover))
+                            .group_active(RADIO_GROUP, |style| style.bg(colors.active))
                     })
-                    .child(checkbox_check_icon(
-                        self.id, self.size, checked, disabled, window, cx,
-                    )),
+                    .when(checked, |this| {
+                        this.child(
+                            div()
+                                .size(indicator_size * 0.5)
+                                .rounded_full_style(cx)
+                                .bg(colors.thumb),
+                        )
+                    }),
             )
             .when(!self.children.is_empty() || self.label.is_some(), |this| {
                 this.child(

@@ -1,6 +1,8 @@
 use gpui_kit::component::{
     ActiveTheme as _, Colorize, Sizable, Size, StyledExt,
-    color_picker::{ColorPicker, ColorPickerEvent, ColorPickerState, ColorSelect},
+    color_picker::{
+        ColorPicker, ColorPickerEvent, ColorPickerMode, ColorPickerState, ColorSelect, ColorSwatch,
+    },
     h_flex, indigo_500, v_flex,
 };
 use gpui_kit::{
@@ -15,6 +17,7 @@ pub struct ColorPickerStory {
     color: Entity<ColorPickerState>,
     select_color: Entity<ColorPickerState>,
     empty_select_color: Entity<ColorPickerState>,
+    inline_color: Entity<ColorPickerState>,
     selected_color: Option<Hsla>,
     size: Size,
     _subscriptions: Vec<Subscription>,
@@ -45,6 +48,8 @@ impl ColorPickerStory {
         let select_color =
             cx.new(|cx| ColorPickerState::new(window, cx).default_value(default_color));
         let empty_select_color = cx.new(|cx| ColorPickerState::new(window, cx));
+        let inline_color =
+            cx.new(|cx| ColorPickerState::new(window, cx).default_value(default_color));
 
         let _subscriptions = vec![cx.subscribe(&color, |this, _, ev, _| match ev {
             ColorPickerEvent::Change(color) => {
@@ -56,6 +61,7 @@ impl ColorPickerStory {
             color,
             select_color,
             empty_select_color,
+            inline_color,
             selected_color: Some(default_color),
             size: Size::default(),
             _subscriptions,
@@ -169,6 +175,28 @@ impl Render for ColorPickerStory {
                                     .with_size(self.size)
                                     .placeholder("Pick a color"),
                             ),
+                    ),
+            )
+            .child(
+                section("Inline Panel")
+                    .description(
+                        "The same views without a trigger, opening on a palette of named swatches.",
+                    )
+                    .w(px(440.))
+                    .child(
+                        div().w_72().child(
+                            ColorPicker::new(&self.inline_color)
+                                .inline(true)
+                                .accessibility_label("Accent color")
+                                .default_mode(ColorPickerMode::Palette)
+                                .swatches([
+                                    ColorSwatch::new("Indigo", indigo_500()),
+                                    ColorSwatch::new("Rose", cx.theme().red),
+                                    ColorSwatch::new("Leaf", cx.theme().green),
+                                    ColorSwatch::new("Sky", cx.theme().blue),
+                                ])
+                                .with_size(self.size),
+                        ),
                     ),
             )
     }

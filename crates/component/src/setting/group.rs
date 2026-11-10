@@ -2,15 +2,15 @@ use crate::StyledTypography as _;
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, IntoElement, ParentElement as _, SharedString, StyleRefinement, Styled,
-    Window, div, prelude::FluentBuilder as _,
+    AnyElement, App, Entity, IntoElement, ParentElement as _, SharedString, StyleRefinement,
+    Styled, Window, div, prelude::FluentBuilder as _,
 };
 
 use crate::{
     ActiveTheme, StyledExt,
     group_box::{GroupBox, GroupBoxVariant, GroupBoxVariants},
     label::Label,
-    setting::{RenderOptions, SettingItem},
+    setting::{RenderOptions, SettingItem, SettingsNavigation, sub_page::SubPageLink},
     v_flex,
 };
 
@@ -116,10 +116,15 @@ impl SettingGroup {
         self,
         query: &str,
         options: &RenderOptions,
+        navigation: &Entity<SettingsNavigation>,
         window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement {
         let text_size = options.size().control_text_size(cx);
+        let link = SubPageLink {
+            navigation: navigation.clone(),
+            section: self.title.clone(),
+        };
         GroupBox::new()
             .id(SharedString::from(format!("group-{}", options.group_ix())))
             .with_variant(self.variant.unwrap_or(options.group_variant()))
@@ -156,10 +161,12 @@ impl SettingGroup {
             .gap_4()
             .children(self.items.iter().enumerate().filter_map(|(item_ix, item)| {
                 if item.is_match(&query, cx) {
-                    Some(
-                        item.clone()
-                            .render_item(&options.with_item_ix(item_ix), window, cx),
-                    )
+                    Some(item.clone().render_item(
+                        &options.with_item_ix(item_ix),
+                        &link,
+                        window,
+                        cx,
+                    ))
                 } else {
                     None
                 }

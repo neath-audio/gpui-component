@@ -4,11 +4,66 @@ use crate::{
 };
 use gpui::{
     App, Background, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement as _,
-    RenderOnce, SharedString, StyleRefinement, Styled, Window, div, prelude::FluentBuilder as _,
-    px,
+    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Window,
+    div, prelude::FluentBuilder as _, px,
 };
 use gpui_base::{Switch as BaseSwitch, SwitchThumb, SwitchTrack, spring};
 use std::{rc::Rc, time::Duration};
+
+const SWITCH_GROUP: &str = "switch";
+
+/// The colors [`Switch`] and `Radio` share.
+///
+/// Every fill comes from the `switch` theme tokens, so a theme that sets them
+/// keeps its look. Disabling dims only the thumb: the track still says on or off.
+#[derive(Clone, Copy)]
+pub(crate) struct ChoiceColors {
+    pub(crate) background: Background,
+    pub(crate) border: Hsla,
+    pub(crate) hover: Hsla,
+    pub(crate) active: Hsla,
+    pub(crate) thumb: Background,
+}
+
+/// Resolves the [`ChoiceColors`]; `color` overrides the checked track.
+pub(crate) fn choice_colors(
+    checked: bool,
+    disabled: bool,
+    color: Option<Hsla>,
+    cx: &App,
+) -> ChoiceColors {
+    let theme = cx.theme();
+    let tokens = &theme.tokens;
+    let (background, solid, border) = match (checked, color) {
+        (true, Some(color)) => (Background::from(color), color, color.opacity(0.5)),
+        (true, None) => (
+            tokens.switch_checked.background,
+            tokens.switch_checked.color,
+            tokens.switch_checked.color.opacity(0.5),
+        ),
+        (false, _) => (tokens.switch.background, tokens.switch.color, theme.border),
+    };
+    // Light tracks need a stronger lift for the hover to read.
+    let hover_boost = if theme.is_dark() { 1. } else { 1.5 };
+    let (hover, active) = if checked { (0.16, 0.22) } else { (0.05, 0.1) };
+    let lift = |amount: f32| solid.blend(theme.foreground.opacity(amount));
+    let thumb = if checked {
+        tokens.switch_thumb_checked.background
+    } else {
+        tokens.switch_thumb.background
+    };
+    ChoiceColors {
+        background,
+        border,
+        hover: lift(hover * hover_boost),
+        active: lift(active),
+        thumb: match (disabled, checked) {
+            (false, _) => thumb,
+            (true, true) => thumb.opacity(0.2),
+            (true, false) => thumb.opacity(0.4),
+        },
+    }
+}
 
 /// A Switch element that can be toggled on or off.
 #[derive(IntoElement)]
@@ -178,34 +233,16 @@ impl RenderOnce for Switch {
             .clone();
         let is_focused = focus_handle.is_focused(window);
 
-        let checked_bg = self
-            .color
-            .map(Background::from)
-            .unwrap_or(cx.theme().tokens.switch_checked.into());
-        let unchecked_bg: Background = cx.theme().tokens.switch.into();
-        // GPUI's element opacity multiplies each primitive's alpha instead of
-        // compositing the subtree as one group, so fading the whole control
-        // would let the track show through the thumb. Fading the track alone
-        // lands on the pixels a grouped fade would: the thumb is `background`.
-        let disabled_bg = if checked { checked_bg } else { unchecked_bg }.opacity(0.5);
-        let toggle_bg: Background = if checked {
-            cx.theme().tokens.switch_thumb_checked.into()
-        } else {
-            cx.theme().tokens.switch_thumb.into()
-        };
+        let colors = choice_colors(checked, self.disabled, self.color, cx);
         let disabled_label_color = cx.theme().muted_foreground;
 
-        let (bg_width, bg_height) = match self.size {
-            Size::XSmall | Size::Small => (px(28.), px(16.)),
-            Size::Large => (px(44.), px(24.)),
-            _ => (px(36.), px(20.)),
+        let (bg_width, bg_height, bar_width) = match self.size {
+            Size::XSmall | Size::Small => (px(26.), px(16.), px(10.)),
+            Size::Large => (px(36.), px(22.), px(14.)),
+            _ => (px(32.), px(20.), px(12.)),
         };
-        let bar_width = match self.size {
-            Size::XSmall | Size::Small => px(12.),
-            Size::Large => px(20.),
-            _ => px(16.),
-        };
-        let inset = px(2.);
+        // A 1px border plus 2px of padding.
+        let inset = px(3.);
         let radius = if cx.theme().radius >= px(4.) {
             bg_height
         } else {
@@ -234,6 +271,7 @@ impl RenderOnce for Switch {
             .refine_style(&self.style)
             .child(
                 BaseSwitch::new(self.id.clone())
+                    .group(SWITCH_GROUP)
                     .checked(checked)
                     .disabled(self.disabled)
                     .styles(|styles| {
@@ -268,20 +306,17 @@ impl RenderOnce for Switch {
                             .rounded(radius)
                             .flex()
                             .items_center()
-                            // The thumb inset is a 1px border plus 1px padding,
-                            // not a 2px border: the focus ring tints the border
-                            // solid, and that 1px line is what keeps the ring
-                            // visible on an unchecked track. Its 50% halo alone
-                            // lands within a few values of `switch.background`
-                            // in both default modes.
+                            // The focus ring tints this border solid, and that 1px
+                            // line is what keeps the ring visible on an unchecked
+                            // track: its 50% halo alone lands within a few values
+                            // of `switch.background` in both default modes.
                             .border_1()
-                            .border_color(cx.theme().transparent)
-                            .p(inset - px(1.))
-                            .when(!checked, |this| this.bg(unchecked_bg))
-                            .styles(|styles| {
-                                styles
-                                    .checked(|style| style.bg(checked_bg))
-                                    .disabled(|style| style.bg(disabled_bg))
+                            .border_color(colors.border)
+                            .px(inset - px(1.))
+                            .bg(colors.background)
+                            .when(!self.disabled, |this| {
+                                this.group_hover(SWITCH_GROUP, |style| style.bg(colors.hover))
+                                    .group_active(SWITCH_GROUP, |style| style.bg(colors.active))
                             })
                             // The ring hugs the track, not the row, so the label
                             // stays outside it.
@@ -295,7 +330,7 @@ impl RenderOnce for Switch {
                                     .rounded(radius)
                                     .size(bar_width)
                                     .left(thumb_x)
-                                    .bg(toggle_bg),
+                                    .bg(colors.thumb),
                             ),
                     )
                     .when_some(self.label, |this, label| {
@@ -318,8 +353,8 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     use gpui::{
-        Context, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, Render,
-        StatefulInteractiveElement as _, TestAppContext, VisualTestContext, point,
+        Context, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, Render, TestAppContext,
+        VisualTestContext, point,
     };
 
     use super::*;
@@ -544,9 +579,9 @@ mod tests {
 
         cx.update(crate::init);
         for (size, width, height) in [
-            (Size::Small, 28., 16.),
-            (Size::Medium, 36., 20.),
-            (Size::Large, 44., 24.),
+            (Size::Small, 26., 16.),
+            (Size::Medium, 32., 20.),
+            (Size::Large, 36., 22.),
         ] {
             for checked in [false, true] {
                 for disabled in [false, true] {

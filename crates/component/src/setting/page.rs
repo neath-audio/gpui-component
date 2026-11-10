@@ -13,7 +13,7 @@ use crate::{
     h_flex,
     label::Label,
     scroll::ScrollableElement,
-    setting::{RenderOptions, SettingGroup, settings::SettingsState},
+    setting::{RenderOptions, SettingGroup, settings::SettingsState, sub_page},
     v_flex,
 };
 
@@ -272,8 +272,23 @@ impl SettingPage {
             }
         }
 
+        let navigation = state.read(cx).navigation.clone();
         // Search must reveal its matched controls, including while a nested
         // application page is open. The application keeps its own draft state.
+        navigation.update(cx, |navigation, _| navigation.refresh(&self.groups));
+        if query.is_empty()
+            && let Some(sub_page) = sub_page::render_top(
+                &navigation,
+                self.title.clone(),
+                &self.header_style,
+                &options.with_page_ix(ix),
+                window,
+                cx,
+            )
+        {
+            return div().id(ix).size_full().child(sub_page).into_any_element();
+        }
+
         if query.is_empty()
             && let Some(content) = self
                 .content
@@ -356,6 +371,7 @@ impl SettingPage {
                                     .child(group.py_4().render(
                                         &query,
                                         &options.with_page_ix(ix).with_group_ix(group_ix),
+                                        &navigation,
                                         window,
                                         cx,
                                     ))

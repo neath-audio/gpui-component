@@ -11,14 +11,32 @@ use crate::{
 };
 use gpui::{
     AnyElement, App, Background, ClickEvent, Corners, Edges, ElementId, FocusHandle, Hsla,
-    InteractiveElement, Interactivity, IntoElement, MouseButton, ParentElement, Pixels, RenderOnce,
-    Role, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Window, div,
-    prelude::FluentBuilder as _, relative, transparent_white,
+    InteractiveElement, Interactivity, IntoElement, MouseButton, ParentElement, Pixels, Rems,
+    RenderOnce, Role, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled,
+    Window, div, prelude::FluentBuilder as _, relative, rems, transparent_white,
 };
 
 /// Ink of the focus line a filled button draws inside its fill: its own
 /// foreground, which the theme already keeps legible against that fill.
 const FOCUS_LINE_OPACITY: f32 = 0.6;
+
+/// The height and horizontal padding of a preset size.
+///
+/// Compact shortens the frame and keeps the text and icon size, so XSmall stops
+/// at 18px, the shortest frame that still fits its 12px text.
+fn frame(size: Size, compact: bool) -> (Rems, Rems) {
+    let (height, padding, compact_height, compact_padding) = match size {
+        Size::XSmall => (1.25, 0.25, 1.125, 0.25),
+        Size::Small => (1.5, 0.5, 1.25, 0.375),
+        Size::Medium | Size::Size(_) => (2., 0.625, 1.5, 0.5),
+        Size::Large => (2., 0.75, 1.75, 0.5),
+    };
+    if compact {
+        (rems(compact_height), rems(compact_padding))
+    } else {
+        (rems(height), rems(padding))
+    }
+}
 
 #[derive(Default, Clone, Copy)]
 pub enum ButtonRounded {
@@ -449,7 +467,7 @@ impl Button {
         self
     }
 
-    /// Set the button to compact mode, then padding will be reduced.
+    /// Use a shorter frame with tighter padding, keeping the text and icon size.
     pub fn compact(mut self) -> Self {
         self.compact = true;
         self
@@ -681,31 +699,19 @@ impl RenderOnce for Button {
                 |this| this.shadow_xs(),
             )
             .when(!style.no_padding(), |this| {
-                if self.label.is_none() && children.is_empty() {
-                    // Icon Button
-                    match self.size {
-                        Size::Size(px) => this.size(px),
-                        Size::XSmall => this.size_5(),
-                        Size::Small => this.size_6(),
-                        Size::Large | Size::Medium => this.size_8(),
-                    }
-                } else {
-                    // Normal Button
-                    match self.size {
-                        Size::Size(size) => this.px(size * 0.2),
-                        Size::XSmall => this.h_5().px_1().when(self.compact, |this| this.min_w_5()),
-                        Size::Small => this
-                            .h_6()
-                            .px_2()
-                            .when(self.compact, |this| this.min_w_6().px_1p5()),
-                        Size::Medium => this
-                            .h_8()
-                            .px_2p5()
-                            .when(self.compact, |this| this.min_w_8().px_2()),
-                        Size::Large => this
-                            .h_8()
-                            .px_3()
-                            .when(self.compact, |this| this.min_w_8().px_2()),
+                let icon_only = self.label.is_none() && children.is_empty();
+                match self.size {
+                    Size::Size(size) if icon_only => this.size(size),
+                    Size::Size(size) => this.px(size * 0.2),
+                    preset => {
+                        let (height, padding) = frame(preset, self.compact);
+                        if icon_only {
+                            this.size(height)
+                        } else {
+                            this.h(height)
+                                .px(padding)
+                                .when(self.compact, |this| this.min_w(height))
+                        }
                     }
                 }
             })
@@ -1723,6 +1729,72 @@ mod tests {
         cx.update(|window, cx| window.focus_next(cx));
         cx.simulate_keystrokes("enter space");
         assert_eq!(clicks.get(), 1);
+    }
+
+    #[gpui::test]
+    fn compact_shortens_every_preset_and_keeps_icon_buttons_square(cx: &mut gpui::TestAppContext) {
+        const PRESETS: [(Size, [&str; 4]); 4] = [
+            (
+                Size::XSmall,
+                ["xs", "xs-compact", "xs-icon", "xs-icon-compact"],
+            ),
+            (
+                Size::Small,
+                ["sm", "sm-compact", "sm-icon", "sm-icon-compact"],
+            ),
+            (
+                Size::Medium,
+                ["md", "md-compact", "md-icon", "md-icon-compact"],
+            ),
+            (
+                Size::Large,
+                ["lg", "lg-compact", "lg-icon", "lg-icon-compact"],
+            ),
+        ];
+
+        struct Frames;
+
+        impl gpui::Render for Frames {
+            fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
+                let button = |name: &'static str, size: Size, compact: bool, label: bool| {
+                    Button::new(name)
+                        .with_size(size)
+                        .when(compact, |this| this.compact())
+                        .map(|this| match label {
+                            true => this.label("Label"),
+                            false => this.icon(crate::IconName::Check),
+                        })
+                        .debug_selector(move || name.to_string())
+                };
+                div()
+                    .flex()
+                    .flex_col()
+                    .items_start()
+                    .children(PRESETS.into_iter().flat_map(|(size, [a, b, c, d])| {
+                        [
+                            button(a, size, false, true),
+                            button(b, size, true, true),
+                            button(c, size, false, false),
+                            button(d, size, true, false),
+                        ]
+                    }))
+            }
+        }
+
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| Frames);
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        for (_, [label, label_compact, icon, icon_compact]) in PRESETS {
+            let regular = cx.debug_bounds(label).unwrap().size;
+            let compact = cx.debug_bounds(label_compact).unwrap().size;
+            let icon_regular = cx.debug_bounds(icon).unwrap().size;
+            let icon_small = cx.debug_bounds(icon_compact).unwrap().size;
+            assert!(compact.height < regular.height, "{label}");
+            assert!(icon_small.height < icon_regular.height, "{label}");
+            assert_eq!(icon_small.width, icon_small.height, "{label}");
+            assert_eq!(icon_small.height, compact.height, "{label}");
+        }
     }
 
     #[gpui::test]

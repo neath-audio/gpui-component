@@ -1,18 +1,22 @@
 use crate::StyledTypography as _;
 use gpui::{
-    AnyElement, App, Axis, Div, InteractiveElement as _, IntoElement, ParentElement, SharedString,
-    Stateful, Styled, Window, div, prelude::FluentBuilder as _,
+    AnyElement, App, Axis, Div, InteractiveElement as _, IntoElement, ParentElement, Rems,
+    SharedString, Stateful, Styled, Window, div, prelude::FluentBuilder as _,
 };
+use rust_i18n::t;
 use std::{any::TypeId, ops::Deref, rc::Rc};
 
 use crate::{
-    ActiveTheme as _, AxisExt, StyledExt as _,
+    ActiveTheme as _, AxisExt, Disableable as _, Icon, IconName, Sizable as _, StyledExt as _,
+    button::Button,
+    h_flex,
     label::Label,
     setting::{
-        AnySettingField, ElementField, RenderOptions,
+        AnySettingField, ElementField, RenderOptions, SettingSubPage,
         fields::{
             BoolField, DropdownField, NumberField, ResetHandler, SettingFieldRender, StringField,
         },
+        sub_page::SubPageLink,
     },
     text::Text,
     v_flex,
@@ -40,6 +44,29 @@ pub enum SettingItem {
         reset_handler: Option<ResetHandler>,
         render: Rc<dyn Fn(&RenderOptions, &mut Window, &mut App) -> AnyElement + 'static>,
     },
+    /// A row that opens a [`SettingSubPage`] over the current page.
+    SubPage {
+        title: SharedString,
+        description: Option<Text>,
+        keywords: Vec<SharedString>,
+        disabled: bool,
+        page: SettingSubPage,
+    },
+}
+
+fn matches_text(
+    query: &str,
+    title: &SharedString,
+    description: &Option<Text>,
+    keywords: &[SharedString],
+    cx: &App,
+) -> bool {
+    let q = &query.to_lowercase();
+    title.to_lowercase().contains(q)
+        || description
+            .as_ref()
+            .map_or(false, |d| d.get_text(cx).to_lowercase().contains(q))
+        || keywords.iter().any(|s| s.to_lowercase().contains(q))
 }
 
 impl SettingItem {
@@ -55,6 +82,19 @@ impl SettingItem {
             disabled: false,
             keywords: Vec::new(),
             field: Rc::new(field),
+        }
+    }
+
+    /// Create a row with a Configure button that opens `page` over the current one.
+    ///
+    /// Search finds this row by its own text or by anything in the page's groups.
+    pub fn sub_page(title: impl Into<SharedString>, page: SettingSubPage) -> Self {
+        SettingItem::SubPage {
+            title: title.into(),
+            description: None,
+            keywords: Vec::new(),
+            disabled: false,
+            page,
         }
     }
 
@@ -93,7 +133,7 @@ impl SettingItem {
             }
             // `on_reset` is meaningless for a value-bearing item: use the
             // field's own `default_value` / `SettingField::on_reset` instead.
-            SettingItem::Item { .. } => {
+            SettingItem::Item { .. } | SettingItem::SubPage { .. } => {
                 debug_assert!(
                     false,
                     "SettingItem::on_reset only applies to SettingItem::Element; \
@@ -118,6 +158,7 @@ impl SettingItem {
         match &mut self {
             SettingItem::Item { keywords: k, .. } => *k = keywords,
             SettingItem::Element { keywords: k, .. } => *k = keywords,
+            SettingItem::SubPage { keywords: k, .. } => *k = keywords,
         }
         self
     }
@@ -133,6 +174,7 @@ impl SettingItem {
         match &mut self {
             SettingItem::Item { disabled: d, .. } => *d = disabled,
             SettingItem::Element { disabled: d, .. } => *d = disabled,
+            SettingItem::SubPage { disabled: d, .. } => *d = disabled,
         }
         self
     }
@@ -142,7 +184,8 @@ impl SettingItem {
     /// Only applies to [`SettingItem::Item`].
     pub fn description(mut self, description: impl Into<Text>) -> Self {
         match &mut self {
-            SettingItem::Item { description: d, .. } => {
+            SettingItem::Item { description: d, .. }
+            | SettingItem::SubPage { description: d, .. } => {
                 *d = Some(description.into());
             }
             SettingItem::Element { .. } => {}
@@ -158,7 +201,7 @@ impl SettingItem {
             SettingItem::Item { layout: l, .. } => {
                 *l = layout;
             }
-            SettingItem::Element { .. } => {}
+            SettingItem::Element { .. } | SettingItem::SubPage { .. } => {}
         }
         self
     }
@@ -170,14 +213,14 @@ impl SettingItem {
                 description,
                 keywords,
                 ..
-            } => {
-                let q = &query.to_lowercase();
-                title.to_lowercase().contains(q)
-                    || description
-                        .as_ref()
-                        .map_or(false, |d| d.get_text(cx).to_lowercase().contains(q))
-                    || keywords.iter().any(|s| s.to_lowercase().contains(q))
-            }
+            } => matches_text(query, title, description, keywords, cx),
+            SettingItem::SubPage {
+                title,
+                description,
+                keywords,
+                page,
+                ..
+            } => matches_text(query, title, description, keywords, cx) || page.is_match(query, cx),
             // We need to show all custom elements when not searching.
             SettingItem::Element { keywords, .. } => {
                 let q = &query.to_lowercase();
@@ -192,6 +235,7 @@ impl SettingItem {
             SettingItem::Element { reset_handler, .. } => reset_handler
                 .as_ref()
                 .is_some_and(|(is_dirty, _)| is_dirty(cx)),
+            SettingItem::SubPage { .. } => false,
         }
     }
 
@@ -203,6 +247,7 @@ impl SettingItem {
                     reset(window, cx);
                 }
             }
+            SettingItem::SubPage { .. } => {}
         }
     }
 
@@ -252,9 +297,56 @@ impl SettingItem {
         renderer.render(field, &options, &style, window, cx)
     }
 
+    /// The title and description on one side, and the control on the other.
+    fn labeled_row(
+        title: SharedString,
+        description: Option<Text>,
+        layout: Axis,
+        disabled: bool,
+        text_size: Rems,
+        control: impl IntoElement,
+        cx: &App,
+    ) -> AnyElement {
+        div()
+            .w_full()
+            .when(disabled, |this| this.opacity(0.5))
+            .map(|this| {
+                if layout.is_horizontal() {
+                    this.h_flex().justify_between().items_center()
+                } else {
+                    this.v_flex()
+                }
+            })
+            .gap_3()
+            .child(
+                v_flex()
+                    .map(|this| {
+                        if layout.is_horizontal() {
+                            this.flex_1().max_w_3_5()
+                        } else {
+                            this.w_full()
+                        }
+                    })
+                    .gap_1()
+                    .child(Label::new(title).text_size(text_size))
+                    .when_some(description, |this, description| {
+                        this.child(
+                            div()
+                                .size_full()
+                                .text_ui_sm(cx)
+                                .text_color(cx.theme().muted_foreground)
+                                .child(description),
+                        )
+                    }),
+            )
+            .child(control)
+            .into_any_element()
+    }
+
     pub(super) fn render_item(
         self,
         options: &RenderOptions,
+        link: &SubPageLink,
         window: &mut Window,
         cx: &mut App,
     ) -> Stateful<Div> {
@@ -276,47 +368,63 @@ impl SettingItem {
                     } else {
                         layout
                     };
-
-                    div()
-                        .w_full()
-                        .when(disabled, |this| this.opacity(0.5))
-                        .map(|this| {
-                            if layout.is_horizontal() {
-                                this.h_flex().justify_between().items_center()
-                            } else {
-                                this.v_flex()
-                            }
+                    let field = div().id("field").child(Self::render_field(
+                        title.clone(),
+                        field,
+                        options.with_layout(layout).with_disabled(disabled),
+                        window,
+                        cx,
+                    ));
+                    Self::labeled_row(title, description, layout, disabled, text_size, field, cx)
+                }
+                SettingItem::SubPage {
+                    title,
+                    description,
+                    disabled,
+                    page,
+                    ..
+                } => {
+                    let layout = if options.layout().is_vertical() {
+                        Axis::Vertical
+                    } else {
+                        Axis::Horizontal
+                    };
+                    let focus = link
+                        .navigation
+                        .update(cx, |navigation, cx| navigation.link_focus(options, cx));
+                    let configure = t!("Settings.Configure").to_string();
+                    let button = Button::new("configure")
+                        .with_size(options.size())
+                        .disabled(disabled)
+                        .track_focus(&focus)
+                        .accessibility_label(format!("{configure} {title}"))
+                        .when(cfg!(test), |this| {
+                            this.debug_selector(|| "setting-sub-page-link".into())
                         })
-                        .gap_3()
                         .child(
-                            v_flex()
-                                .map(|this| {
-                                    if layout.is_horizontal() {
-                                        this.flex_1().max_w_3_5()
-                                    } else {
-                                        this.w_full()
-                                    }
-                                })
+                            h_flex()
                                 .gap_1()
-                                .child(Label::new(title.clone()).text_size(text_size))
-                                .when_some(description, |this, description| {
-                                    this.child(
-                                        div()
-                                            .size_full()
-                                            .text_ui_sm(cx)
-                                            .text_color(cx.theme().muted_foreground)
-                                            .child(description),
-                                    )
-                                }),
+                                .items_center()
+                                .child(configure)
+                                .child(Icon::new(IconName::ChevronRight).xsmall()),
                         )
-                        .child(div().id("field").child(Self::render_field(
-                            title,
-                            field,
-                            options.with_layout(layout).with_disabled(disabled),
-                            window,
-                            cx,
-                        )))
-                        .into_any_element()
+                        .on_click({
+                            let navigation = link.navigation.clone();
+                            let section = link.section.clone();
+                            let origin = Some((options.group_ix(), options.item_ix()));
+                            move |_, window, cx| {
+                                navigation.update(cx, |navigation, cx| {
+                                    navigation.push_from(
+                                        page.clone(),
+                                        section.clone(),
+                                        origin,
+                                        window,
+                                        cx,
+                                    );
+                                });
+                            }
+                        });
+                    Self::labeled_row(title, description, layout, disabled, text_size, button, cx)
                 }
                 SettingItem::Element {
                     disabled, render, ..

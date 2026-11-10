@@ -11,7 +11,7 @@ use gpui_kit::component::{
     label::Label,
     setting::{
         NumberFieldOptions, RenderOptions, SettingField, SettingFieldElement, SettingGroup,
-        SettingItem, SettingPage, Settings,
+        SettingItem, SettingPage, SettingSubPage, Settings,
     },
     text::markdown,
     v_flex,
@@ -425,31 +425,57 @@ impl SettingsStory {
                 .resettable(resettable)
                 .icon(Icon::new(IconName::Cpu))
                 .groups(vec![SettingGroup::new().title("Updates").items(vec![
-                    SettingItem::new(
-                        "Enable Notifications",
-                        SettingField::switch(
-                            |cx: &App| AppSettings::global(cx).notifications_enabled,
-                            |val: bool, cx: &mut App| {
-                                AppSettings::global_mut(cx).notifications_enabled = val;
-                            },
+                        SettingItem::new(
+                            "Enable Notifications",
+                            SettingField::switch(
+                                |cx: &App| AppSettings::global(cx).notifications_enabled,
+                                |val: bool, cx: &mut App| {
+                                    AppSettings::global_mut(cx).notifications_enabled = val;
+                                },
+                            )
+                            .default_value(default_settings.notifications_enabled),
                         )
-                        .default_value(default_settings.notifications_enabled),
-                    )
-                    .description("Receive notifications about updates and news.")
-                    .disabled(disabled),
-                    SettingItem::new(
-                        "Auto Update",
-                        SettingField::switch(
-                            |cx: &App| AppSettings::global(cx).auto_update,
-                            |val: bool, cx: &mut App| {
-                                AppSettings::global_mut(cx).auto_update = val;
-                            },
+                        .description("Receive notifications about updates and news.")
+                        .disabled(disabled),
+                        SettingItem::new(
+                            "Auto Update",
+                            SettingField::switch(
+                                |cx: &App| AppSettings::global(cx).auto_update,
+                                |val: bool, cx: &mut App| {
+                                    AppSettings::global_mut(cx).auto_update = val;
+                                },
+                            )
+                            .default_value(default_settings.auto_update),
                         )
-                        .default_value(default_settings.auto_update),
-                    )
-                    .description("Automatically download and install updates.")
-                    .disabled(disabled),
-                ])]),
+                        .description("Automatically download and install updates.")
+                        .disabled(disabled),
+                        SettingItem::sub_page(
+                            "Release Channel",
+                            SettingSubPage::new("Release Channel")
+                                .description("Choose which builds this copy of the app receives.")
+                                .group(
+                                    SettingGroup::new().title("Channel").item(
+                                        SettingItem::new(
+                                            "Include Previews",
+                                            SettingField::switch(
+                                                |cx: &App| {
+                                                    AppSettings::global(cx).notifications_enabled
+                                                },
+                                                |val: bool, cx: &mut App| {
+                                                    AppSettings::global_mut(cx)
+                                                        .notifications_enabled = val;
+                                                },
+                                            ),
+                                        )
+                                        .description(
+                                            "Install preview builds before they are released.",
+                                        ),
+                                    ),
+                                ),
+                        )
+                        .description("Opens a sub-page with its own settings.")
+                        .keywords(["beta", "preview"]),
+                    ])]),
             SettingPage::new("About")
                 .resettable(resettable)
                 .icon(Icon::new(IconName::Info))

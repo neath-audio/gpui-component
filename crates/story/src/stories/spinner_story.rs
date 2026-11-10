@@ -1,4 +1,8 @@
-use gpui_kit::component::{ActiveTheme as _, IconName, Sizable, Size, spinner::Spinner, v_flex};
+use gpui_kit::component::{
+    ActiveTheme as _, IconName, Sizable, Size,
+    spinner::{Spinner, SpinnerVariant},
+    v_flex,
+};
 use gpui_kit::{
     App, AppContext, Context, Entity, Focusable, InteractiveElement, IntoElement, ParentElement,
     Render, Styled, Window, bounce, ease_in_out, ease_out_quint, linear, px,
@@ -65,6 +69,19 @@ impl Render for SpinnerStory {
                     .description("An indeterminate loading indicator.")
                     .gap_x_2()
                     .child(Spinner::new().with_size(self.size)),
+            )
+            .child(
+                section("Variants")
+                    .description("Braille, Sand and Ring draw in the current text color.")
+                    .gap_x_2()
+                    .children(
+                        [
+                            SpinnerVariant::Braille,
+                            SpinnerVariant::Sand,
+                            SpinnerVariant::Ring,
+                        ]
+                        .map(|variant| Spinner::new().with_size(self.size).variant(variant)),
+                    ),
             )
             .child(
                 section("Color")
