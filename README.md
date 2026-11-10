@@ -188,7 +188,7 @@ fn main() {
 ### Icons
 
 The default `assets` feature bundles the [Lucide](https://lucide.dev) icon set
-as `gpui-component-assets`; pass it to the application with
+as `gpui-kit-assets`; pass it to the application with
 `gpui_kit::application().with_assets(gpui_kit::assets::Assets)`. To ship your
 own icons instead, leave that feature out and name the SVG files as defined in
 [IconName](https://github.com/longbridge/gpui-kit/blob/main/crates/component/src/icon.rs#L86).

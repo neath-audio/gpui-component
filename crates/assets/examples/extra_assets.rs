@@ -5,7 +5,7 @@ extern crate gpui_fast as gpui;
 #[cfg(not(target_family = "wasm"))]
 use gpui::AssetSource;
 #[cfg(not(target_family = "wasm"))]
-gpui_component_assets::icon_assets!(
+gpui_kit_assets::icon_assets!(
     ExtraIcons,
     [
         Accessibility,
@@ -28,10 +28,10 @@ impl AssetSource for AppAssets {
         if let Some(bytes) = ExtraIcons.load(path)? {
             return Ok(Some(bytes));
         }
-        gpui_component_assets::Assets.load(path)
+        gpui_kit_assets::Assets.load(path)
     }
     fn list(&self, path: &str) -> gpui::Result<Vec<gpui::SharedString>> {
-        let mut paths = gpui_component_assets::Assets.list(path)?;
+        let mut paths = gpui_kit_assets::Assets.list(path)?;
         paths.extend(ExtraIcons.list(path)?);
         paths.sort();
         paths.dedup();
@@ -42,7 +42,7 @@ impl AssetSource for AppAssets {
 #[cfg(not(target_family = "wasm"))]
 fn main() {
     let path = std::env::args().nth(1).unwrap_or_else(|| {
-        gpui_component_assets::IconName::Accessibility
+        gpui_kit_assets::IconName::Accessibility
             .path()
             .to_string()
     });

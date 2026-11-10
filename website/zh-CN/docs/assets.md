@@ -6,7 +6,7 @@ order: -7
 
 # Icons & Assets
 
-GPUI Kit 通过 `gpui_kit::assets` 和 `gpui_kit::component` 提供 [IconName] 与 [Icon]。`gpui-kit` 默认 feature 会启用这两层，但应用仍需注册 `AssetSource` 才能按路径加载图标。底层的 [gpui-component-assets] crate 将 SVG 资源与组件代码分开，因此你可以：
+GPUI Kit 通过 `gpui_kit::assets` 和 `gpui_kit::component` 提供 [IconName] 与 [Icon]。`gpui-kit` 默认 feature 会启用这两层，但应用仍需注册 `AssetSource` 才能按路径加载图标。底层的 [gpui-kit-assets] crate 将 SVG 资源与组件代码分开，因此你可以：
 
 - 直接使用默认内置图标资源
 - 完全不引入图标资源
@@ -100,7 +100,7 @@ fn main() {
 
 ## 用 `icon_assets!` 选择更多目录图标
 
-应用已经依赖 `gpui-kit` 时，直接使用 `gpui_kit::assets::icon_assets!`；默认启用的 `assets` feature 已经提供宏和共享目录。**只为使用该宏，无须再添加一项 `gpui-component-assets` 依赖。** 如果某个 crate 有意独立使用资产层，而不依赖门面 crate，可以直接依赖 `gpui-component-assets`，调用 `gpui_component_assets::icon_assets!`。
+应用已经依赖 `gpui-kit` 时，直接使用 `gpui_kit::assets::icon_assets!`；默认启用的 `assets` feature 已经提供宏和共享目录。**只为使用该宏，无须再添加一项 `gpui-kit-assets` 依赖。** 如果某个 crate 有意独立使用资产层，而不依赖门面 crate，可以直接依赖 `gpui-kit-assets`，调用 `gpui_kit_assets::icon_assets!`。
 
 按应用实际绘制的图标选择资源源：
 
@@ -321,7 +321,7 @@ Button::new("search")
 - [Lucide Icons](https://lucide.dev/) - GPUI Kit 的图标目录主要基于 Lucide 开源图标库。
 
 [rust-embed]: https://docs.rs/rust-embed/latest/rust_embed/
-[IconName]: https://docs.rs/gpui-component-assets/{{gpui_kit_version}}/gpui_component_assets/enum.IconName.html
+[IconName]: https://docs.rs/gpui-kit-assets/{{gpui_kit_version}}/gpui_kit_assets/enum.IconName.html
 [Icon]: https://docs.rs/gpui-neath/latest/gpui_neath/struct.Icon.html
 [assets]: https://github.com/longbridge/gpui-kit/tree/main/crates/assets/assets/icons
-[gpui-component-assets]: https://docs.rs/crate/gpui-component-assets/{{gpui_kit_version}}
+[gpui-kit-assets]: https://docs.rs/crate/gpui-kit-assets/{{gpui_kit_version}}

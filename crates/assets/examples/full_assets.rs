@@ -13,7 +13,7 @@ fn main() {
     println!(
         "{}",
         std::hint::black_box(
-            gpui_component_assets::AllAssets
+            gpui_kit_assets::AllAssets
                 .load(&path)
                 .unwrap()
                 .unwrap()

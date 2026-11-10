@@ -6,7 +6,7 @@ order: -7
 
 # Icons & Assets
 
-GPUI Kit exposes [IconName] and [Icon] through `gpui_kit::assets` and `gpui_kit::component`. The default `gpui-kit` features make both available, but the application must register an `AssetSource` to load icons by path. The underlying [gpui-component-assets] crate keeps the SVG payloads separate from the component code: register the default `Assets`, select extra icons, or provide your own source.
+GPUI Kit exposes [IconName] and [Icon] through `gpui_kit::assets` and `gpui_kit::component`. The default `gpui-kit` features make both available, but the application must register an `AssetSource` to load icons by path. The underlying [gpui-kit-assets] crate keeps the SVG payloads separate from the component code: register the default `Assets`, select extra icons, or provide your own source.
 
 
 :::note NOTE — Depending on the crate does not embed every icon
@@ -104,7 +104,7 @@ fn main() {
 
 ## Pick additional catalog icons with `icon_assets!`
 
-If an app already depends on `gpui-kit`, use `gpui_kit::assets::icon_assets!`; its default `assets` feature exposes the macro and the shared catalog. **Do not add a second `gpui-component-assets` dependency just to use it.** A crate that intentionally uses the asset layer without the umbrella can depend on `gpui-component-assets` directly and call `gpui_component_assets::icon_assets!` instead.
+If an app already depends on `gpui-kit`, use `gpui_kit::assets::icon_assets!`; its default `assets` feature exposes the macro and the shared catalog. **Do not add a second `gpui-kit-assets` dependency just to use it.** A crate that intentionally uses the asset layer without the umbrella can depend on `gpui-kit-assets` directly and call `gpui_kit_assets::icon_assets!` instead.
 
 Choose the source according to the icons the app renders:
 
@@ -326,7 +326,7 @@ On WebAssembly, `Assets::new(endpoint)` and `AllAssets::new(endpoint)` use the s
 - [Lucide Icons](https://lucide.dev/) - GPUI Kit's icon catalog is based on the open-source Lucide collection.
 
 [rust-embed]: https://docs.rs/rust-embed/latest/rust_embed/
-[IconName]: https://docs.rs/gpui-component-assets/{{gpui_kit_version}}/gpui_component_assets/enum.IconName.html
+[IconName]: https://docs.rs/gpui-kit-assets/{{gpui_kit_version}}/gpui_kit_assets/enum.IconName.html
 [Icon]: https://docs.rs/gpui-neath/latest/gpui_neath/struct.Icon.html
 [assets]: https://github.com/longbridge/gpui-kit/tree/main/crates/assets/assets/icons
-[gpui-component-assets]: https://docs.rs/crate/gpui-component-assets/{{gpui_kit_version}}
+[gpui-kit-assets]: https://docs.rs/crate/gpui-kit-assets/{{gpui_kit_version}}

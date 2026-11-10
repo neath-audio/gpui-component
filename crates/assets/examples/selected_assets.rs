@@ -2,7 +2,7 @@
 extern crate gpui_fast as gpui;
 
 use gpui::AssetSource;
-gpui_component_assets::icon_assets!(AppAssets, [Search, Check]);
+gpui_kit_assets::icon_assets!(AppAssets, [Search, Check]);
 fn main() {
     let path = std::env::args()
         .nth(1)

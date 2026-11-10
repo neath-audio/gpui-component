@@ -163,7 +163,7 @@ fn main() {
 
 ### 图标
 
-默认开启的 `assets` feature 会以 `gpui-component-assets` 的形式内置 [Lucide](https://lucide.dev) 图标集，通过 `gpui_kit::application().with_assets(gpui_kit::assets::Assets)` 交给应用即可。若想使用自己的图标，去掉该 feature，并按照 [IconName](https://github.com/longbridge/gpui-kit/blob/main/crates/component/src/icon.rs#L86) 中的定义命名 SVG 文件。
+默认开启的 `assets` feature 会以 `gpui-kit-assets` 的形式内置 [Lucide](https://lucide.dev) 图标集，通过 `gpui_kit::application().with_assets(gpui_kit::assets::Assets)` 交给应用即可。若想使用自己的图标，去掉该 feature，并按照 [IconName](https://github.com/longbridge/gpui-kit/blob/main/crates/component/src/icon.rs#L86) 中的定义命名 SVG 文件。
 
 ## AI 编码 Agent 技能 (Skills)
 

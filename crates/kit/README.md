@@ -29,7 +29,7 @@ reachable by name:
 | `gpui_kit::platform`  | `gpui_platform`   | always           |
 | `gpui_kit::base`      | `gpui-base`       | always           |
 | `gpui_kit::component` | `gpui-neath`  | `component` (on) |
-| `gpui_kit::assets`    | `gpui-component-assets` | `assets` (on)    |
+| `gpui_kit::assets`    | `gpui-kit-assets` | `assets` (on)    |
 
 `gpui_kit::application()` opens the platform and `gpui_kit::init()`
 initializes the enabled layers:

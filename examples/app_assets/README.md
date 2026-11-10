@@ -1,11 +1,11 @@
 # Icon assets in GPUI Kit applications
 
 An `IconName` identifies an SVG path. The application must also register an
-`AssetSource` that can load that path. Depending on `gpui-component-assets`, or using
+`AssetSource` that can load that path. Depending on `gpui-kit-assets`, or using
 an `IconName` in a view, does not make every catalog SVG available at runtime.
 
 The application-facing dependency is `gpui-kit`; its default features already
-include `gpui-component-assets` and GPUI Component:
+include `gpui-kit-assets` and GPUI Component:
 
 ```toml
 [dependencies]

@@ -11,7 +11,7 @@
 //! | `platform`      | `gpui_platform`   | desktop / web    |
 //! | [`base`]        | `gpui-base`       | always           |
 //! | [`component`]   | `gpui-neath`  | `component` (on) |
-//! | [`assets`]      | `gpui-component-assets` | `assets` (on)    |
+//! | [`assets`]      | `gpui-kit-assets` | `assets` (on)    |
 //!
 //! On desktop and web, `application` opens the platform. Mobile applications
 //! supply their backend to `Application::with_platform`. [`init`] initializes the enabled
@@ -170,7 +170,7 @@ pub use gpui_base::is_mobile;
 pub use ::gpui_neath as component;
 
 #[cfg(feature = "assets")]
-pub use ::gpui_component_assets as assets;
+pub use ::gpui_kit_assets as assets;
 
 /// Open a window with a Base Root and return the window and application content.
 /// Applications own quit/close actions and confirmation flows.
