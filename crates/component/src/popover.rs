@@ -1,8 +1,8 @@
 use gpui::{
-    Anchor, Animation, AnimationExt as _, AnyElement, App, Bounds, Context, Corners, Div,
-    ElementId, FocusHandle, InteractiveElement as _, IntoElement, MouseButton, ParentElement,
-    PathBuilder, Pixels, Point, RenderOnce, Stateful, StyleRefinement, Styled, Window, canvas,
-    point, prelude::FluentBuilder as _, px,
+    Anchor, Animation, AnimationElement, AnimationExt as _, AnyElement, App, Bounds, Context,
+    Corners, Div, ElementId, FocusHandle, InteractiveElement as _, IntoElement, MouseButton,
+    ParentElement, PathBuilder, Pixels, Point, RenderOnce, Stateful, StyleRefinement, Styled,
+    Window, canvas, point, prelude::FluentBuilder as _, px,
 };
 use std::{cell::Cell, rc::Rc, time::Duration};
 
@@ -29,6 +29,57 @@ const DROPDOWN_ENTER_DURATION: Duration = Duration::from_millis(150);
 ///
 /// Negative is above, so the surface slides *down* out of the trigger's edge.
 const DROPDOWN_ENTER_OFFSET: Pixels = px(-8.);
+
+/// The side a dropdown slides in from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DropdownDirection {
+    /// The surface opens below its trigger and slides down into place.
+    Down,
+    /// The surface opens above its trigger and slides up into place.
+    Up,
+    /// The surface opens beside its trigger and only fades.
+    None,
+}
+
+impl DropdownDirection {
+    /// `Top*` anchors open below the trigger, `Bottom*` anchors above it.
+    pub(crate) fn from_anchor(anchor: Anchor) -> Self {
+        match anchor {
+            Anchor::TopLeft | Anchor::TopCenter | Anchor::TopRight => Self::Down,
+            Anchor::BottomLeft | Anchor::BottomCenter | Anchor::BottomRight => Self::Up,
+            Anchor::LeftCenter | Anchor::RightCenter => Self::None,
+        }
+    }
+
+    fn travel(self) -> f32 {
+        let travel: f32 = DROPDOWN_ENTER_OFFSET.into();
+        match self {
+            Self::Down => travel,
+            Self::Up => -travel,
+            Self::None => 0.,
+        }
+    }
+}
+
+/// The enter motion shared by every dropdown surface: a fade and an 8px slide
+/// in `direction`, with the shadow ink ramped in by the cube of the fade.
+fn dropdown_enter<E: Styled + IntoElement + 'static>(
+    id: impl Into<ElementId>,
+    surface: E,
+    direction: DropdownDirection,
+) -> AnimationElement<E> {
+    let travel = direction.travel();
+    surface.with_animation(
+        id,
+        Animation::new(DROPDOWN_ENTER_DURATION).with_easing(ease_out_cubic),
+        move |surface, delta| {
+            surface
+                .top(px(travel * (1. - delta)))
+                .opacity(delta)
+                .shadow(popover_shadow(delta * delta * delta))
+        },
+    )
+}
 
 fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
     gpui_base::Positioner::side(bounds)
@@ -70,11 +121,11 @@ fn dropdown_positioner(bounds: Bounds<Pixels>) -> gpui_base::Positioner {
 ///   same frame its state flips, so playing one would mean keeping the surface
 ///   mounted past the close, which is a change to how each of these components
 ///   tracks `open`.
-/// - The slide always comes from above. [`gpui_base::Positioner`] resolves the
-///   side the surface actually lands on during layout and does not report it
-///   back, so a dropdown that flips above its trigger for want of room below
+/// - The slide here always comes from above. [`gpui_base::Positioner`] resolves
+///   the side the surface actually lands on during layout and does not report
+///   it back, so a dropdown that flips above its trigger for want of room below
 ///   slides the opposite way — 8px over 150ms, in the rare case where it
-///   happens.
+///   happens. [`Popover::dropdown_motion`] instead follows its anchor.
 ///
 /// Reduced motion needs no handling here: GPUI's animation element adopts the
 /// final value on the first frame when the system asks for it.
@@ -85,22 +136,12 @@ pub(crate) fn dropdown_popup(
     cx: &App,
 ) -> gpui_base::Positioner {
     let id = id.into();
-    let travel: f32 = DROPDOWN_ENTER_OFFSET.into();
 
     dropdown_positioner(bounds).child(
         Material::new(
             (id.clone(), "material"),
             MaterialDepth::Overlay,
-            surface.with_animation(
-                id,
-                Animation::new(DROPDOWN_ENTER_DURATION).with_easing(ease_out_cubic),
-                move |surface, delta| {
-                    surface
-                        .top(px(travel * (1. - delta)))
-                        .opacity(delta)
-                        .shadow(popover_shadow(delta * delta * delta))
-                },
-            ),
+            dropdown_enter(id, surface, DropdownDirection::Down),
         )
         .corner_radii(Corners::all(cx.theme().radius)),
     )
@@ -131,6 +172,7 @@ pub struct Popover {
     mouse_button: MouseButton,
     appearance: bool,
     child_owns_material: bool,
+    dropdown_motion: bool,
     overlay_closable: bool,
     on_open_change: Option<Rc<dyn Fn(&bool, &mut Window, &mut App)>>,
 }
@@ -152,6 +194,7 @@ impl Popover {
             mouse_button: MouseButton::Left,
             appearance: true,
             child_owns_material: false,
+            dropdown_motion: false,
             overlay_closable: true,
             default_open: false,
             open: None,
@@ -287,6 +330,14 @@ impl Popover {
         self
     }
 
+    /// Play the dropdown enter motion each time the popover opens: a 150ms
+    /// fade with an 8px slide away from the trigger, following the anchor
+    /// (`Top*` slides down, `Bottom*` slides up, side anchors only fade).
+    pub(crate) fn dropdown_motion(mut self) -> Self {
+        self.dropdown_motion = true;
+        self
+    }
+
     /// Bind the focus handle to receive focus when the popover is opened.
     /// If you not set this, a new focus handle will be created for the popover to
     ///
@@ -348,6 +399,8 @@ impl RenderOnce for Popover {
         let radius = cx.theme().radius;
         let appearance = self.appearance;
         let child_owns_material = self.child_owns_material;
+        let dropdown_motion = self.dropdown_motion;
+        let motion_id = (self.id.clone(), "motion");
         let material_id = (self.id.clone(), "material");
         let style = self.style;
         let children = self.children;
@@ -424,8 +477,18 @@ impl RenderOnce for Popover {
                             .size_full(),
                         )
                     });
-                if child_owns_material {
+                let surface = if dropdown_motion {
+                    dropdown_enter(
+                        motion_id.clone(),
+                        surface,
+                        DropdownDirection::from_anchor(anchor),
+                    )
+                    .into_any_element()
+                } else {
                     surface.into_any_element()
+                };
+                if child_owns_material {
+                    surface
                 } else {
                     Material::new(material_id, MaterialDepth::Overlay, surface)
                         .corner_radii(corner_radii)
@@ -1101,5 +1164,114 @@ mod tests {
             "reopening should start the motion over at {opening:?} rather than showing a \
              settled surface, but the first frame was already at {reopening:?}",
         );
+    }
+
+    struct MotionHarness {
+        anchor: Anchor,
+        open: bool,
+    }
+
+    impl Render for MotionHarness {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().size_full().child(
+                div().absolute().left(px(100.)).top(px(200.)).child(
+                    Popover::new("motion")
+                        .anchor(self.anchor)
+                        .open(self.open)
+                        .on_open_change(|_, _, _| {})
+                        .dropdown_motion()
+                        .trigger(Button::new("t"))
+                        .child(div().debug_selector(|| "inner".into()).size(px(50.))),
+                ),
+            )
+        }
+    }
+
+    fn set_motion_open(
+        window: &mut gpui::VisualTestContext,
+        view: &gpui::Entity<MotionHarness>,
+        open: bool,
+    ) {
+        window.update(|window, cx| {
+            view.update(cx, |this, cx| {
+                this.open = open;
+                cx.notify();
+            });
+            crate::test_redraw(window, cx);
+        });
+    }
+
+    /// Returns the first-frame and settled y of `inner` for an opening popover.
+    fn motion_ys(cx: &mut gpui::TestAppContext, anchor: Anchor) -> (Pixels, Pixels) {
+        cx.update(crate::init);
+        let executor = cx.executor();
+        let (view, window) = cx.add_window_view(|_, _| MotionHarness {
+            anchor,
+            open: false,
+        });
+        window.update(|window, cx| crate::test_redraw(window, cx));
+        set_motion_open(window, &view, true);
+        let first = window.debug_bounds("inner").unwrap().origin.y;
+        executor.advance_clock(DROPDOWN_ENTER_DURATION * 4);
+        window.update(|window, cx| crate::test_redraw(window, cx));
+        let settled = window.debug_bounds("inner").unwrap().origin.y;
+        (first, settled)
+    }
+
+    #[gpui::test]
+    fn a_popover_opening_below_slides_down_into_place(cx: &mut gpui::TestAppContext) {
+        let (first, settled) = motion_ys(cx, Anchor::TopLeft);
+        assert!(first < settled, "from {first:?} down to {settled:?}");
+    }
+
+    #[gpui::test]
+    fn a_popover_opening_above_slides_up_into_place(cx: &mut gpui::TestAppContext) {
+        let (first, settled) = motion_ys(cx, Anchor::BottomLeft);
+        assert!(first > settled, "from {first:?} up to {settled:?}");
+    }
+
+    #[gpui::test]
+    fn the_popover_motion_starts_over_on_every_open(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let executor = cx.executor();
+        let (view, window) = cx.add_window_view(|_, _| MotionHarness {
+            anchor: Anchor::TopLeft,
+            open: false,
+        });
+        window.update(|window, cx| crate::test_redraw(window, cx));
+        set_motion_open(window, &view, true);
+        executor.advance_clock(DROPDOWN_ENTER_DURATION * 4);
+        window.update(|window, cx| crate::test_redraw(window, cx));
+        let settled = window.debug_bounds("inner").unwrap().origin.y;
+
+        set_motion_open(window, &view, false);
+        set_motion_open(window, &view, true);
+        let reopened = window.debug_bounds("inner").unwrap().origin.y;
+        assert_ne!(
+            reopened, settled,
+            "the reopened popover was already settled"
+        );
+    }
+
+    #[gpui::test]
+    fn a_moving_popover_keeps_one_overlay_material(cx: &mut gpui::TestAppContext) {
+        cx.update(crate::init);
+        let executor = cx.executor();
+        let (view, window) = cx.add_window_view(|_, _| MotionHarness {
+            anchor: Anchor::TopLeft,
+            open: false,
+        });
+        window.update(|window, cx| crate::test_redraw(window, cx));
+        set_motion_open(window, &view, true);
+        executor.advance_clock(DROPDOWN_ENTER_DURATION * 4);
+        clear_painted_materials();
+        window.update(|window, cx| crate::test_redraw(window, cx));
+        let materials = take_painted_materials();
+        let ours = materials
+            .iter()
+            .filter(|material| material.id.to_string() == "motion-material")
+            .collect::<Vec<_>>();
+        assert_eq!(ours.len(), 1);
+        assert_eq!(ours[0].depth, MaterialDepth::Overlay);
     }
 }

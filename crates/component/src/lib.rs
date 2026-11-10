@@ -74,6 +74,7 @@ pub mod message_scroller;
 pub mod native_menu;
 pub mod notification;
 pub mod pagination;
+pub mod picker;
 pub mod plot;
 pub mod popover;
 pub mod progress;

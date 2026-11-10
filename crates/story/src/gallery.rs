@@ -114,6 +114,7 @@ impl Gallery {
                 StoryContainer::panel::<NumberInputStory>(window, cx),
                 StoryContainer::panel::<OtpInputStory>(window, cx),
                 StoryContainer::panel::<PaginationStory>(window, cx),
+                StoryContainer::panel::<PickerStory>(window, cx),
                 StoryContainer::panel::<PopoverStory>(window, cx),
                 StoryContainer::panel::<ProgressStory>(window, cx),
                 StoryContainer::panel::<QuestionnaireStory>(window, cx),
