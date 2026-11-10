@@ -1707,30 +1707,26 @@ impl Render for PopupMenu {
                             // Ignore last separator
                             .filter(|(ix, item)| !(*ix + 1 == items_count && item.is_separator()))
                             .map(|(ix, item)| self.render_item(ix, item, options, window, cx)),
-                    )
-                    .on_prepaint({
-                        let view = view.clone();
-                        move |bounds, _, cx| {
-                            view.update(cx, |menu, cx| {
-                                let width_changed = menu.bounds.size.width != bounds.size.width;
-                                menu.bounds = bounds;
-                                if width_changed {
-                                    if let Some(parent) = menu
-                                        .parent_menu
-                                        .as_ref()
-                                        .and_then(|parent| parent.upgrade())
-                                    {
-                                        parent.update(cx, |_, cx| cx.notify());
-                                    }
-                                }
-                            });
-                        }
-                    }),
+                    ),
             )
             // Measure the surface outside the scroll area: on_prepaint adds
-            // an absolute canvas that would otherwise count as scroll content.
+            // an absolute canvas that would otherwise count as scroll content
+            // and leave a menu that fits scrollable by its own padding.
             .on_prepaint(move |bounds, _, cx| {
-                view.update(cx, |r, _| r.bounds = bounds);
+                view.update(cx, |menu, cx| {
+                    let width_changed = menu.bounds.size.width != bounds.size.width;
+                    menu.bounds = bounds;
+                    // A parent anchors its submenu by the submenu's width.
+                    if width_changed {
+                        if let Some(parent) = menu
+                            .parent_menu
+                            .as_ref()
+                            .and_then(|parent| parent.upgrade())
+                        {
+                            parent.update(cx, |_, cx| cx.notify());
+                        }
+                    }
+                });
                 UiGlobalState::global_mut(cx).update_menu_bounds(view.entity_id(), bounds);
             })
             .when(self.scrollable, |this| {
@@ -1781,18 +1777,10 @@ mod tests {
         let menu = view.read_with(cx, |view, _| view.menu.clone());
         cx.simulate_resize(gpui::size(px(800.), px(800.)));
         cx.update(|window, cx| window.draw(cx).clear(cx));
-        let (bounds, max_offset) = menu.read_with(cx, |menu, _| {
-            (menu.bounds, menu.scroll_handle.max_offset().y)
-        });
-        assert!(
-            bounds.bottom() <= px(800.),
-            "all items fit in the window and must be available without scrolling: {bounds:?}",
-        );
-        // GPUI counts the scroll container's own padding (`p_1`, 8px in all)
-        // as scrollable content, so a menu that fits still reports that much.
-        assert!(
-            max_offset <= rems(0.5).to_pixels(px(16.)),
-            "a menu that fits must not scroll past its padding: {max_offset:?}",
+        assert_eq!(
+            menu.read_with(cx, |menu, _| menu.scroll_handle.max_offset().y),
+            Pixels::ZERO,
+            "all items fit in the window and must be available without scrolling",
         );
 
         cx.simulate_resize(gpui::size(px(800.), px(320.)));
