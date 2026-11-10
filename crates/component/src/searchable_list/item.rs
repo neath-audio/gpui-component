@@ -143,10 +143,28 @@ impl RenderOnce for SearchableListItemElement {
                 _ => rems(3. / 16.),
             })
             .refine_style(&self.style)
+            // Accent fills take the accent foreground, like upstream. A
+            // caller's `highlight` tint can be any colour, so it keeps the
+            // row's text colour.
             .when(!self.disabled, |this| {
-                this.when(!self.selected, |this| this.hover(|this| this.bg(hover_bg)))
+                this.when(!self.selected, |this| {
+                    let accent_text = self.highlight.is_none();
+                    let accent_foreground = cx.theme().accent_foreground;
+                    this.hover(move |this| {
+                        let this = this.bg(hover_bg);
+                        if accent_text {
+                            this.text_color(accent_foreground)
+                        } else {
+                            this
+                        }
+                    })
+                })
             })
-            .when(self.selected, |this| this.bg(selected_bg))
+            .when(self.selected, |this| {
+                this.bg(selected_bg).when(self.highlight.is_none(), |this| {
+                    this.text_color(cx.theme().accent_foreground)
+                })
+            })
             .when(self.disabled, |this| {
                 this.cursor_not_allowed()
                     .text_color(cx.theme().muted_foreground)

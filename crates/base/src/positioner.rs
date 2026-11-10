@@ -414,8 +414,14 @@ impl Element for Positioner {
             window.insert_hitbox(position.bounds, HitboxBehavior::BlockMouse);
         }
 
-        let offset = position.bounds.origin - bounds.origin;
-        let offset = point(offset.x.round(), offset.y.round());
+        // Snap the popup's origin to the pixel grid, not the offset: a host
+        // that centers this element can hand it a half-pixel origin (odd
+        // popup heights), which an integral offset would carry through.
+        let target = position.bounds.origin;
+        let offset = point(
+            target.x.round() - bounds.origin.x,
+            target.y.round() - bounds.origin.y,
+        );
 
         window.with_element_offset(offset, |window| {
             for child in &mut self.children {

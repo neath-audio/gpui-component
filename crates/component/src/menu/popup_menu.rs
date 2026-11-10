@@ -1781,10 +1781,18 @@ mod tests {
         let menu = view.read_with(cx, |view, _| view.menu.clone());
         cx.simulate_resize(gpui::size(px(800.), px(800.)));
         cx.update(|window, cx| window.draw(cx).clear(cx));
-        assert_eq!(
-            menu.read_with(cx, |menu, _| menu.scroll_handle.max_offset().y),
-            Pixels::ZERO,
-            "all items fit in the window and must be available without scrolling",
+        let (bounds, max_offset) = menu.read_with(cx, |menu, _| {
+            (menu.bounds, menu.scroll_handle.max_offset().y)
+        });
+        assert!(
+            bounds.bottom() <= px(800.),
+            "all items fit in the window and must be available without scrolling: {bounds:?}",
+        );
+        // GPUI counts the scroll container's own padding (`p_1`, 8px in all)
+        // as scrollable content, so a menu that fits still reports that much.
+        assert!(
+            max_offset <= rems(0.5).to_pixels(px(16.)),
+            "a menu that fits must not scroll past its padding: {max_offset:?}",
         );
 
         cx.simulate_resize(gpui::size(px(800.), px(320.)));

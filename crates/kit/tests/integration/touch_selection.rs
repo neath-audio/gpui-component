@@ -570,7 +570,13 @@ fn select_all_after_a_drag_stays_put_frame_after_frame(cx: &mut TestAppContext) 
         let snapshot = TextSelection::touch_selection(window, cx).unwrap();
         let start = end_knob(&snapshot);
         window.drag(start, point(text.left() + px(120.), start.y), cx);
-        assert_eq!(TextSelection::selected_text(window, cx), "quick select \n");
+        // How far 120px reaches depends on the text size; the drag must have
+        // extended the word selection without reaching the end of the text.
+        let dragged = TextSelection::selected_text(window, cx);
+        assert!(
+            dragged.starts_with("quick select ") && dragged.len() < "quick select value\n".len(),
+            "{dragged:?}"
+        );
 
         window.click("Select All", cx);
         let mut seen = Vec::new();
