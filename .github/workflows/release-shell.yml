@@ -3,7 +3,7 @@ name: "Release gpui-shell"
 # `gpui-shell` is not on crates.io (its QuickJS dependencies are git-only), so
 # it ships as a prebuilt binary attached to the GitHub release of each version,
 # built with its default `components` feature so an installed runtime also runs
-# applications that import `gpui-component`.
+# applications that import `gpui-neath`.
 #
 # Asset names carry no version, so `releases/latest/download/<asset>` always
 # resolves: `website/public/shell/install.sh`, Homebrew and mise all download

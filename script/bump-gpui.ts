@@ -2090,7 +2090,7 @@ function parseCommandLine(argv: string[]): Args {
 /**
  * Build and test this repository against the staged crates before anything is
  * uploaded. The workspace pins the snapshot crates to an exact version, so a
- * snapshot whose API drifted away from `gpui-component` never reaches an
+ * snapshot whose API drifted away from `gpui-neath` never reaches an
  * application on its own; it reaches them through the gpui-kit release that
  * bumps the pin, and this makes the drift visible on the release itself so
  * that bump can carry the adaptation. The snapshot is published either way:
@@ -2205,7 +2205,7 @@ async function verifyKitAgainstStaging(
     // `gpui-kit/gpui-fast`, which would switch every member off gpui-pre.
     const commands = [
       ["cargo", "check", ...patches, "--workspace", "--exclude", "webview", "--all-targets"],
-      ["cargo", "clippy", ...patches, "--no-deps", "-p", "gpui-component", "-p", "gpui-component-story", "-p", "gpui-kit-assets", "-p", "gpui-kit", "--", "--deny", "warnings"],
+      ["cargo", "clippy", ...patches, "--no-deps", "-p", "gpui-neath", "-p", "gpui-component-story", "-p", "gpui-kit-assets", "-p", "gpui-kit", "--", "--deny", "warnings"],
       ["cargo", "test", ...patches, "--workspace", "--exclude", "gpui-shell", "--exclude", "gpui-webview", "--exclude", "webview", "--features", "gpui-component-story/test-support"],
     ];
     for (const cmd of commands) {

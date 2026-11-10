@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use gpui_component::hover_card::HoverCard;
+use gpui_neath::hover_card::HoverCard;
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentCallbackArgument,
     ComponentDescriptor, ComponentMaterializer, ComponentPayload, ComponentRegistry,

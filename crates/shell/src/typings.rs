@@ -18,7 +18,7 @@
 //! That is a contract about provenance rather than a filing convenience. An
 //! import line says which layer a script depends on, so a script that never
 //! reaches for a component says so, and the next layer to arrive —
-//! `gpui-component`, whose components are the reason the seam exists — needs a
+//! `gpui-neath`, whose components are the reason the seam exists — needs a
 //! list and a `declare module`, not a renaming of everything already here.
 //! Apart from the explicit `"gpui"` alias, names are not re-exported for
 //! convenience, preserving the layer named by each import.
@@ -641,7 +641,7 @@ const BUILTIN_SPECIFIERS: [&str; 5] = ["gpui-kit", "gpui", "gpui-base", "gpui-sh
 ///
 /// The registry's own, so a host whose catalog scripts import from another
 /// name gets declarations for that name. The bare runtime's empty registry has
-/// none and keeps `gpui-component`, with an empty block.
+/// none and keeps `gpui-neath`, with an empty block.
 fn component_module(components: &crate::FrozenComponentRegistry) -> &'static str {
     components
         .module_specifier()
@@ -1765,7 +1765,7 @@ const ELEMENT_METHODS: &str = r#"    /**
      *
      * The host draws no title bar of its own, so a script's title bar is the
      * window's. `"drag"` makes it behave like one on every platform, as
-     * gpui-component's `TitleBar` does: pressing and dragging across it moves
+     * gpui-neath's `TitleBar` does: pressing and dragging across it moves
      * the window, and a double-click zooms it (or does what the user set
      * double-clicking a title bar to do, on macOS).
      *
@@ -4278,7 +4278,7 @@ mod tests {
     }
 
     /// A host's catalog may answer to a specifier other than
-    /// `gpui-component`; its declarations have to use the same one, or every
+    /// `gpui-neath`; its declarations have to use the same one, or every
     /// import from it is an unknown module to the editor.
     #[test]
     fn a_catalog_is_declared_under_its_own_module_specifier() {
@@ -4287,7 +4287,7 @@ mod tests {
         assert!(declarations.contains("declare module \"host-native\" {\n"));
         assert!(declarations.contains(" | import(\"host-native\").TerminalElement"));
         assert!(declarations.contains("export const TerminalState: "));
-        assert!(!declarations.contains("\"gpui-component\""));
+        assert!(!declarations.contains("\"gpui-neath\""));
     }
 
     /// A directory whose scripts import only that catalog still gets the file.

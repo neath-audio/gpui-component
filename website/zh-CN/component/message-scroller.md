@@ -322,5 +322,5 @@ GPUI 版本保留必要的滚动行为，省略 React primitive 中重复的 Pro
 - [MessageScroller]
 - [MessageScrollerState]
 
-[MessageScroller]: https://docs.rs/gpui-component/latest/gpui_component/message_scroller/struct.MessageScroller.html
-[MessageScrollerState]: https://docs.rs/gpui-component/latest/gpui_component/message_scroller/struct.MessageScrollerState.html
+[MessageScroller]: https://docs.rs/gpui-neath/latest/gpui_neath/message_scroller/struct.MessageScroller.html
+[MessageScrollerState]: https://docs.rs/gpui-neath/latest/gpui_neath/message_scroller/struct.MessageScrollerState.html

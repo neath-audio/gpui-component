@@ -17,7 +17,7 @@
 import { View, div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 /** @import { AsyncContext, Context } from "gpui-kit" */
-/** @import { InputState as InputStateType, WebViewState as WebViewStateType } from "gpui-component" */
+/** @import { InputState as InputStateType, WebViewState as WebViewStateType } from "gpui-neath" */
 import {
   Button,
   Icon,
@@ -26,7 +26,7 @@ import {
   TitleBar,
   WebView,
   WebViewState,
-} from "gpui-component";
+} from "gpui-neath";
 
 const HOME = "https://gpui-kit.com";
 

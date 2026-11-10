@@ -61,7 +61,7 @@ div().relative().size_full().child(content).child(fps_monitor());
 
 JavaScript 的习惯写法是 `new Button(id)`。运行时不提供它，理由正是本页的主题：`new` 承诺的是一个有身份的对象——可以保存、可以挂在实例上、可以再次使用。而描述恰恰不是这种东西。`Button.new(id)` 读起来是“构造一段描述”，它做的也正是这件事，并且与 Rust 侧一字不差。
 
-`"gpui-component"` 也用同样的写法：`Button.new("save")`、`InputState.new("Name")`。它的导出同样接受 `new Button(...)`，那是 `.new` 出现之前的脚本写法；新代码请写 `.new`，让同一份文件只有一种构造形态。
+`"gpui-neath"` 也用同样的写法：`Button.new("save")`、`InputState.new("Name")`。它的导出同样接受 `new Button(...)`，那是 `.new` 出现之前的脚本写法；新代码请写 `.new`，让同一份文件只有一种构造形态。
 
 View 是相反的情形，用的就是标准写法：`class Counter extends View`。 View 确实有身份、有跨帧状态，并且由 GPUI 拥有。同一份文件里出现两种构造形态，是因为这两类东西的生命周期本来就不同。
 

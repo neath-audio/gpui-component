@@ -1255,7 +1255,7 @@ fn subscribe(
 /// [`StateDescriptor::with_input_events`](crate::StateDescriptor::with_input_events).
 ///
 /// The events, their payloads and the call scope a handler runs in are those of
-/// [`subscribe`] — a `gpui-component` `InputState` is the same Rust entity as a
+/// [`subscribe`] — a `gpui-neath` `InputState` is the same Rust entity as a
 /// `gpui-base` one — so only where the entity is found differs: the registry's
 /// retained-state table rather than the entity store, and the subscription
 /// ends with that slot.

@@ -318,7 +318,7 @@ impl gpui_base::dock::PanelView for PanelHandle {
 /// [`register_panel`](gpui_base::dock::register_panel) builder returns.
 ///
 /// Base's own `DockLayout::panel` and `DockArea::add_panel` also accept a
-/// panel — a `gpui_component::dock::Panel` is a
+/// panel — a `gpui_neath::dock::Panel` is a
 /// `gpui_base::dock::Panel` — but they store the bare entity, and a skin
 /// cannot recover presentation from one. Such a panel still docks, drags and
 /// persists; it just draws its `panel_name` where its title would be.

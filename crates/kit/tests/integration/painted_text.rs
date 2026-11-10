@@ -1,5 +1,5 @@
 use crate::common;
-use gpui_component::{avatar::Avatar, button::Button, kbd::Kbd, label::Label, text::TextView};
+use gpui_neath::{avatar::Avatar, button::Button, kbd::Kbd, label::Label, text::TextView};
 use gpui_kit::base::test_support::texts;
 use gpui_kit::test::TestWindowExt;
 use gpui_kit::{AppContext, Context, Keystroke, TestAppContext, Window, div, prelude::*, px, size};
@@ -25,7 +25,7 @@ impl Render for Painted {
 
 #[gpui_kit::test]
 fn painted_text_and_alternative_text_are_observed(cx: &mut TestAppContext) {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     let (handle, _) = common::open_window(cx, Some(size(px(600.), px(500.))), |_, cx| {
         cx.new(|_| Painted)
     });
@@ -56,7 +56,7 @@ fn painted_text_and_alternative_text_are_observed(cx: &mut TestAppContext) {
 
 #[gpui_kit::test]
 fn each_frame_replaces_the_text_of_the_last(cx: &mut TestAppContext) {
-    cx.update(gpui_component::init);
+    cx.update(gpui_neath::init);
     let (handle, _) = common::open_window(cx, Some(size(px(600.), px(500.))), |_, cx| {
         cx.new(|_| Painted)
     });

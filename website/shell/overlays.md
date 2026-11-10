@@ -13,7 +13,7 @@ A dialog is not a floating `div`. It is a place in the window's stacking order, 
 
 So the script says **what** to put in front of the user, and the root says where it goes and how it leaves. What crosses the boundary is small: a function returning an element, a side to anchor to, a sentence to show.
 
-They are on `window` rather than on `cx` because a dialog belongs to the window, not to the View that opened it: `cx.notify()` re-renders one View, `window.open_dialog()` changes what the user is looking at. `gpui-component` draws the same line, so the two halves of an application read as one vocabulary — and `window` is somewhere to grow. Overlays are what it carries today; `Window` in Rust also answers focus, size and appearance, and those land in a namespace that already exists.
+They are on `window` rather than on `cx` because a dialog belongs to the window, not to the View that opened it: `cx.notify()` re-renders one View, `window.open_dialog()` changes what the user is looking at. `gpui-neath` draws the same line, so the two halves of an application read as one vocabulary — and `window` is somewhere to grow. Overlays are what it carries today; `Window` in Rust also answers focus, size and appearance, and those land in a namespace that already exists.
 
 ## The surface
 
@@ -217,7 +217,7 @@ The refusal names the phase it came from, because that is the only clue the auth
 
 ## Overlays need a `ShellRoot`
 
-Every one of these calls reaches the window's `ShellRoot`: its first View, or the View directly inside the `gpui-component` `Root` that the `gpui-shell` command opens its windows with. A window with neither refuses them:
+Every one of these calls reaches the window's `ShellRoot`: its first View, or the View directly inside the `gpui-neath` `Root` that the `gpui-shell` command opens its windows with. A window with neither refuses them:
 
 ```text
 window.open_dialog(content, options) found no ShellRoot in this window. A view's

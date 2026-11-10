@@ -1,5 +1,5 @@
 //! Inline presentation and change subscriptions shared by Input and Textarea.
-use gpui_component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
+use gpui_neath::input::{Input, InputEvent, InputState, Textarea, TextareaState};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentCallback, ComponentPayload,
     InlineTokenCallbacks, MaterializeRequest, MethodDescriptor, anyhow,

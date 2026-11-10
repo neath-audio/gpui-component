@@ -1,7 +1,7 @@
 //! Questionnaire behavior: answers, validation, navigation, focus and shortcuts.
 //!
 //! The state machine lives here so an application can replace the visual
-//! language without reimplementing it. `gpui-component` owns the skin.
+//! language without reimplementing it. `gpui-neath` owns the skin.
 
 mod control;
 mod keyboard;

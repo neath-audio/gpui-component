@@ -367,10 +367,10 @@ Message::new()
 - [MessageContent]
 - [MessageFooter]
 
-[Message]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.Message.html
-[MessageAlignment]: https://docs.rs/gpui-component/latest/gpui_component/message/enum.MessageAlignment.html
-[MessageGroup]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageGroup.html
-[MessageAvatar]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageAvatar.html
-[MessageHeader]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageHeader.html
-[MessageContent]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageContent.html
-[MessageFooter]: https://docs.rs/gpui-component/latest/gpui_component/message/struct.MessageFooter.html
+[Message]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.Message.html
+[MessageAlignment]: https://docs.rs/gpui-neath/latest/gpui_neath/message/enum.MessageAlignment.html
+[MessageGroup]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageGroup.html
+[MessageAvatar]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageAvatar.html
+[MessageHeader]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageHeader.html
+[MessageContent]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageContent.html
+[MessageFooter]: https://docs.rs/gpui-neath/latest/gpui_neath/message/struct.MessageFooter.html

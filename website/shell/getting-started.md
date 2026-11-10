@@ -15,7 +15,7 @@ Install the `gpui-shell` binary first, whichever way you use the runtime. An app
 
 ### From a release
 
-Each GitHub release carries a prebuilt `gpui-shell` for macOS (Apple silicon and Intel), Linux x86-64 and Windows x86-64. It is built with the [`gpui-component`](./examples.md) catalog, so an application may import styled components from `"gpui-component"` as well as `"gpui-base"`.
+Each GitHub release carries a prebuilt `gpui-shell` for macOS (Apple silicon and Intel), Linux x86-64 and Windows x86-64. It is built with the [`gpui-neath`](./examples.md) catalog, so an application may import styled components from `"gpui-neath"` as well as `"gpui-base"`.
 
 ```bash
 curl -fsSL https://gpui-kit.com/shell/install.sh | sh
@@ -39,7 +39,7 @@ To follow `main` ahead of a release — a fix that has landed but not shipped, o
 cargo install --git https://github.com/longbridge/gpui-kit gpui-shell --locked
 ```
 
-It installs to `~/.cargo/bin`, with the same `gpui-component` catalog as a release. Run the same command again to update; Cargo rebuilds when `main` has moved. `--branch <name>`, `--tag <tag>` or `--rev <commit>` builds a specific point instead. This needs a Rust toolchain, and on Linux the system libraries GPUI links against — `script/install-linux.sh` in the repository lists them for Ubuntu.
+It installs to `~/.cargo/bin`, with the same `gpui-neath` catalog as a release. Run the same command again to update; Cargo rebuilds when `main` has moved. `--branch <name>`, `--tag <tag>` or `--rev <commit>` builds a specific point instead. This needs a Rust toolchain, and on Linux the system libraries GPUI links against — `script/install-linux.sh` in the repository lists them for Ubuntu.
 
 If `~/.local/bin` comes before `~/.cargo/bin` on your `PATH`, a release installed by the script shadows the Git build; `command -v gpui-shell` shows which one runs.
 
@@ -299,7 +299,7 @@ gpui_platform::application()
 
 Two of those lines carry rules rather than mechanics.
 
-**`runtime.load(...)` returns the window's `ShellRoot`**, the same role `Root` has in a `gpui-component` window. It owns the dialog stack, the sheet, the toast stack, focus restoration and Tab navigation. A manifest selects the application entry and records capability requests; it never approves those requests. Both manifest-backed and bare directories run under the host's current default policy, and a bare directory uses `main.js`.
+**`runtime.load(...)` returns the window's `ShellRoot`**, the same role `Root` has in a `gpui-neath` window. It owns the dialog stack, the sheet, the toast stack, focus restoration and Tab navigation. A manifest selects the application entry and records capability requests; it never approves those requests. Both manifest-backed and bare directories run under the host's current default policy, and a bare directory uses `main.js`.
 
 **Capabilities default to empty.** `Capabilities::default()` grants nothing at all — no file, no storage, no clipboard, no process. The host decides, because only the host knows how far it trusts the code it is about to run. See [Capabilities](./capabilities.md).
 

@@ -42,7 +42,7 @@ fn draw(context: &mut VisualTestContext) {
 /// A keystroke must repaint the code without the pointer moving.
 ///
 /// The window is rooted the way the `gpui-shell` binary roots it:
-/// `gpui_component::Root` around `ShellRoot`, whose content is a cached view.
+/// `gpui_neath::Root` around `ShellRoot`, whose content is a cached view.
 /// `OtpState` is a plain entity that the cells read while they are built, so
 /// its `notify` dirties no view on its own; unless the binding mounts the state
 /// as a view, the cached frame is replayed and the typed digit only appears on
@@ -53,7 +53,7 @@ fn typing_into_a_retained_otp_input_repaints_the_cached_content(cx: &mut TestApp
     // Two groups of two 32px cells: 4px inside a group, 20px between them.
     let source = r#"
 import { View } from "gpui-kit";
-import { OtpInput, OtpState } from "gpui-component";
+import { OtpInput, OtpState } from "gpui-neath";
 export default class Code extends View {
   init() { this.otp = OtpState(4); }
   render() { return new OtpInput(this.otp).w(124); }
@@ -71,7 +71,7 @@ export default class Code extends View {
                 .mount_application(&loaded, window, cx)
                 .expect("mount application");
             let shell = cx.new(|cx| gpui_shell::ShellRoot::new(view.into(), window, cx));
-            gpui_component::Root::new(shell, window, cx)
+            gpui_neath::Root::new(shell, window, cx)
         }
     });
     let mut context = VisualTestContext::from_window(*window.deref(), cx);

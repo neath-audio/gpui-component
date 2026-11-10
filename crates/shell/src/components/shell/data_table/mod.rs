@@ -2,7 +2,7 @@
 
 use super::support::bool_method;
 
-use gpui_component::table::{Column, DataTable, TableDelegate, TableState};
+use gpui_neath::table::{Column, DataTable, TableDelegate, TableState};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDataValue,
     ComponentDelegateSnapshot, ComponentDescriptor, ComponentElementCallback,

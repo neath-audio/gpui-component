@@ -1,6 +1,6 @@
 use super::{Carrier, take};
 use super::{reject_style, require_child};
-use gpui_component::{Disableable as _, button::Button, native_menu::NativeMenu};
+use gpui_neath::{Disableable as _, button::Button, native_menu::NativeMenu};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

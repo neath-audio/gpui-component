@@ -4,7 +4,7 @@ extern crate gpui_fast as gpui;
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{App, Context, IntoElement, TestAppContext, Window, div};
-use gpui_component::table::{Column, TableDelegate, TableState};
+use gpui_neath::table::{Column, TableDelegate, TableState};
 
 struct DumpDelegate {
     rows: usize,

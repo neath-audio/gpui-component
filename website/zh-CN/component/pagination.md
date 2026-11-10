@@ -158,5 +158,5 @@ Pagination::new("large-pagination")
     })
 ```
 
-[Pagination]: https://docs.rs/gpui-component/latest/gpui_component/pagination/struct.Pagination.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
+[Pagination]: https://docs.rs/gpui-neath/latest/gpui_neath/pagination/struct.Pagination.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html

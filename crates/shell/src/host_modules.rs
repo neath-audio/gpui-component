@@ -12,7 +12,7 @@
 //!
 //! gpui_shell::export_module(
 //!     HostModule::new("workspace")
-//!         .function("project_name", |_| Ok(HostValue::from("gpui-component"))),
+//!         .function("project_name", |_| Ok(HostValue::from("gpui-neath"))),
 //! )
 //! .expect("`workspace` is not one of the runtime's own module names");
 //! ```
@@ -760,7 +760,7 @@ pub const RESERVED_SPECIFIERS: &[&str] = &[
     "gpui-kit",
     "gpui",
     "gpui-base",
-    "gpui-component",
+    "gpui-neath",
     "gpui-shell",
     "gpui-fps",
     // The Standard Runtime.
@@ -1014,7 +1014,7 @@ mod tests {
         let mut modules = HostModules::new();
         modules.insert(
             HostModule::new("workspace")
-                .function("project_name", |_| Ok(HostValue::from("gpui-component")))
+                .function("project_name", |_| Ok(HostValue::from("gpui-neath")))
                 .function("open_count", |arguments| {
                     Ok(HostValue::from(arguments.len()))
                 })
@@ -1036,7 +1036,7 @@ mod tests {
             modules
                 .call("workspace", "project_name", &HostArguments::default())
                 .unwrap(),
-            HostValue::Str("gpui-component".into())
+            HostValue::Str("gpui-neath".into())
         );
         assert_eq!(
             modules

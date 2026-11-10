@@ -11,7 +11,7 @@ export interface SidebarItem {
 export interface SidebarGeneratorConfig {
   /** Path relative to website/ root, e.g. "docs" */
   contentDir: string;
-  /** Absolute URL prefix, e.g. "/gpui-component/docs" */
+  /** Absolute URL prefix, e.g. "/gpui-neath/docs" */
   baseUrl: string;
   /** Top-level group label */
   rootGroupText: string;

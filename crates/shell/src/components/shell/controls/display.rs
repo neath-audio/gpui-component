@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::{
+use gpui_neath::{
     Sizable as _, Size,
     badge::Badge,
     tag::{Tag, TagVariant},
@@ -18,7 +18,7 @@ struct UnitPayload;
 
 #[derive(Clone)]
 enum BadgeOp {
-    Size(gpui_component::Size),
+    Size(gpui_neath::Size),
     Dot,
     Count(usize),
     Max(usize),
@@ -117,7 +117,7 @@ impl ComponentMaterializer for TagMaterializer {
     }
 }
 
-fn size_method<T: 'static + Send + Sync>(make: fn(gpui_component::Size) -> T) -> MethodDescriptor {
+fn size_method<T: 'static + Send + Sync>(make: fn(gpui_neath::Size) -> T) -> MethodDescriptor {
     MethodDescriptor::new(
         "size",
         vec![ArgumentDescriptor::new(
@@ -126,10 +126,10 @@ fn size_method<T: 'static + Send + Sync>(make: fn(gpui_component::Size) -> T) ->
         )],
         move |args| match args {
             [ComponentArgument::Enum(value)] => match value.as_str() {
-                "xsmall" => Ok(ComponentPayload::new(make(gpui_component::Size::XSmall))),
-                "small" => Ok(ComponentPayload::new(make(gpui_component::Size::Small))),
-                "medium" => Ok(ComponentPayload::new(make(gpui_component::Size::Medium))),
-                "large" => Ok(ComponentPayload::new(make(gpui_component::Size::Large))),
+                "xsmall" => Ok(ComponentPayload::new(make(gpui_neath::Size::XSmall))),
+                "small" => Ok(ComponentPayload::new(make(gpui_neath::Size::Small))),
+                "medium" => Ok(ComponentPayload::new(make(gpui_neath::Size::Medium))),
+                "large" => Ok(ComponentPayload::new(make(gpui_neath::Size::Large))),
                 _ => Err(format!("unsupported size `{value}`")),
             },
             _ => Err("size expects a semantic size literal".into()),

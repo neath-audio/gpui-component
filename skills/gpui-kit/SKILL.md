@@ -48,7 +48,7 @@ section for the change (`grep -n '^## ' references/coding-guides.md`).
 | State ownership                      | Where a piece of state lives, who mutates it, `Entity<State>` handles  |
 | Stable identity                      | `ElementId`, lists, repeated elements, keyed state                     |
 | Rendering and composition            | `render`, builder chains, `when`/`map`, child composition              |
-| Behavior and presentation boundary   | `gpui-base` vs `gpui-component` vs application code                    |
+| Behavior and presentation boundary   | `gpui-base` vs `gpui-neath` vs application code                    |
 | Theme and styling                    | `cx.theme()`, tokens, `Styled`, sizes, variants                        |
 | Events, actions, and focus           | `cx.emit`, `subscribe`, `actions!`, keybindings, `FocusHandle`         |
 | Async work and side effects          | `cx.spawn`, `background_spawn`, `Task`, I/O, timers                    |

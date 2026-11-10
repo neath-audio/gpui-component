@@ -16,7 +16,7 @@ GPUI Kit's core architecture has five layers:
   together Base, Component, and default assets through one dependency.
 - **`gpui-base`**: Unstyled behavior, controlled state, focus, overlays,
   virtual lists, dock infrastructure, and semantic design tokens.
-- **`gpui-component`**: GPUI Component, the complete styled component library
+- **`gpui-neath`**: GPUI Component, the complete styled component library
   with 75+ documented components and primitives, themes, data tables, dock
   layout, and a code editor.
 - **`gpui-shell`**: Opens a Rust host to JavaScript extensions, one granted
@@ -26,7 +26,7 @@ An application normally depends on `gpui-kit` for GPUI, Base, Component, and
 assets. Add `gpui-shell` separately when the application hosts JavaScript
 extensions; it remains part of the framework's core architecture.
 
-Use `gpui-component` for polished controls with one coherent visual language,
+Use `gpui-neath` for polished controls with one coherent visual language,
 or build your own design system on the reusable behavior and infrastructure in
 `gpui-base`. This section covers GPUI Kit setup, shared design and coding guides, and
 application development. For library APIs, see [GPUI Component](../component/index.md),

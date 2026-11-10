@@ -116,7 +116,7 @@ fn entry(name: &str, styled: bool) -> String {
         format!(
             r#"import {{ View, div }} from "gpui-kit";
 import {{ v_flex }} from "gpui-base";
-import {{ Button, TitleBar }} from "gpui-component";
+import {{ Button, TitleBar }} from "gpui-neath";
 
 export default class App extends View {{
   init() {{

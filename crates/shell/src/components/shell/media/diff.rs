@@ -1,7 +1,7 @@
 use super::bool_method;
 use std::sync::Arc;
 
-use gpui_component::diff::{
+use gpui_neath::diff::{
     Diff, DiffChangeIndicator, DiffFile, DiffHunkSeparator, DiffMode, DiffState,
 };
 use gpui_shell::{

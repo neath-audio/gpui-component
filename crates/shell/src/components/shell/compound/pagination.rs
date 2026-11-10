@@ -1,4 +1,4 @@
-use gpui_component::{Disableable as _, Sizable as _, Size, pagination::Pagination};
+use gpui_neath::{Disableable as _, Sizable as _, Size, pagination::Pagination};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentCallbackArgument,
     ComponentDescriptor, ComponentMaterializer, ComponentPayload, ComponentRegistry,

@@ -249,5 +249,5 @@ HoverCard 的时间控制主要解决悬停交互中的抖动问题：
 | 主要用途 | 预览信息 | 操作和表单 |
 
 [Popover]: ./popover.md
-[Anchor]: https://docs.rs/gpui-component/latest/gpui_component/enum.Anchor.html
+[Anchor]: https://docs.rs/gpui-neath/latest/gpui_neath/enum.Anchor.html
 [Avatar]: ./avatar.md

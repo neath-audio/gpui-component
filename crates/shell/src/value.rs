@@ -185,7 +185,7 @@ impl ShadowSpec {
     ///
     /// `blur` is written with CSS semantics, where the blur radius is twice the
     /// gaussian's standard deviation; GPUI's shader takes the deviation itself,
-    /// so it is halved here — the same conversion `gpui-component`'s own
+    /// so it is halved here — the same conversion `gpui-neath`'s own
     /// surface shadows make. Without it a shadow copied from a stylesheet
     /// spreads over twice the distance.
     pub fn resolve(&self) -> ShellResult<BoxShadow> {

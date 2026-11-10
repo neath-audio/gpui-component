@@ -13,10 +13,10 @@ PROFILES = {
         [sys.executable, "-m", "unittest", "discover", "-s", "script/tests"],
     ],
     "rust": [
-        ["cargo", "test", "--locked", "-p", "gpui-component", "--no-default-features",
+        ["cargo", "test", "--locked", "-p", "gpui-neath", "--no-default-features",
          "--test", "integration", "--", "controlled_change_callbacks::",
          "legacy_controls_compat::"],
-        ["cargo", "test", "--locked", "-p", "gpui-component", "--no-default-features",
+        ["cargo", "test", "--locked", "-p", "gpui-neath", "--no-default-features",
          "--lib", "form::form::tests"],
     ],
     "shell": [

@@ -1,4 +1,4 @@
-//! The gpui-component appearance for the dock area: the outer frame, the
+//! The gpui-neath appearance for the dock area: the outer frame, the
 //! split frames, and one dock's chrome.
 
 use std::{rc::Rc, sync::Arc};

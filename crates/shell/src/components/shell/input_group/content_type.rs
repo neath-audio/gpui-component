@@ -1,5 +1,5 @@
 use super::{Op, enum_method};
-use gpui_component::input::InputContentType;
+use gpui_neath::input::InputContentType;
 use gpui_shell::MethodDescriptor;
 
 pub(super) fn method() -> MethodDescriptor {

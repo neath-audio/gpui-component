@@ -2,7 +2,7 @@
 //!
 //! Primitives deliberately avoid presentation styles. Layout, positioning,
 //! colors, sizing, and motion belong to applications or the
-//! `gpui-component` façade.
+//! `gpui-neath` façade.
 
 #[cfg(feature = "gpui-fast")]
 extern crate gpui_fast as gpui;

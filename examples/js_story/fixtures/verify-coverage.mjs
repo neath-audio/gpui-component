@@ -45,7 +45,7 @@ const records = familyFiles.flatMap((file) => {
 const inventoryStories = inventory.items.filter(
   (item) => item.source === "story",
 );
-// The gallery mirrors the Rust Story app, which shows `gpui-component` alone.
+// The gallery mirrors the Rust Story app, which shows `gpui-neath` alone.
 // `gpui-webview` is a separate crate with its own example,
 // `examples/js_webview`, so its surfaces have no route to cover them here.
 const GALLERY_SOURCES = new Set(["ui", "story"]);
@@ -231,8 +231,8 @@ for (const surface of registered) {
     fail(`${surface} is marked registered outside component-inventory.json`);
   }
 }
-if (!registeredSource.includes('from "gpui-component"')) {
-  fail("registered examples do not import the public gpui-component module");
+if (!registeredSource.includes('from "gpui-neath"')) {
+  fail("registered examples do not import the public gpui-neath module");
 }
 for (const surface of registered) {
   if (!registeredSource.includes(`case "${surface}"`)) {

@@ -25,9 +25,9 @@ fn found_crate_path(found: FoundCrate) -> TokenStream {
     }
 }
 
-/// Resolve the `gpui-component` API exposed to the crate where a macro is
+/// Resolve the `gpui-neath` API exposed to the crate where a macro is
 /// expanded, mirroring [`gpui`]: `gpui-kit` consumers reach it as
-/// `gpui_kit::component`, standalone consumers as `gpui_component`, and the
+/// `gpui_kit::component`, standalone consumers as `gpui_neath`, and the
 /// crate itself as `crate`.
 pub(crate) fn component() -> syn::Result<TokenStream> {
     match crate_name("gpui-kit") {
@@ -35,13 +35,13 @@ pub(crate) fn component() -> syn::Result<TokenStream> {
             let kit = found_crate_path(found);
             Ok(quote!(#kit::component))
         }
-        Err(kit_error) => crate_name("gpui-component").map(found_crate_path).map_err(
+        Err(kit_error) => crate_name("gpui-neath").map(found_crate_path).map_err(
             |component_error| {
                 syn::Error::new(
                     Span::call_site(),
                     format!(
-                        "IntoPlot requires a direct dependency on `gpui-kit` or `gpui-component`: \
-                         gpui-kit lookup failed: {kit_error}; gpui-component lookup failed: \
+                        "IntoPlot requires a direct dependency on `gpui-kit` or `gpui-neath`: \
+                         gpui-kit lookup failed: {kit_error}; gpui-neath lookup failed: \
                          {component_error}"
                     ),
                 )

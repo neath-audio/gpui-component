@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui_component::{kbd::Kbd, label::Label, link::Link};
+use gpui_neath::{kbd::Kbd, label::Label, link::Link};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

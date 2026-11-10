@@ -16,7 +16,7 @@ pub enum PanelEvent {
 }
 
 /// Behavior a dockable panel provides. Presentation lives in the layer above:
-/// `gpui_component::dock::Panel` extends this with titles, toolbars, and menus.
+/// `gpui_neath::dock::Panel` extends this with titles, toolbars, and menus.
 #[allow(unused_variables)]
 pub trait Panel: EventEmitter<PanelEvent> + Render + Focusable {
     /// Identifies the panel in persisted layouts. Once chosen, never change it.

@@ -15,7 +15,7 @@ use crate::{TextSelectionHandle, TextSelectionRegistration, TextSelectionRun};
 ///
 /// Applications must render one [`crate::TextSelectionLayer`] above their
 /// content and call [`crate::init`] during startup. Selection and copy then
-/// work without depending on `gpui-component`.
+/// work without depending on `gpui-neath`.
 pub struct SelectableText {
     id: ElementId,
     handle: Option<TextSelectionHandle>,

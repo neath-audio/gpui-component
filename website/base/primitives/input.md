@@ -76,7 +76,7 @@ cx.subscribe(&input, |this, state, event: &InputEvent, cx| {
 `gpui-base` does not install product styling. Supply `InputEditorStyle` to the
 state and compose the control inside your own frame. If you want the ready-made
 theme, sizing, borders, prefix/suffix slots, and clear button, use the styled
-[`gpui-component` Input](../../component/input.md).
+[`gpui-neath` Input](../../component/input.md).
 
 ## Cursor blinking
 
@@ -117,7 +117,7 @@ immediately; extending or removing the timeout can resume an idle cursor
 without refocusing.
 
 `CursorBlink::default()` restores 500 ms blinking without an idle timeout.
-Applications that use `gpui-component` set the policy on the Component theme
+Applications that use `gpui-neath` set the policy on the Component theme
 with `Theme::update` instead, which projects it onto Base; a value written
 directly to the Base theme is replaced by the next Component theme update. See
 [Component Input](../../component/input.md#cursor-blinking).

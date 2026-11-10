@@ -10,7 +10,7 @@ use gpui::{
     AnyElement, App, Context, Hsla, InteractiveElement as _, IntoElement, Modifiers,
     ParentElement as _, Render, RenderOnce, Styled as _, TestAppContext, Window, div, px,
 };
-use gpui_component::{
+use gpui_neath::{
     ActiveTheme as _, Selectable as _, Theme, ThemeConfig, list::ListItem,
     searchable_list::SearchableListItemElement,
 };
@@ -44,7 +44,7 @@ impl Render for Harness {
 /// with that fill (white) differs from the page foreground (near black).
 fn init_blue_accent_theme(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        gpui_component::init(cx);
+        gpui_neath::init(cx);
         let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
             "name": "Blue Accent",
             "mode": "light",

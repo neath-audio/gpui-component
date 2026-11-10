@@ -434,7 +434,7 @@ fn notify_from_an_input_subscription_rebuilds_its_own_view(cx: &mut TestAppConte
     assert_eq!(runtime.metrics().read().script_renders(), 2);
 }
 
-/// `gpui-component`'s `InputState` answers `on(...)` exactly as `gpui-base`'s
+/// `gpui-neath`'s `InputState` answers `on(...)` exactly as `gpui-base`'s
 /// does — same events, same payload — and both modules construct with
 /// `Type.new(...)`. Before, the component state had no way to hear Enter at
 /// all, and `InputState.new` was not a function.
@@ -444,7 +444,7 @@ fn a_component_input_state_reports_change_and_submit(cx: &mut TestAppContext) {
     const SOURCE: &str = r#"
 import { View } from "gpui-kit";
 import { v_flex, InputState as BaseInputState } from "gpui-base";
-import { Input, InputState } from "gpui-component";
+import { Input, InputState } from "gpui-neath";
 
 export default class Form extends View {
   init(_props, cx) {
@@ -510,7 +510,7 @@ export default class Form extends View {
 
     // The isolated runtime's first retained state is the script's only one.
     let input = runtime
-        .with_component_state::<Entity<gpui_component::input::InputState>, _>(
+        .with_component_state::<Entity<gpui_neath::input::InputState>, _>(
             0,
             "InputState",
             Clone::clone,

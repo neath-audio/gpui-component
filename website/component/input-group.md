@@ -309,14 +309,14 @@ Placeholder, caret, and selection colors follow the Theme. Import
 
 ## JavaScript
 
-Import the same parts from `gpui-component`. Create text states in `View.init`.
+Import the same parts from `gpui-neath`. Create text states in `View.init`.
 Use `.value(...)` and `.on_change(...)` for a controlled input:
 
 ```javascript
 import { View } from "gpui-kit";
 import {
   InputState, InputGroup, InputGroupInput, InputGroupAddon, InputGroupButton,
-} from "gpui-component";
+} from "gpui-neath";
 
 export default class Search extends View {
   init() {

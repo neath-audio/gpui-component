@@ -10,7 +10,7 @@ for package in \
   gpui-component-macros \
   gpui-base \
   gpui-fps \
-  gpui-component \
+  gpui-neath \
   gpui-kit \
   gpui-webview \
   gpui-shell

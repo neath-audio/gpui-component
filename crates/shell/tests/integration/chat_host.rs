@@ -60,7 +60,7 @@ import { div, View } from "gpui-kit";
 import {
   Attachment, Bubble, Marker, Message, MessageScroller,
   MessageScrollerState, ShimmerText,
-} from "gpui-component";
+} from "gpui-neath";
 
 export default class ChatHost extends View {
   init() { this.scroller = MessageScrollerState(2); }
@@ -121,7 +121,7 @@ fn message_scroller_rows_hold_their_own_handlers(cx: &mut TestAppContext) {
         r#"
 import { div, View } from "gpui-kit";
 import { TextView } from "gpui-base";
-import { MessageScroller, MessageScrollerState } from "gpui-component";
+import { MessageScroller, MessageScrollerState } from "gpui-neath";
 
 export default class Rows extends View {
   init() { this.scroller = MessageScrollerState(1); this.clicked = false; }
@@ -179,7 +179,7 @@ fn message_scroller_state_is_edited_from_script(cx: &mut TestAppContext) {
     let app = TempApp::new(
         r#"
 import { div, View } from "gpui-kit";
-import { MessageScroller, MessageScrollerState } from "gpui-component";
+import { MessageScroller, MessageScrollerState } from "gpui-neath";
 
 const rejects = (call) => { try { call(); return "ok"; } catch { return "err"; } };
 

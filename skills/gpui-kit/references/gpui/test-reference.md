@@ -211,7 +211,7 @@ The most dangerous class of GPUI bugs is **entity re-entrancy**: code that tries
 - `#[should_panic]` only confirms the bug exists — tests must pass *without* panicking.
 - `Select` commits through `defer_in` after the key or click dispatch returns. Wait for the result with `cx.wait_for` instead of asserting straight after the interaction.
 
-Drive the component the way a user does. `SelectState` keeps its list state `pub(crate)`, so a test outside `gpui-component` opens the menu, presses keys, and observes through `selected_value()`, the element snapshot, and the delegate's own hooks.
+Drive the component the way a user does. `SelectState` keeps its list state `pub(crate)`, so a test outside `gpui-neath` opens the menu, presses keys, and observes through `selected_value()`, the element snapshot, and the delegate's own hooks.
 
 ### Pattern: Confirm through the real UI
 

@@ -1,4 +1,4 @@
-use gpui_component::Size;
+use gpui_neath::Size;
 use gpui_shell::{ComponentArgument, ComponentPayload, MaterializeRequest, anyhow};
 
 pub(super) fn non_empty_id(component: &str, id: &str) -> Result<String, String> {

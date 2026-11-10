@@ -64,10 +64,10 @@ function saveButton(cx) {
 ```
 
 This is the same trade the Rust side makes when an application builds directly
-on `gpui-base` instead of `gpui-component`. Colors are named as semantic theme
+on `gpui-base` instead of `gpui-neath`. Colors are named as semantic theme
 tokens, so a shared visual language stays available without the runtime making
 visual decisions on the application's behalf. Applications that want ready-made
-product visuals import the `gpui-component` script module, which this crate
+product visuals import the `gpui-neath` script module, which this crate
 provides through its default `components` feature
 (`gpui_shell::components`). Run `cargo run -p gpui-shell -- run examples/js_story`
 for the styled gallery; build without the feature for a Base-only runtime.
@@ -125,7 +125,7 @@ the largest application written against this runtime.
 
 ### Installing the runtime and applications
 
-Releases ship a prebuilt `gpui-shell` (built with the `gpui-component`
+Releases ship a prebuilt `gpui-shell` (built with the `gpui-neath`
 catalog) for macOS, Linux and Windows:
 
 ```bash
@@ -320,13 +320,13 @@ layer only reports the state.
 
 ### WebView
 
-`"gpui-component"` exports `WebViewState` and `WebView` (the default `webview`
+`"gpui-neath"` exports `WebViewState` and `WebView` (the default `webview`
 feature). The state owns a native web page — WKWebView, WebView2 or WebKitGTK —
 so the document and its history survive renders; `WebView` places it in the
 layout and takes shell style for its size.
 
 ```js
-import { WebView, WebViewState } from "gpui-component";
+import { WebView, WebViewState } from "gpui-neath";
 
 // In init():
 this.page = WebViewState.new("https://gpui-kit.com");
@@ -368,7 +368,7 @@ reader's position. A state holds at most 1,000,000 rows; a count or an edit
 that would exceed it throws.
 
 ```js
-import { MessageScroller, MessageScrollerState } from "gpui-component";
+import { MessageScroller, MessageScrollerState } from "gpui-neath";
 
 // In init():
 this.rows = [];
@@ -733,7 +733,7 @@ gpui_shell::clear_exported_modules();
 ```
 
 A host with native components of its own registers them beside the
-`gpui-component` catalog. A runtime takes one frozen catalog, so the host
+`gpui-neath` catalog. A runtime takes one frozen catalog, so the host
 takes the catalog before it is frozen, adds to it, and freezes it:
 
 ```rust,ignore
@@ -742,7 +742,7 @@ registry.register(my_component_descriptor())?;
 gpui_shell::host::main_with_components(registry.freeze()?);
 ```
 
-Scripts import those components from `"gpui-component"` with the rest of the
+Scripts import those components from `"gpui-neath"` with the rest of the
 catalog, so their export names must not collide with the catalog's.
 
 ## How It Works

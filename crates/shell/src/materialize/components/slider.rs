@@ -36,7 +36,7 @@
 //!
 //! # Why the filled part is a style rather than a child
 //!
-//! Base has no component for it: in `gpui-component`'s own slider the fill is a
+//! Base has no component for it: in `gpui-neath`'s own slider the fill is a
 //! plain `div` inside the indicator, positioned from the same percentage. A
 //! plain child cannot be given that position from here — by the time a child
 //! reaches this module it is an `AnyElement`, whose style is sealed — and a

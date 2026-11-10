@@ -10,7 +10,7 @@
 //! can provide an honest searchable-list delegate rather than fabricated
 //! options.
 
-use gpui_component::{
+use gpui_neath::{
     Disableable as _,
     calendar::{Calendar, CalendarState},
     color_picker::{ColorPicker, ColorPickerState},
@@ -499,7 +499,7 @@ pub fn register(registry: &mut ComponentRegistry) -> Result<(), RegistryError> {
             },
         )
         .with_methods(gpui_shell::input_token_state_methods())
-        .with_input_events::<gpui_component::input::InputMode>()
+        .with_input_events::<gpui_neath::input::InputMode>()
         .with_documentation(
             "Retained editable text state shared by Input and NumberInput, with optional placeholder and initial value.",
         ),

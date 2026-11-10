@@ -112,7 +112,7 @@ Rust Debug 构建下，GPUI、组件库、布局和文字渲染相关 crate 基�
 ```toml
 [profile.dev.package]
 gpui-pre = { opt-level = 3 }
-gpui-component = { opt-level = 3 }
+gpui-neath = { opt-level = 3 }
 gpui-kit = { opt-level = 3 }
 gpui-kit-assets = { opt-level = 3 }
 gpui-pre-platform = { opt-level = 3 }

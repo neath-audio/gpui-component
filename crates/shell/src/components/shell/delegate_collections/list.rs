@@ -1,4 +1,4 @@
-use gpui_component::{
+use gpui_neath::{
     IndexPath,
     list::{List, ListDelegate, ListItem, ListState},
 };

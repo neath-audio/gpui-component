@@ -324,9 +324,9 @@ Shimmer communicates activity, not progress.
 - [`Progress`] — determinate progress.
 - [`Spinner`] — compact indeterminate progress.
 
-[ShimmerStyle]: https://docs.rs/gpui-component/latest/gpui_component/shimmer/struct.ShimmerStyle.html
-[ShimmerText]: https://docs.rs/gpui-component/latest/gpui_component/shimmer/struct.ShimmerText.html
-[Marker]: https://docs.rs/gpui-component/latest/gpui_component/marker/struct.Marker.html
-[AttachmentTitle]: https://docs.rs/gpui-component/latest/gpui_component/attachment/struct.AttachmentTitle.html
-[Progress]: https://docs.rs/gpui-component/latest/gpui_component/progress/struct.Progress.html
-[Spinner]: https://docs.rs/gpui-component/latest/gpui_component/spinner/struct.Spinner.html
+[ShimmerStyle]: https://docs.rs/gpui-neath/latest/gpui_neath/shimmer/struct.ShimmerStyle.html
+[ShimmerText]: https://docs.rs/gpui-neath/latest/gpui_neath/shimmer/struct.ShimmerText.html
+[Marker]: https://docs.rs/gpui-neath/latest/gpui_neath/marker/struct.Marker.html
+[AttachmentTitle]: https://docs.rs/gpui-neath/latest/gpui_neath/attachment/struct.AttachmentTitle.html
+[Progress]: https://docs.rs/gpui-neath/latest/gpui_neath/progress/struct.Progress.html
+[Spinner]: https://docs.rs/gpui-neath/latest/gpui_neath/spinner/struct.Spinner.html

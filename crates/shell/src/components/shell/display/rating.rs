@@ -1,5 +1,5 @@
 use super::common::{ensure_no_children, non_empty_id, size_operation};
-use gpui_component::{Size, rating::Rating, try_parse_color};
+use gpui_neath::{Size, rating::Rating, try_parse_color};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentCallbackArgument,
     ComponentDescriptor, ComponentMaterializer, ComponentPayload, ComponentRegistry,

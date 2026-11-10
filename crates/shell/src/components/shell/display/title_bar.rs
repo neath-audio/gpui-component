@@ -1,4 +1,4 @@
-use gpui_component::TitleBar;
+use gpui_neath::TitleBar;
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

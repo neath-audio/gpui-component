@@ -4,7 +4,7 @@
 //! binary can run exactly the same parsing, capabilities, assets, theming,
 //! checking, and diagnostics under its own name and component catalog. This
 //! file is only the entry point: with the `components` feature it carries the
-//! `gpui-component` catalog, without it the empty catalog of the bare runtime.
+//! `gpui-neath` catalog, without it the empty catalog of the bare runtime.
 
 #[cfg(feature = "gpui-fast")]
 extern crate gpui_fast as gpui;

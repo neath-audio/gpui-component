@@ -2066,7 +2066,7 @@ fn with_aria<E: StatefulInteractiveElement>(element: E, behavior: &Behavior) -> 
     element
 }
 
-/// Marks the element as a window control area, the way gpui-component's
+/// Marks the element as a window control area, the way gpui-neath's
 /// `TitleBar` does.
 ///
 /// GPUI's `window_control_area` is a hit-test answer for the platform, and only

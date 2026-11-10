@@ -23,16 +23,16 @@ gpui-fast = [
     "dep:gpui-fast-platform",
     "gpui-base/gpui-fast",
     "gpui-fps/gpui-fast",
-    "gpui-component?/gpui-fast",
+    "gpui-neath?/gpui-fast",
     "gpui-kit/gpui-fast",
     "gpui-webview?/gpui-fast",
 ]
 default = ["quickjs", "components", "webview"]
-# The `gpui-component` catalog (`gpui_shell::components`), which scripts import
-# as `"gpui-component"`. Without it the runtime binds `gpui-base` only and does
+# The `gpui-neath` catalog (`gpui_shell::components`), which scripts import
+# as `"gpui-neath"`. Without it the runtime binds `gpui-base` only and does
 # not depend on the styled component library at all.
-components = ["dep:gpui-component"]
-# `WebView` and `WebViewState` in the `"gpui-component"` catalog: a native web
+components = ["dep:gpui-neath"]
+# `WebView` and `WebViewState` in the `"gpui-neath"` catalog: a native web
 # page, through `gpui-webview`. GPUI overlays render above the page only with
 # GPUI Fast's window composition, so this selects GPUI Fast for the whole
 # runtime; on Linux a page needs an X11 or XWayland window.
@@ -55,7 +55,7 @@ gpui_platform.workspace = true
 gpui-fast-platform = { workspace = true, optional = true }
 gpui-base = { workspace = true, features = ["inspector"] }
 gpui-fps.workspace = true
-gpui-component = { workspace = true, features = ["syntect"], optional = true }
+gpui-neath = { workspace = true, features = ["syntect"], optional = true }
 gpui-webview = { workspace = true, optional = true }
 # Not named in the source: `gpui-webview` takes its GPUI types from the Kit, whose backend
 # follows the runtime's `gpui-fast`. It stays non-optional because GPUI's macros route their
@@ -106,7 +106,7 @@ tracing.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
 gpui-fast = { workspace = true, features = ["test-support"] }
 gpui-base = { workspace = true, features = ["test-support"] }
-gpui-component = { workspace = true, features = ["test-support"] }
+gpui-neath = { workspace = true, features = ["test-support"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -219,5 +219,5 @@ Badge::new().count(1000).max(999)
 Badge::new().count(0)
 ```
 
-[Badge]: https://docs.rs/gpui_component/latest/gpui_component/badge/struct.Badge.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
+[Badge]: https://docs.rs/gpui_neath/latest/gpui_neath/badge/struct.Badge.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html

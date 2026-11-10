@@ -374,7 +374,7 @@ Thank you to everyone who contributed code, documentation, testing, and feedback
 * input: Let the textarea scrollbar drag reach the content end by @dannyward630 in https://github.com/longbridge/gpui-kit/pull/3527
 * base: Skip shared heading callbacks when comparing text styles by @KlausUllrich in https://github.com/longbridge/gpui-kit/pull/3536
 * shell: Add script methods to MessageScrollerState by @UncertaintyDeterminesYou4ndMe in https://github.com/longbridge/gpui-kit/pull/3541
-* shell: Let an embedding host extend the gpui-component catalog by @UncertaintyDeterminesYou4ndMe in https://github.com/longbridge/gpui-kit/pull/3542
+* shell: Let an embedding host extend the gpui-neath catalog by @UncertaintyDeterminesYou4ndMe in https://github.com/longbridge/gpui-kit/pull/3542
 * shell: Declare the component catalog under its registry's module specifier by @UncertaintyDeterminesYou4ndMe in https://github.com/longbridge/gpui-kit/pull/3543
 * shell: Let a script release retained component state by @UncertaintyDeterminesYou4ndMe in https://github.com/longbridge/gpui-kit/pull/3544
 * docs: Correct three gpui-shell script-facing docs by @UncertaintyDeterminesYou4ndMe in https://github.com/longbridge/gpui-kit/pull/3545

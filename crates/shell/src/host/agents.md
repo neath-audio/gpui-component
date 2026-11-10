@@ -105,9 +105,9 @@ source of truth over this guide.
 - **Host methods are snake_case** (`items_center`, `on_click`, `text_sm`,
   `Button.new("id")`), exactly as in Rust. Your own code is camelCase.
 - **Construct with `Type.new(...)`** in every module — `Button.new("save")`
-  from `"gpui-base"` and from `"gpui-component"` alike — never `new Type(...)`.
+  from `"gpui-base"` and from `"gpui-neath"` alike — never `new Type(...)`.
   The arguments differ by module: `gpui-base`'s `InputState.new({ placeholder })`
-  takes options, `gpui-component`'s `InputState.new(placeholder, value)` takes
+  takes options, `gpui-neath`'s `InputState.new(placeholder, value)` takes
   them in order. `gpui-kit.d.ts` has each signature.
 - **Assign state in `init`, not as class fields.** `View`'s constructor calls
   `init` from inside `super()`; a class field declaration runs afterwards and

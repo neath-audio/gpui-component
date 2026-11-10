@@ -248,9 +248,9 @@ impl Selectable for SidebarRow {
 }
 ```
 
-[Button]: https://docs.rs/gpui-component/latest/gpui_component/button/struct.Button.html
-[Selectable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Selectable.html
+[Button]: https://docs.rs/gpui-neath/latest/gpui_neath/button/struct.Button.html
+[Selectable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Selectable.html
 [Render]: https://docs.rs/gpui/latest/gpui/trait.Render.html
 [RenderOnce]: https://docs.rs/gpui/latest/gpui/trait.RenderOnce.html
 [Styled]: https://docs.rs/gpui/latest/gpui/trait.Styled.html
-[`Anchor`]: https://docs.rs/gpui-component/latest/gpui_component/enum.Anchor.html
+[`Anchor`]: https://docs.rs/gpui-neath/latest/gpui_neath/enum.Anchor.html

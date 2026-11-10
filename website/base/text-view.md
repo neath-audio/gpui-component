@@ -8,7 +8,7 @@ exampleKind: base
 
 # TextView
 
-`gpui-base` owns the complete `TextView` implementation for rendering Markdown and common HTML. It includes document parsing, links, images, lists, tables, code blocks, scrolling, line clamping, plugins, selection, and copying without depending on `gpui-component`.
+`gpui-base` owns the complete `TextView` implementation for rendering Markdown and common HTML. It includes document parsing, links, images, lists, tables, code blocks, scrolling, line clamping, plugins, selection, and copying without depending on `gpui-neath`.
 
 The live example above uses only `gpui-base`. Its fenced Rust block is intentionally unhighlighted: syntax highlighting is opt-in.
 
@@ -162,7 +162,7 @@ TextView::markdown("metadata", source)
 
 Without a matching plugin, enabled YAML frontmatter uses the existing YAML
 code-block fallback. A custom plugin can be attached with `.plugin(...)`;
-`gpui-component` provides a themed
+`gpui-neath` provides a themed
 `FrontmatterPlugin`; Base remains independent of that presentation.
 
 ## Inline plugin
@@ -330,7 +330,7 @@ view's own list, an enclosing `gpui::list`, or `TextView::on_reveal` for any
 other container; see [Highlight ranges](../component/text-view.md#highlight-ranges)
 and [Scroll to a range](../component/text-view.md#scroll-to-a-range).
 
-Selection can copy rendered text or Markdown source through `SelectionFormat`; `SelectionFormat::SourceAcrossStyles` copies the source only when the selection takes in more than one style, such as text on both sides of a `**bold**` boundary or two blocks. Link routing, code-block actions, table actions, images, and custom Markdown plugins use the same builders as the compatibility API documented on the [gpui-component TextView page](../component/text-view.md).
+Selection can copy rendered text or Markdown source through `SelectionFormat`; `SelectionFormat::SourceAcrossStyles` copies the source only when the selection takes in more than one style, such as text on both sides of a `**bold**` boundary or two blocks. Link routing, code-block actions, table actions, images, and custom Markdown plugins use the same builders as the compatibility API documented on the [gpui-neath TextView page](../component/text-view.md).
 
 ## Runnable source
 

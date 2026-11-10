@@ -1,7 +1,7 @@
-//! The `gpui-component` catalog: JavaScript bindings for the styled component
-//! library, imported by scripts as `"gpui-component"`.
+//! The `gpui-neath` catalog: JavaScript bindings for the styled component
+//! library, imported by scripts as `"gpui-neath"`.
 //!
-//! This module is the only place concrete `gpui-component` knowledge belongs,
+//! This module is the only place concrete `gpui-neath` knowledge belongs,
 //! and it exists only with the `components` feature. The rest of the runtime
 //! never names it: the catalog reaches the runtime as a
 //! [`FrozenComponentRegistry`](crate::FrozenComponentRegistry) through the
@@ -20,30 +20,30 @@ mod shell;
 /// registry — the shipped command, for one — gets the same startup through
 /// [`gpui_shell::init_with_components`].
 pub fn init(cx: &mut gpui_shell::gpui::App) {
-    gpui_component::init(cx);
+    gpui_neath::init(cx);
     gpui_shell::init(cx);
 }
 
-/// Builds and freezes the `gpui-component` catalog.
+/// Builds and freezes the `gpui-neath` catalog.
 pub fn components() -> Result<gpui_shell::FrozenComponentRegistry, gpui_shell::RegistryError> {
     registry()?.freeze()
 }
 
-/// Builds the `gpui-component` catalog without freezing it, so an embedding
+/// Builds the `gpui-neath` catalog without freezing it, so an embedding
 /// host can register its own components and states beside it.
 ///
 /// A runtime takes one frozen catalog, so a host that wants its own native
 /// components and this catalog in the same script registers both into this
-/// registry and then freezes it. They share the `"gpui-component"` module, and
+/// registry and then freezes it. They share the `"gpui-neath"` module, and
 /// export names must not collide with the catalog's.
 ///
-/// The registry carries [`gpui_component::init`] as its initializer. A host
+/// The registry carries [`gpui_neath::init`] as its initializer. A host
 /// whose components need their own startup replaces it with a function that
-/// calls `gpui_component::init` first:
+/// calls `gpui_neath::init` first:
 ///
 /// ```rust,ignore
 /// fn init(cx: &mut App) {
-///     gpui_component::init(cx);
+///     gpui_neath::init(cx);
 ///     my_components::init(cx);
 /// }
 ///
@@ -56,7 +56,7 @@ pub fn registry() -> Result<gpui_shell::ComponentRegistry, gpui_shell::RegistryE
         gpui_shell::COMPONENT_REGISTRY_API_VERSION,
         gpui_shell::DEFAULT_COMPONENT_MODULE,
     )?
-    .with_initializer(gpui_component::init)
+    .with_initializer(gpui_neath::init)
     .with_window_opener(open_window_with_root);
     register(&mut registry)?;
     Ok(registry)
@@ -67,9 +67,9 @@ pub fn new_isolated_runtime() -> gpui_shell::anyhow::Result<std::rc::Rc<gpui_she
     gpui_shell::ShellRuntime::new_isolated_with_components(components()?)
 }
 
-/// Opens the window with `gpui_component::Root` as its root view.
+/// Opens the window with `gpui_neath::Root` as its root view.
 ///
-/// Every `gpui-component` overlay — dialog, alert dialog, sheet, notification —
+/// Every `gpui-neath` overlay — dialog, alert dialog, sheet, notification —
 /// finds its host with `window.root::<Root>()` and panics when the window is
 /// rooted at anything else. The runtime installs its own `ShellRoot` and cannot
 /// name `Root`, so the catalog that needs one supplies it here. `ShellRoot`
@@ -86,22 +86,22 @@ fn open_window_with_root(
 
     let handle = cx.open_window(with_title_bar(options), |window, cx| {
         let inner = build(window, cx);
-        cx.new(|cx| gpui_component::Root::new(inner, window, cx))
+        cx.new(|cx| gpui_neath::Root::new(inner, window, cx))
     })?;
     Ok(handle.into())
 }
 
-/// Hands the window chrome to `gpui_component::TitleBar`.
+/// Hands the window chrome to `gpui_neath::TitleBar`.
 ///
 /// A script renders `TitleBar` the way a Rust application does, and the
 /// catalog's overlays — sheets, notifications — already leave its height free
 /// at the top of the window. Under the system title bar that height is a gap
 /// above every sheet, and a script `TitleBar` sits below a second, native one.
 /// So every window the catalog opens takes `TitleBar::window_options`, the
-/// same base gpui-component's own windows use, keeping the host's bounds and
+/// same base gpui-neath's own windows use, keeping the host's bounds and
 /// the title a switcher shows.
 fn with_title_bar(options: gpui_shell::gpui::WindowOptions) -> gpui_shell::gpui::WindowOptions {
-    let chrome = gpui_component::TitleBar::window_options();
+    let chrome = gpui_neath::TitleBar::window_options();
     let title = options
         .titlebar
         .as_ref()
@@ -124,7 +124,7 @@ fn register(registry: &mut gpui_shell::ComponentRegistry) -> Result<(), gpui_she
 mod tests {
     use gpui_shell::{ArgumentSchema, COMPONENT_REGISTRY_API_VERSION, ComponentRegistry};
 
-    /// Every `gpui-component` overlay locates its host with
+    /// Every `gpui-neath` overlay locates its host with
     /// `window.root::<Root>()` and panics when the window is rooted at anything
     /// else. The runtime roots its window at `ShellRoot`, so unless the catalog
     /// supplies the `Root` itself, every dialog, alert dialog, sheet and
@@ -154,12 +154,12 @@ mod tests {
 
         let found = handle
             .update(cx, |_, window, _| {
-                window.root::<gpui_component::Root>().is_some()
+                window.root::<gpui_neath::Root>().is_some()
             })
             .expect("the window must be live");
         assert!(
             found,
-            "the window is not rooted at gpui_component::Root, so every overlay would panic"
+            "the window is not rooted at gpui_neath::Root, so every overlay would panic"
         );
     }
 
@@ -174,7 +174,7 @@ mod tests {
     #[gpui::test]
     fn a_dialog_opened_through_the_catalog_window_is_drawn(cx: &mut gpui::TestAppContext) {
         use gpui::AppContext as _;
-        use gpui_component::WindowExt as _;
+        use gpui_neath::WindowExt as _;
 
         let components = super::components().unwrap();
         let open = components.window_opener().unwrap();
@@ -236,7 +236,7 @@ mod tests {
         assert!(titlebar.appears_transparent);
         assert_eq!(
             titlebar.traffic_light_position,
-            gpui_component::TitleBar::title_bar_options().traffic_light_position
+            gpui_neath::TitleBar::title_bar_options().traffic_light_position
         );
         assert_eq!(titlebar.title.as_deref(), Some("js_story — gpui-shell"));
         assert!(options.app_owns_titlebar_drag);
@@ -259,7 +259,7 @@ mod tests {
     fn init_installs_the_component_catalog_globals(cx: &mut gpui::TestAppContext) {
         cx.update(super::init);
 
-        cx.read(|cx| assert!(cx.has_global::<gpui_component::Theme>()));
+        cx.read(|cx| assert!(cx.has_global::<gpui_neath::Theme>()));
     }
 
     /// The shipped command builds a runtime from [`super::components`] alone
@@ -273,7 +273,7 @@ mod tests {
 
         cx.update(|cx| gpui_shell::init_with_components(cx, &components));
 
-        cx.read(|cx| assert!(cx.has_global::<gpui_component::Theme>()));
+        cx.read(|cx| assert!(cx.has_global::<gpui_neath::Theme>()));
     }
 
     #[test]
@@ -473,7 +473,7 @@ mod tests {
 
         assert!(
             non_snake_case.is_empty(),
-            "descriptor vocabulary must follow gpui-component snake_case: {non_snake_case:?}"
+            "descriptor vocabulary must follow gpui-neath snake_case: {non_snake_case:?}"
         );
     }
 

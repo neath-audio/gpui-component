@@ -61,7 +61,7 @@ It is pinned to the top right by default. Use the existing anchor vocabulary to 
 
 The JavaScript habit would be `new Button(id)`. The runtime does not offer it, and the reason is the whole subject of this page: `new` promises an object with an identity — something you can keep, store on the instance, and use again. That is exactly what a description is not. `Button.new(id)` reads as "construct a description", which is what it does, and it matches the Rust spelling character for character.
 
-The same form works for `"gpui-component"`: `Button.new("save")`, `InputState.new("Name")`. Its exports also accept `new Button(...)`, which scripts written before `.new` existed use; write `.new` in new code so one file has one construction form.
+The same form works for `"gpui-neath"`: `Button.new("save")`, `InputState.new("Name")`. Its exports also accept `new Button(...)`, which scripts written before `.new` existed use; write `.new` in new code so one file has one construction form.
 
 Views are the opposite case, and use the standard form: `class Counter extends View`. A View genuinely does have an identity and cross-frame state, and it is owned by GPUI. Two construction shapes in one file, because the two kinds of thing have different lifetimes.
 

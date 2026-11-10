@@ -295,14 +295,14 @@ InputGroup::new("styled-search")
 
 ## JavaScript
 
-从 `gpui-component` 导入同名部件，在 `View.init` 中创建输入状态。
+从 `gpui-neath` 导入同名部件，在 `View.init` 中创建输入状态。
 使用 `.value(...)` 和 `.on_change(...)` 控制输入值：
 
 ```javascript
 import { View } from "gpui-kit";
 import {
   InputState, InputGroup, InputGroupInput, InputGroupAddon, InputGroupButton,
-} from "gpui-component";
+} from "gpui-neath";
 
 export default class Search extends View {
   init() {

@@ -486,11 +486,11 @@ impl SettingsStory {
                             "Documentation",
                             SettingField::element(OpenURLSettingField::new(
                                 "Rust Docs...",
-                                "https://docs.rs/gpui-component"
+                                "https://docs.rs/gpui-neath"
                             )),
                         )
                         .description(markdown(
-                            "Rust doc for the `gpui-component` crate.",
+                            "Rust doc for the `gpui-neath` crate.",
                         )),
                         SettingItem::new(
                             "Website",

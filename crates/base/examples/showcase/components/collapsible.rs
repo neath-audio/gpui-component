@@ -40,7 +40,7 @@ impl BaseShowcase {
                     .border_1()
                     .border_color(super::example_rgb(0xd4d4d4))
                     .text_xs()
-                    .child("gpui-component"),
+                    .child("gpui-neath"),
             )
             .content(div().mt_2().flex().flex_col().gap_2().children(
                 ["gpui-base", "gpui-storybook"].into_iter().map(|name| {

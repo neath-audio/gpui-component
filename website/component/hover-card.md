@@ -256,5 +256,5 @@ The HoverCard uses a sophisticated timing system to provide a smooth user experi
 | Primary use case         | Previews         | Actions/forms      |
 
 [Popover]: ./popover.md
-[Anchor]: https://docs.rs/gpui-component/latest/gpui_component/enum.Anchor.html
+[Anchor]: https://docs.rs/gpui-neath/latest/gpui_neath/enum.Anchor.html
 [Avatar]: ./avatar.md

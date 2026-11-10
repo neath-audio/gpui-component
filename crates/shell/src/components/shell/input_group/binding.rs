@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use gpui_component::input::{InputEvent, InputState, TextareaState};
+use gpui_neath::input::{InputEvent, InputState, TextareaState};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentCallback,
     ComponentCallbackArgument, ComponentPayload, MaterializeRequest, MethodDescriptor, anyhow,

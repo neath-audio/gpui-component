@@ -82,7 +82,7 @@ impl NotificationDelivery {
 
 /// Namespaces the library's system-notification tags away from tags the
 /// application posts itself, so the response handler can tell them apart.
-const SYSTEM_TAG_PREFIX: &str = "gpui-component/notification/";
+const SYSTEM_TAG_PREFIX: &str = "gpui-neath/notification/";
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub(crate) enum NotificationId {
@@ -575,8 +575,8 @@ impl Default for NotificationSettings {
 /// Registers the app-global system-notification response handler.
 ///
 /// gpui keeps a single such handler (later registrations replace earlier
-/// ones), so gpui-component owns it: applications must not call
-/// [`gpui::App::on_system_notification_response`] after `gpui_component::init`.
+/// ones), so gpui-neath owns it: applications must not call
+/// [`gpui::App::on_system_notification_response`] after `gpui_neath::init`.
 /// Responses to notifications the application posts itself are ignored here.
 pub(crate) fn init(cx: &mut App) {
     cx.on_system_notification_response(SystemNotificationRegistry::handle_response);

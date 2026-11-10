@@ -1,7 +1,7 @@
 use super::bool_method;
 use std::sync::Arc;
 
-use gpui_component::input::{Textarea, TextareaState};
+use gpui_neath::input::{Textarea, TextareaState};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,
@@ -90,7 +90,7 @@ pub(super) fn register(registry: &mut ComponentRegistry) -> Result<(), RegistryE
             },
         )
         .with_methods(gpui_shell::textarea_token_state_methods())
-        .with_input_events::<gpui_component::input::TextareaMode>()
+        .with_input_events::<gpui_neath::input::TextareaMode>()
         .with_documentation("Retained multi-line editing state with an optional initial value."),
     )?;
     registry.register(ComponentDescriptor::new("Textarea", Arc::new(Materializer))

@@ -4,7 +4,7 @@
 
 **Goal:** Make `gpui-base` independently provide selectable plain text and the complete HTML/Markdown `TextView`, including usable default styling, selection, and copying without enabling syntax highlighting by default.
 
-**Architecture:** `gpui-base::text` becomes the canonical owner of parsing, document state, rendering, style, and the `TextSelection` adapter. `SelectableText` is a smaller Base element built directly on `TextSelection`; `gpui-component::text` becomes a compatibility re-export plus a component-theme adapter. Code blocks have readable neutral defaults, while syntax highlighting is injected by consumers and keeps language/highlighter dependencies out of Base.
+**Architecture:** `gpui-base::text` becomes the canonical owner of parsing, document state, rendering, style, and the `TextSelection` adapter. `SelectableText` is a smaller Base element built directly on `TextSelection`; `gpui-neath::text` becomes a compatibility re-export plus a component-theme adapter. Code blocks have readable neutral defaults, while syntax highlighting is injected by consumers and keeps language/highlighter dependencies out of Base.
 
 **Tech Stack:** Rust, GPUI `Element`/`Entity`, `gpui-base::TextSelection`, `markdown-rs`, `html5ever`, `markup5ever_rcdom`, Cargo workspace tests.
 
@@ -14,10 +14,10 @@
 
 - `TextViewStyle::default()` must be complete and usable in an application that depends only on `gpui-base`.
 - Keep the existing `gpui_base::Selectable` controlled-state trait unchanged; name the text element `SelectableText`.
-- `gpui-base` must never depend on or import `gpui-component`.
+- `gpui-base` must never depend on or import `gpui-neath`.
 - Preserve HTML, Markdown, tables, images, links, code blocks, plugins, selection formats, scrolling, and max-line clamping.
 - Do not enable syntax highlighting by default or move tree-sitter language features into `gpui-base`; expose injection hooks instead.
-- Preserve the current `gpui_component::text` public constructors and primary builder APIs through re-exports.
+- Preserve the current `gpui_neath::text` public constructors and primary builder APIs through re-exports.
 - Keep one window-scoped selection coordinator: `TextSelection`.
 - Work in the current checkout; do not create a worktree.
 
@@ -188,7 +188,7 @@ Run: `cargo test -p gpui-base text::selection --lib`
 
 Run: `cargo test -p gpui-base text::state --lib`
 
-Expected: representative Markdown/HTML and UTF-8 word-selection tests pass without linking `gpui-component`.
+Expected: representative Markdown/HTML and UTF-8 word-selection tests pass without linking `gpui-neath`.
 
 Commit:
 
@@ -308,7 +308,7 @@ git add crates/base/src/text crates/base/src/theme.rs crates/base/src/lib.rs
 git commit -m "feat(base): add HTML and Markdown TextView"
 ```
 
-### Task 4: Replace gpui-component TextView with a compatibility facade
+### Task 4: Replace gpui-neath TextView with a compatibility facade
 
 **Files:**
 - Replace: `crates/ui/src/text/mod.rs`
@@ -319,18 +319,18 @@ git commit -m "feat(base): add HTML and Markdown TextView"
 
 **Interfaces:**
 - Consumes: Task 3 `gpui_base::text` API.
-- Produces: source-compatible `gpui_component::text::*`, `gpui_component::{markdown, html, TextView, TextViewState, TextViewStyle}`, and component-theme style adaptation.
+- Produces: source-compatible `gpui_neath::text::*`, `gpui_neath::{markdown, html, TextView, TextViewState, TextViewStyle}`, and component-theme style adaptation.
 
 - [ ] **Step 1: Add compatibility compile tests before deleting UI code**
 
 Add tests that assign component-path values to Base-path types:
 
 ```rust
-let component: gpui_component::TextView =
-    gpui_component::text::markdown("# compatible");
+let component: gpui_neath::TextView =
+    gpui_neath::text::markdown("# compatible");
 let _: gpui_base::text::TextView = component;
 
-let style: gpui_component::text::TextViewStyle = Default::default();
+let style: gpui_neath::text::TextViewStyle = Default::default();
 let _: gpui_base::text::TextViewStyle = style;
 ```
 
@@ -344,7 +344,7 @@ Replace the implementation module with:
 pub use gpui_base::text::*;
 ```
 
-Update `crates/ui/src/lib.rs` root re-exports to source the same Base types. Run `cargo test -p gpui-component text:: --lib` and use compile errors as the exhaustive list of crate-private paths that must become Base-private or explicit adapter APIs; do not restore duplicate UI implementation files.
+Update `crates/ui/src/lib.rs` root re-exports to source the same Base types. Run `cargo test -p gpui-neath text:: --lib` and use compile errors as the exhaustive list of crate-private paths that must become Base-private or explicit adapter APIs; do not restore duplicate UI implementation files.
 
 - [ ] **Step 3: Add the component theme adapter**
 
@@ -360,7 +360,7 @@ pub fn text_view_style(theme: &crate::Theme) -> gpui_base::text::TextViewStyle {
 }
 ```
 
-Do not install syntax highlighting in this adapter. A component consumer that wants it explicitly calls `.code_block_highlighter(...)` using `gpui_component::highlighter`; Base and its default remain independent of that module.
+Do not install syntax highlighting in this adapter. A component consumer that wants it explicitly calls `.code_block_highlighter(...)` using `gpui_neath::highlighter`; Base and its default remain independent of that module.
 
 - [ ] **Step 4: Move window-selection integration tests to their owner**
 
@@ -368,11 +368,11 @@ Move Base-only tests from `crates/ui/src/text/window_selection.rs` into `crates/
 
 - [ ] **Step 5: Run compatibility tests and commit**
 
-Run: `cargo test -p gpui-component text:: --lib`
+Run: `cargo test -p gpui-neath text:: --lib`
 
-Run: `cargo test -p gpui-component window_selection --lib`
+Run: `cargo test -p gpui-neath window_selection --lib`
 
-Run: `cargo check -p gpui-component`
+Run: `cargo check -p gpui-neath`
 
 Expected: all pass with one canonical Base implementation.
 
@@ -417,7 +417,7 @@ State that applications call `gpui_base::init(cx)` and render one `TextSelection
 Run:
 
 ```bash
-rg -n "gpui_component|gpui-component" crates/base
+rg -n "gpui_neath|gpui-neath" crates/base
 rg -n "crate::text::(document|format|inline|node|selection|state)" crates/ui/src
 find crates/ui/src/text -type f -maxdepth 3 -print
 ```
@@ -430,11 +430,11 @@ Run: `cargo fmt --all -- --check`
 
 Run: `cargo test -p gpui-base`
 
-Run: `cargo test -p gpui-component text:: --lib`
+Run: `cargo test -p gpui-neath text:: --lib`
 
 Run: `cargo check -p gpui-base --all-features`
 
-Run: `cargo check -p gpui-component --all-features`
+Run: `cargo check -p gpui-neath --all-features`
 
 Expected: all commands pass.
 

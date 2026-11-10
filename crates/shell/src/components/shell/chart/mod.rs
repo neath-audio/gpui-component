@@ -1,6 +1,6 @@
 //! Concrete chart bindings backed by immutable script data snapshots.
 //!
-//! `gpui_component::plot::Plot` is deliberately not registered: it is a Rust
+//! `gpui_neath::plot::Plot` is deliberately not registered: it is a Rust
 //! painting trait implemented by concrete chart elements, not a constructible
 //! component surface.
 //!
@@ -11,7 +11,7 @@
 
 use super::support::bool_method;
 
-use gpui_component::chart::{AreaChart, BarChart, LineChart, PieChart, RadarChart};
+use gpui_neath::chart::{AreaChart, BarChart, LineChart, PieChart, RadarChart};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDataValue, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

@@ -78,7 +78,7 @@ jobs:
       - name: Install system dependencies
         run: script/bootstrap
       - name: Check without default features (tree-sitter disabled)
-        run: cargo check -p gpui-component --no-default-features --locked
+        run: cargo check -p gpui-neath --no-default-features --locked
       # Control callback, legacy alias, and Form contract tests on the same
       # feature set, so they reuse the build above.
       - name: Test without default features
@@ -178,7 +178,7 @@ jobs:
       - name: Test GPUI Fast facade and UI integration
         run: cargo test -p gpui-kit --features gpui-fast,test-support --locked
       - name: Test Component with GPUI Fast
-        run: cargo test -p gpui-component --features gpui-fast,test-support --lib --locked
+        run: cargo test -p gpui-neath --features gpui-fast,test-support --lib --locked
       - name: Test WebView
         run: cargo test -p gpui-webview --features gpui-fast,gpui-kit/gpui-fast --locked
 
@@ -249,7 +249,7 @@ jobs:
           cargo test -p gpui-shell --release --doc
       - name: Lint GPUI Shell
         run: cargo clippy -p gpui-shell --all-targets -- -D warnings
-      # The `components` feature is the only edge to `gpui-component`; the
+      # The `components` feature is the only edge to `gpui-neath`; the
       # runtime must still build without it.
       - name: Check GPUI Shell without the component catalog
         run: cargo check -p gpui-shell --no-default-features --features quickjs

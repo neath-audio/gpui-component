@@ -7,7 +7,7 @@ use gpui::{
     App, Context, Edges, Entity, IntoElement, Pixels, Subscription, TestAppContext, Window,
     WindowHandle, div, px,
 };
-use gpui_component::table::{Column, TableDelegate, TableEvent, TableState};
+use gpui_neath::table::{Column, TableDelegate, TableEvent, TableState};
 
 const FREE: usize = 0;
 const CAPPED: usize = 1;

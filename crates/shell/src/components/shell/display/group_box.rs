@@ -1,4 +1,4 @@
-use gpui_component::group_box::{GroupBox, GroupBoxVariant, GroupBoxVariants as _};
+use gpui_neath::group_box::{GroupBox, GroupBoxVariant, GroupBoxVariants as _};
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

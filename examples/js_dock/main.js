@@ -9,7 +9,7 @@
 
 import { View, div } from "gpui-kit";
 import { DockArea, dock_area, dock_content, v_flex } from "gpui-base";
-import { TitleBar } from "gpui-component";
+import { TitleBar } from "gpui-neath";
 /** @import { AsyncContext, Context } from "gpui-kit" */
 import {
   BAR,

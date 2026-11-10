@@ -19,7 +19,7 @@ use gpui_kit::component::badge::Badge;
 
 Use `count` to display a numeric badge, if the count is greater than zero (`> 0`) the badge will be shown, otherwise it will be hidden.
 
-There is a default maximum count of `99`, any count above this will be displayed as `99+`. You can customize this maximum using the [max](https://docs.rs/gpui-component/latest/gpui_component/badge/struct.Badge.html#method.max) method.
+There is a default maximum count of `99`, any count above this will be displayed as `99+`. You can customize this maximum using the [max](https://docs.rs/gpui-neath/latest/gpui_neath/badge/struct.Badge.html#method.max) method.
 
 ```rust
 Badge::new()
@@ -243,5 +243,5 @@ Badge::new().count(1000).max(999) // Shows "999+"
 Badge::new().count(0)    // Badge not visible
 ```
 
-[Badge]: https://docs.rs/gpui_component/latest/gpui_component/badge/struct.Badge.html
-[Sizable]: https://docs.rs/gpui-component/latest/gpui_component/trait.Sizable.html
+[Badge]: https://docs.rs/gpui_neath/latest/gpui_neath/badge/struct.Badge.html
+[Sizable]: https://docs.rs/gpui-neath/latest/gpui_neath/trait.Sizable.html

@@ -1,8 +1,8 @@
-use gpui_component::theme::{ThemeConfig, ThemeConfigColors, ThemeMode};
+use gpui_neath::theme::{ThemeConfig, ThemeConfigColors, ThemeMode};
 
 #[test]
 fn legacy_text_view_style_struct_literal_shape_is_unchanged() {
-    use gpui_component::text::TextViewStyle;
+    use gpui_neath::text::TextViewStyle;
 
     let defaults = TextViewStyle::default();
     let _ = TextViewStyle {

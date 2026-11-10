@@ -427,17 +427,17 @@ application recognizer; without one, `SpeechButton` renders nothing. The
 - [SpeechError]
 - [SystemRecognizer] and [Microphone] — the `speech` feature's defaults
 
-[SpeechState]: https://docs.rs/gpui-component/latest/gpui_component/speech/struct.SpeechState.html
-[SpeechEvent]: https://docs.rs/gpui-component/latest/gpui_component/speech/enum.SpeechEvent.html
-[SpeechStatus]: https://docs.rs/gpui-component/latest/gpui_component/speech/enum.SpeechStatus.html
-[SpeechButton]: https://docs.rs/gpui-component/latest/gpui_component/speech/struct.SpeechButton.html
-[SpeechWaveform]: https://docs.rs/gpui-component/latest/gpui_component/speech/struct.SpeechWaveform.html
-[SpeechRecognizer]: https://docs.rs/gpui-component/latest/gpui_component/speech/trait.SpeechRecognizer.html
-[RecognitionSession]: https://docs.rs/gpui-component/latest/gpui_component/speech/trait.RecognitionSession.html
-[SpeechSink]: https://docs.rs/gpui-component/latest/gpui_component/speech/struct.SpeechSink.html
-[AudioInput]: https://docs.rs/gpui-component/latest/gpui_component/speech/trait.AudioInput.html
-[AudioSink]: https://docs.rs/gpui-component/latest/gpui_component/speech/struct.AudioSink.html
-[AudioFormat]: https://docs.rs/gpui-component/latest/gpui_component/speech/struct.AudioFormat.html
-[SpeechError]: https://docs.rs/gpui-component/latest/gpui_component/speech/enum.SpeechError.html
-[SystemRecognizer]: https://docs.rs/gpui-component/latest/gpui_component/speech/struct.SystemRecognizer.html
-[Microphone]: https://docs.rs/gpui-component/latest/gpui_component/speech/struct.Microphone.html
+[SpeechState]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/struct.SpeechState.html
+[SpeechEvent]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/enum.SpeechEvent.html
+[SpeechStatus]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/enum.SpeechStatus.html
+[SpeechButton]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/struct.SpeechButton.html
+[SpeechWaveform]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/struct.SpeechWaveform.html
+[SpeechRecognizer]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/trait.SpeechRecognizer.html
+[RecognitionSession]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/trait.RecognitionSession.html
+[SpeechSink]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/struct.SpeechSink.html
+[AudioInput]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/trait.AudioInput.html
+[AudioSink]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/struct.AudioSink.html
+[AudioFormat]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/struct.AudioFormat.html
+[SpeechError]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/enum.SpeechError.html
+[SystemRecognizer]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/struct.SystemRecognizer.html
+[Microphone]: https://docs.rs/gpui-neath/latest/gpui_neath/speech/struct.Microphone.html

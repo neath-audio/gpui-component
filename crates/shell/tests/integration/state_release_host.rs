@@ -88,7 +88,7 @@ fn a_script_releases_component_state_before_its_application(cx: &mut TestAppCont
     let app = TempApp::new(
         r#"
 import { div, View } from "gpui-kit";
-import { ProbeState } from "gpui-component";
+import { ProbeState } from "gpui-neath";
 
 const outcome = (call) => {
   try { return String(call()); } catch (error) {

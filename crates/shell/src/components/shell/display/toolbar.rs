@@ -1,5 +1,5 @@
 use super::common::non_empty_id;
-use gpui_component::toolbar::Toolbar;
+use gpui_neath::toolbar::Toolbar;
 use gpui_shell::{
     ArgumentDescriptor, ArgumentSchema, ComponentArgument, ComponentDescriptor,
     ComponentMaterializer, ComponentPayload, ComponentRegistry, ConstructorDescriptor,

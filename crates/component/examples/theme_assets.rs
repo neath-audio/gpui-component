@@ -1,7 +1,7 @@
 use std::{path::Path, rc::Rc};
 
 use anyhow::{Context as _, Result, bail};
-use gpui_component::{Colorize as _, Theme, ThemeConfig, ThemeSet};
+use gpui_neath::{Colorize as _, Theme, ThemeConfig, ThemeSet};
 use serde_json::{Map, Value};
 
 fn resolved_colors(config: &ThemeConfig) -> Result<Value> {

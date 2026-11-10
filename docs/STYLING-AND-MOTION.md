@@ -17,7 +17,7 @@ gpui-base
   resolves semantic-state style precedence
   provides generic value-transition and spring lifecycle
 
-application or gpui-component
+application or gpui-neath
   owns all target styles
   owns variants and visual slots
   chooses animated properties and timing
@@ -174,7 +174,7 @@ Derive from the theme instead, scaling with `radius.half()` or `radius * 2.`
 where a component needs a tighter or looser curve than the base.
 
 The Base layer keeps its own copy of the theme, because it paints the scrollbar
-and the resize handles without going through `gpui-component`. `Theme::change`
+and the resize handles without going through `gpui-neath`. `Theme::change`
 and `Theme::update` refresh that copy; writing to the theme's public fields
 through `Theme::global_mut` does not, and the scrollbar thumb keeps the radius
 it was last given until `Theme::sync_base` runs. Prefer `update`.
@@ -439,7 +439,7 @@ let offset = Sequence::new(("row", index), px(12.))
 
 ## Product Motion Tokens
 
-`gpui-component::MotionTokens` centralizes styled policy. It contains four
+`gpui-neath::MotionTokens` centralizes styled policy. It contains four
 semantic duration tiers, enter/exit/move easing, control/movement springs, and
 short/medium travel distances. Styled controls read these tokens instead of
 defining local constants. Base remains presentation-neutral and can be used by

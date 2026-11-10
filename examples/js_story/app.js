@@ -1,6 +1,6 @@
 import { View, div } from "gpui-kit";
 import { Input, InputState, h_flex, v_flex } from "gpui-base";
-import { TitleBar } from "gpui-component";
+import { TitleBar } from "gpui-neath";
 import { catalog, filterCatalog, route } from "./catalog.js";
 import { createDockStory, renderDockStory } from "./stories/dock.js";
 import { initializeRegisteredExamples } from "./stories/registered.js";

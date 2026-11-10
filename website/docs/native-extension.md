@@ -25,7 +25,7 @@ The workspace pins `gpui-pre` to `={{gpui_pre_version}}` in the root `Cargo.toml
 
 | Concern | Source in this repository | Build or exercise from the repository root |
 | --- | --- | --- |
-| Shared menu API and platform selection | `crates/component/src/native_menu/mod.rs` in the `gpui-component` crate | `cargo check -p gpui-component`; `cargo test -p gpui-component native_menu` checks its builder and icon tests |
+| Shared menu API and platform selection | `crates/component/src/native_menu/mod.rs` in the `gpui-neath` crate | `cargo check -p gpui-neath`; `cargo test -p gpui-neath native_menu` checks its builder and icon tests |
 | AppKit and Win32 menu adapters; GPUI fallback | `crates/component/src/native_menu/{macos,windows,fallback}.rs`; fallback overlay ownership is in `crates/component/src/root.rs` | `cargo run -p gpui-component-story`, then open the **NativeMenu** story on the target OS |
 | Wry wrapper and custom element | `crates/webview/src/lib.rs` in the `gpui-webview` crate | `cargo check -p gpui-webview` checks the wrapper for the current target |
 | Child-view creation and renderer setup | `examples/webview/src/main.rs` with dependencies in `examples/webview/Cargo.toml` | `cargo run -p webview` on macOS or Windows |
@@ -123,7 +123,7 @@ On Linux, Wry's WebKitGTK view is a GTK widget, so `WebView::build` initializes 
 
 ## Debug and verify the native boundary
 
-Start with `cargo check -p gpui-component` or `cargo check -p gpui-webview` on the target machine. Run the NativeMenu story or WebView example above, then inspect the behavior at normal and high display scale. A successful Cargo check establishes type checking for that target; it does not link or run the application and cannot establish correct native input or stacking.
+Start with `cargo check -p gpui-neath` or `cargo check -p gpui-webview` on the target machine. Run the NativeMenu story or WebView example above, then inspect the behavior at normal and high display scale. A successful Cargo check establishes type checking for that target; it does not link or run the application and cannot establish correct native input or stacking.
 
 | Symptom | Check in this repository |
 | --- | --- |

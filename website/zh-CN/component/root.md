@@ -8,7 +8,7 @@ example: false
 
 [Root] 是由 Base 提供的统一窗口根视图。应用统一通过 `gpui_kit::open_window` 创建窗口，它始终使用这个类型。Base 不提供额外的窗口创建函数；`component::Root` 重导出 Base 类型。
 
-Base 负责内容与浮层承载、键盘焦点遍历和文本选择复制。显式调用 `gpui_component::init` 会注册窗口展示扩展，提供对话框、抽屉、通知、tooltip、菜单、触屏选择、主题与窗口边框。必须在创建窗口前初始化。仅使用 Base 的应用调用 `gpui_base::init`，无需依赖 Component 或 Kit。Cargo feature 合并不会改变窗口根类型。
+Base 负责内容与浮层承载、键盘焦点遍历和文本选择复制。显式调用 `gpui_neath::init` 会注册窗口展示扩展，提供对话框、抽屉、通知、tooltip、菜单、触屏选择、主题与窗口边框。必须在创建窗口前初始化。仅使用 Base 的应用调用 `gpui_base::init`，无需依赖 Component 或 Kit。Cargo feature 合并不会改变窗口根类型。
 
 下面这份完整的 **Tested consumer recipe** 在隔离的 `gpui-kit` 消费者工作区中编译。它先初始化 GPUI Kit，再打开一个以 `Root` 包裹应用视图为根的窗口。
 

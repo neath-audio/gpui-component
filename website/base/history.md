@@ -31,7 +31,7 @@ commands that operate on it:
   transaction manager that understands typing, deletion, selection, and IME
   composition.
 
-Within gpui-component, `NavStack` uses `History<NavEntry>` for page navigation,
+Within gpui-neath, `NavStack` uses `History<NavEntry>` for page navigation,
 and `UndoHistory` is available to any state that wants grouped undo and redo.
 Input deliberately keeps its specialized private undo manager.
 

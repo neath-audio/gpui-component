@@ -9,7 +9,7 @@
 
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use gpui_component::grid_layout::{
+use gpui_neath::grid_layout::{
     GridArea, GridItem, GridLayout, GridLayoutEvent, GridLayoutState, grid_drag_handle, grid_layout,
 };
 use gpui_shell::{

@@ -1,6 +1,6 @@
 import { div, Background } from 'gpui-kit';
-import { Button, Spinner, Empty, EmptyHeader, EmptyMedia } from 'gpui-component';
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, TextareaState } from 'gpui-component';
+import { Button, Spinner, Empty, EmptyHeader, EmptyMedia } from 'gpui-neath';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, TextareaState } from 'gpui-neath';
 
 // @ts-expect-error Group sizing uses the standard control tiers.
 new InputGroup('group').size('icon-small');

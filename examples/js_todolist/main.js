@@ -9,7 +9,7 @@
 
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex, InputState } from "gpui-base";
-import { TitleBar } from "gpui-component";
+import { TitleBar } from "gpui-neath";
 /** @import { AsyncContext, Context } from "gpui-kit" */
 import { load, save } from "./storage.js";
 import confirmClear from "./confirm.js";

@@ -13,7 +13,7 @@ Dialog 不是一个浮动的 `div`。它是窗口层叠顺序中的一个位置�
 
 所以脚本说的是**放什么**到用户面前，根 View 说的是它放在哪里、以及怎么离开。跨越这条边界的东西很少：一个返回元素的函数、一个贴靠的边、一句要显示的话。
 
-这些 API 放在 `window` 而不是 `cx` 上，是因为 dialog 属于窗口，不属于打开它的 view：`cx.notify()` 重新渲染一个 view，`window.open_dialog()` 则改变窗口当前显示的内容。`gpui-component` 也采用相同的职责划分，因此 Rust 与 JavaScript 的 API 保持一致。以后若要暴露焦点、尺寸或窗口外观等能力，也可以继续放在 `window` 上。
+这些 API 放在 `window` 而不是 `cx` 上，是因为 dialog 属于窗口，不属于打开它的 view：`cx.notify()` 重新渲染一个 view，`window.open_dialog()` 则改变窗口当前显示的内容。`gpui-neath` 也采用相同的职责划分，因此 Rust 与 JavaScript 的 API 保持一致。以后若要暴露焦点、尺寸或窗口外观等能力，也可以继续放在 `window` 上。
 
 ## 接口
 
@@ -215,7 +215,7 @@ overlays may only be opened or closed while handling an event or a task
 
 ## 浮层需要 `ShellRoot`
 
-上述每一个调用最终都会到达窗口的 `ShellRoot`：它可以是第一层 View，也可以是 `gpui-shell` 命令打开窗口时所用的 `gpui-component` `Root` 里紧挨着的那一层 View。两者都没有的窗口会拒绝这些调用：
+上述每一个调用最终都会到达窗口的 `ShellRoot`：它可以是第一层 View，也可以是 `gpui-shell` 命令打开窗口时所用的 `gpui-neath` `Root` 里紧挨着的那一层 View。两者都没有的窗口会拒绝这些调用：
 
 ```text
 window.open_dialog(content, options) found no ShellRoot in this window. A view's

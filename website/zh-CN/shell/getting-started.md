@@ -15,7 +15,7 @@ maturity: [preview]
 
 ### 从 Release 安装
 
-每个 GitHub Release 都附带预编译的 `gpui-shell`，覆盖 macOS（Apple 芯片与 Intel）、Linux x86-64 和 Windows x86-64。它内置了 [`gpui-component`](./examples.md) 组件目录，所以应用除了 `"gpui-base"`，也可以从 `"gpui-component"` 导入带样式的组件。
+每个 GitHub Release 都附带预编译的 `gpui-shell`，覆盖 macOS（Apple 芯片与 Intel）、Linux x86-64 和 Windows x86-64。它内置了 [`gpui-neath`](./examples.md) 组件目录，所以应用除了 `"gpui-base"`，也可以从 `"gpui-neath"` 导入带样式的组件。
 
 ```bash
 curl -fsSL https://gpui-kit.com/shell/install.sh | sh
@@ -41,7 +41,7 @@ cargo install gpui-shell --version 0.9.1 --locked
 cargo install --git https://github.com/longbridge/gpui-kit gpui-shell --locked
 ```
 
-它会装到 `~/.cargo/bin`，和 Release 一样内置 `gpui-component` 组件目录。再次运行同一条命令即可更新，`main` 有新提交时 Cargo 会重新构建。用 `--branch <name>`、`--tag <tag>` 或 `--rev <commit>` 可以构建指定的版本。这需要 Rust 工具链；在 Linux 上还需要 GPUI 链接的系统库，仓库里的 `script/install-linux.sh` 列出了 Ubuntu 上需要的包。
+它会装到 `~/.cargo/bin`，和 Release 一样内置 `gpui-neath` 组件目录。再次运行同一条命令即可更新，`main` 有新提交时 Cargo 会重新构建。用 `--branch <name>`、`--tag <tag>` 或 `--rev <commit>` 可以构建指定的版本。这需要 Rust 工具链；在 Linux 上还需要 GPUI 链接的系统库，仓库里的 `script/install-linux.sh` 列出了 Ubuntu 上需要的包。
 
 如果 `PATH` 里 `~/.local/bin` 排在 `~/.cargo/bin` 前面，脚本装的 Release 版会盖过 Git 版；用 `command -v gpui-shell` 确认实际运行的是哪一个。
 
@@ -300,7 +300,7 @@ gpui_platform::application()
 
 其中两行承载的是规则而不是机制。
 
-**`runtime.load(...)` 返回窗口的 `ShellRoot`**，作用与 `gpui-component` 窗口中的 `Root` 相同。它持有 dialog 栈、sheet、toast 栈、焦点恢复与 Tab 导航。manifest 负责选择应用入口并记录能力请求，但不会自行批准这些请求。带 manifest 与不带 manifest 的目录都使用 Host 当前的默认 policy；后者采用 `main.js`。
+**`runtime.load(...)` 返回窗口的 `ShellRoot`**，作用与 `gpui-neath` 窗口中的 `Root` 相同。它持有 dialog 栈、sheet、toast 栈、焦点恢复与 Tab 导航。manifest 负责选择应用入口并记录能力请求，但不会自行批准这些请求。带 manifest 与不带 manifest 的目录都使用 Host 当前的默认 policy；后者采用 `main.js`。
 
 **能力默认为空。** `Capabilities::default()` 什么都不授予——没有文件、没有存储、没有剪贴板、没有进程。由 Host 决定，因为只有 Host 知道它对即将运行的这段代码信任到什么程度。见 [Capabilities](./capabilities.md)。
 

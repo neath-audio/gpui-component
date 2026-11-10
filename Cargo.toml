@@ -58,7 +58,7 @@ edition = "2024"
 
 [workspace.dependencies]
 gpui-kit = { path = "crates/kit", version = "0.9.1" }
-gpui-component = { path = "crates/component", version = "0.9.1" }
+gpui-neath = { path = "crates/component", version = "0.9.1" }
 gpui-base = { path = "crates/base", version = "0.9.1" }
 gpui-component-macros = { path = "crates/component-macros", version = "0.9.1" }
 gpui-kit-assets = { path = "crates/assets", version = "0.9.1" }
@@ -71,7 +71,7 @@ story = { path = "crates/story" }
 # may change GPUI's API. These requirements are what the published gpui-kit
 # crates carry to crates.io, so they pin the exact snapshot the release was
 # built against: a caret requirement let the weekly release move applications
-# onto a newer snapshot that gpui-component did not compile with (#3156). Bump
+# onto a newer snapshot that gpui-neath did not compile with (#3156). Bump
 # every snapshot crate together with its Cargo.lock entry; `script/check-gpui-pin.ts`
 # fails CI when a pin is not exact.
 gpui = { package = "gpui-pre", version = "=0.3.12" }
@@ -150,7 +150,7 @@ type_complexity = "allow"
 useless_conversion = "allow"
 
 # Keep Cargo's default of 256 codegen units. Incremental builds re-codegen
-# whole units, so with 16 units a one-line change in gpui-component or
+# whole units, so with 16 units a one-line change in gpui-neath or
 # gpui-base took about 50% more CPU to rebuild.
 [profile.dev]
 debug = "limited"

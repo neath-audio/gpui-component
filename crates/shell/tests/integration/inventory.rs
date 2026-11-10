@@ -310,7 +310,7 @@ impl Inventory {
     }
 }
 
-/// `gpui-webview` is a crate of its own rather than a `gpui-component` module,
+/// `gpui-webview` is a crate of its own rather than a `gpui-neath` module,
 /// and its entry is registered only when the `webview` feature is.
 const WEBVIEW_SOURCE: &str = "webview";
 
@@ -320,7 +320,7 @@ fn webview_source() -> Option<(String, String)> {
 
 /// Public modules, plus private ones the crate root re-exports wholesale.
 ///
-/// `TitleBar` and `Icon` reach applications as `gpui_component::TitleBar`
+/// `TitleBar` and `Icon` reach applications as `gpui_neath::TitleBar`
 /// through `pub use title_bar::*;`, so reading `pub mod` alone would leave them
 /// out of the inventory without anyone deciding so.
 fn public_ui_modules(source: &str) -> BTreeSet<&str> {

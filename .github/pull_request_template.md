@@ -15,7 +15,7 @@ Please keep **1 PR to solve 1 problem**, and keep **Small improvements should be
 
 List every public item this pull request adds, changes or removes, grouped by crate, with its signature and one line on what it is for. Include JavaScript methods and TypeScript declarations. If none, remove this section.
 
-- `gpui_component::input::Example::builder(value: bool) -> Self` — what it does.
+- `gpui_neath::input::Example::builder(value: bool) -> Self` — what it does.
 
 ## Breaking Changes
 

@@ -9,7 +9,7 @@
 
 use std::{cell::Cell, rc::Rc, sync::Arc};
 
-use gpui_component::{
+use gpui_neath::{
     Placement, WindowExt as _,
     button::Button,
     dialog::DialogButtonProps,
