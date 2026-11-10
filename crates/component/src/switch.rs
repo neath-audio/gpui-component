@@ -3,67 +3,12 @@ use crate::{
     text::Text, tooltip::ComponentTooltip,
 };
 use gpui::{
-    App, Background, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement as _,
-    RenderOnce, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled, Window,
-    div, prelude::FluentBuilder as _, px,
+    App, Background, ElementId, Hsla, InteractiveElement, IntoElement, MouseButton,
+    ParentElement as _, RenderOnce, SharedString, StyleRefinement, Styled, Window, div,
+    prelude::FluentBuilder as _, px,
 };
 use gpui_base::{Switch as BaseSwitch, SwitchThumb, SwitchTrack, spring};
 use std::{rc::Rc, time::Duration};
-
-const SWITCH_GROUP: &str = "switch";
-
-/// The colors [`Switch`] and `Radio` share.
-///
-/// Every fill comes from the `switch` theme tokens, so a theme that sets them
-/// keeps its look. Disabling dims only the thumb: the track still says on or off.
-#[derive(Clone, Copy)]
-pub(crate) struct ChoiceColors {
-    pub(crate) background: Background,
-    pub(crate) border: Hsla,
-    pub(crate) hover: Hsla,
-    pub(crate) active: Hsla,
-    pub(crate) thumb: Background,
-}
-
-/// Resolves the [`ChoiceColors`]; `color` overrides the checked track.
-pub(crate) fn choice_colors(
-    checked: bool,
-    disabled: bool,
-    color: Option<Hsla>,
-    cx: &App,
-) -> ChoiceColors {
-    let theme = cx.theme();
-    let tokens = &theme.tokens;
-    let (background, solid, border) = match (checked, color) {
-        (true, Some(color)) => (Background::from(color), color, color.opacity(0.5)),
-        (true, None) => (
-            tokens.switch_checked.background,
-            tokens.switch_checked.color,
-            tokens.switch_checked.color.opacity(0.5),
-        ),
-        (false, _) => (tokens.switch.background, tokens.switch.color, theme.border),
-    };
-    // Light tracks need a stronger lift for the hover to read.
-    let hover_boost = if theme.is_dark() { 1. } else { 1.5 };
-    let (hover, active) = if checked { (0.16, 0.22) } else { (0.05, 0.1) };
-    let lift = |amount: f32| solid.blend(theme.foreground.opacity(amount));
-    let thumb = if checked {
-        tokens.switch_thumb_checked.background
-    } else {
-        tokens.switch_thumb.background
-    };
-    ChoiceColors {
-        background,
-        border,
-        hover: lift(hover * hover_boost),
-        active: lift(active),
-        thumb: match (disabled, checked) {
-            (false, _) => thumb,
-            (true, true) => thumb.opacity(0.2),
-            (true, false) => thumb.opacity(0.4),
-        },
-    }
-}
 
 /// A Switch element that can be toggled on or off.
 #[derive(IntoElement)]
@@ -233,7 +178,21 @@ impl RenderOnce for Switch {
             .clone();
         let is_focused = focus_handle.is_focused(window);
 
-        let colors = choice_colors(checked, self.disabled, self.color, cx);
+        let checked_bg = self
+            .color
+            .map(Background::from)
+            .unwrap_or(cx.theme().tokens.switch_checked.into());
+        let unchecked_bg: Background = cx.theme().tokens.switch.into();
+        // GPUI's element opacity multiplies each primitive's alpha instead of
+        // compositing the subtree as one group, so fading the whole control
+        // would let the track show through the thumb. Fading the track alone
+        // lands on the pixels a grouped fade would: the thumb is `background`.
+        let disabled_bg = if checked { checked_bg } else { unchecked_bg }.opacity(0.5);
+        let toggle_bg: Background = if checked {
+            cx.theme().tokens.switch_thumb_checked.into()
+        } else {
+            cx.theme().tokens.switch_thumb.into()
+        };
         let disabled_label_color = cx.theme().muted_foreground;
 
         let (bg_width, bg_height, bar_width) = match self.size {
@@ -271,7 +230,6 @@ impl RenderOnce for Switch {
             .refine_style(&self.style)
             .child(
                 BaseSwitch::new(self.id.clone())
-                    .group(SWITCH_GROUP)
                     .checked(checked)
                     .disabled(self.disabled)
                     .styles(|styles| {
@@ -288,6 +246,11 @@ impl RenderOnce for Switch {
                     .tab_stop(self.tab_stop)
                     .tab_index(self.tab_index)
                     .track_focus(&focus_handle)
+                    // A pointer press does not move focus, as with Button,
+                    // Checkbox and Radio: the focus ring is for the keyboard.
+                    .on_mouse_down(MouseButton::Left, |_, window, _| {
+                        window.prevent_default();
+                    })
                     .h_flex()
                     .gap_2()
                     .items_start()
@@ -306,17 +269,20 @@ impl RenderOnce for Switch {
                             .rounded(radius)
                             .flex()
                             .items_center()
-                            // The focus ring tints this border solid, and that 1px
-                            // line is what keeps the ring visible on an unchecked
-                            // track: its 50% halo alone lands within a few values
-                            // of `switch.background` in both default modes.
+                            // The thumb inset is a 1px border plus padding, not
+                            // a wider border: the focus ring tints the border
+                            // solid, and that 1px line is what keeps the ring
+                            // visible on an unchecked track. Its 50% halo alone
+                            // lands within a few values of `switch.background`
+                            // in both default modes.
                             .border_1()
-                            .border_color(colors.border)
+                            .border_color(cx.theme().transparent)
                             .px(inset - px(1.))
-                            .bg(colors.background)
-                            .when(!self.disabled, |this| {
-                                this.group_hover(SWITCH_GROUP, |style| style.bg(colors.hover))
-                                    .group_active(SWITCH_GROUP, |style| style.bg(colors.active))
+                            .when(!checked, |this| this.bg(unchecked_bg))
+                            .styles(|styles| {
+                                styles
+                                    .checked(|style| style.bg(checked_bg))
+                                    .disabled(|style| style.bg(disabled_bg))
                             })
                             // The ring hugs the track, not the row, so the label
                             // stays outside it.
@@ -330,7 +296,7 @@ impl RenderOnce for Switch {
                                     .rounded(radius)
                                     .size(bar_width)
                                     .left(thumb_x)
-                                    .bg(colors.thumb),
+                                    .bg(toggle_bg),
                             ),
                     )
                     .when_some(self.label, |this, label| {
@@ -353,8 +319,8 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     use gpui::{
-        Context, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, Render, TestAppContext,
-        VisualTestContext, point,
+        Context, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, Render,
+        StatefulInteractiveElement as _, TestAppContext, VisualTestContext, point,
     };
 
     use super::*;
@@ -441,12 +407,17 @@ mod tests {
     }
 
     #[gpui::test]
-    fn canonical_pointer_activation_fires_once_and_focuses(cx: &mut TestAppContext) {
+    fn pointer_activation_fires_once_and_leaves_focus_where_it_was(cx: &mut TestAppContext) {
         let (cx, toggles, _) = harness(cx, false);
         cx.simulate_click(point(px(10.), px(10.)), Modifiers::default());
 
         assert_eq!(toggles.get(), 1);
-        cx.update(|window, cx| assert!(window.focused(cx).is_some()));
+        cx.update(|window, cx| {
+            assert!(
+                window.focused(cx).is_none(),
+                "a press must not focus the switch, or its focus ring stays after a click"
+            )
+        });
     }
 
     #[gpui::test]

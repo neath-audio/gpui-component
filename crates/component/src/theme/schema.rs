@@ -1217,7 +1217,7 @@ impl ThemeColor {
         apply_background_color!(slider_bar, fallback = tokens.primary);
         apply_background_color!(slider_thumb, fallback = self.primary_foreground);
         apply_background_color!(switch, fallback = tokens.secondary_active);
-        apply_background_color!(switch_thumb, fallback = self.foreground.opacity(0.5));
+        apply_background_color!(switch_thumb, fallback = tokens.background);
         apply_background_color!(tab, fallback = tokens.background);
         apply_background_color!(tab_active, fallback = tokens.background);
         apply_color!(tab_active_foreground, fallback = self.foreground);
@@ -1288,14 +1288,8 @@ impl ThemeColor {
         apply_background_color!(card_selected, fallback = tokens.list_active);
         apply_color!(card_selected_border, fallback = self.list_active_border);
 
-        apply_background_color!(switch_checked, fallback = self.info.opacity(0.4));
-        // A theme that styles the thumb keeps that thumb in both positions.
-        let thumb_checked: ThemeToken = if colors.switch_thumb.is_some() {
-            tokens.switch_thumb
-        } else {
-            self.foreground.into()
-        };
-        apply_background_color!(switch_thumb_checked, fallback = thumb_checked);
+        apply_background_color!(switch_checked, fallback = tokens.primary);
+        apply_background_color!(switch_thumb_checked, fallback = tokens.switch_thumb);
 
         apply_background_color!(transport, fallback = tokens.background);
         apply_color!(transport_border, fallback = self.border);

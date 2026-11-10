@@ -1,8 +1,8 @@
 use std::{rc::Rc, time::Duration};
 
 use crate::{
-    ActiveTheme, AxisExt, Sizable, Size, StyledExt, h_flex, switch::choice_colors, text::Text,
-    tooltip::ComponentTooltip, v_flex,
+    ActiveTheme, AxisExt, Sizable, Size, StyledExt, h_flex, text::Text, tooltip::ComponentTooltip,
+    v_flex,
 };
 use crate::{StyleSized as _, ThemeStyled as _};
 use gpui::{
@@ -12,7 +12,8 @@ use gpui::{
 };
 use gpui_base::{Radio as BaseRadio, RadioGroup as BaseRadioGroup};
 
-const RADIO_GROUP: &str = "radio";
+/// Line height of the label, as a multiple of its text size.
+const LABEL_LINE_HEIGHT: f32 = 1.25;
 
 /// A Radio element.
 ///
@@ -192,11 +193,28 @@ impl RenderOnce for Radio {
             .clone()
             .or_else(|| self.label.as_ref().map(|label| label.get_text(cx)));
 
-        let colors = choice_colors(checked, disabled, None, cx);
+        let (border_color, bg) = if checked {
+            (cx.theme().primary, cx.theme().primary)
+        } else {
+            (cx.theme().input, cx.theme().input.opacity(0.5))
+        };
+        let (border_color, bg, dot) = if disabled {
+            (
+                border_color.opacity(0.5),
+                bg.opacity(0.5),
+                cx.theme().primary_foreground.opacity(0.5),
+            )
+        } else {
+            (border_color, bg, cx.theme().primary_foreground)
+        };
+        // The indicator sits at the top of the row so a wrapped label hangs
+        // below it. This offset centers it on the label's first line.
+        let text_size = self.size.control_text_size(cx);
+        let first_line_offset =
+            rems(((text_size.0 * LABEL_LINE_HEIGHT - indicator_size.0) / 2.).max(0.));
 
         self.base
             .id(self.id.clone())
-            .group(RADIO_GROUP)
             .checked(self.checked)
             .disabled(self.disabled)
             .track_focus(&focus_handle)
@@ -229,24 +247,26 @@ impl RenderOnce for Radio {
                     .flex()
                     .items_center()
                     .justify_center()
+                    .when(cfg!(test), |this| {
+                        this.debug_selector(|| "radio-indicator".into())
+                    })
                     .size(indicator_size)
-                    // Center on the first 1.25em line, including when the label wraps.
-                    .when(has_content, |this| this.mt(indicator_size * 0.125))
+                    .when(has_content, |this| this.mt(first_line_offset))
                     .flex_shrink_0()
                     .rounded_full_style(cx)
                     .border_1()
-                    .border_color(colors.border)
-                    .bg(colors.background)
-                    .when(!disabled, |this| {
-                        this.group_hover(RADIO_GROUP, |style| style.bg(colors.hover))
-                            .group_active(RADIO_GROUP, |style| style.bg(colors.active))
+                    .border_color(border_color)
+                    .map(|this| match self.checked {
+                        false => this.bg(cx.theme().input_background()),
+                        true if disabled => this.bg(bg),
+                        true => this.bg(cx.theme().tokens.primary),
                     })
                     .when(checked, |this| {
                         this.child(
                             div()
                                 .size(indicator_size * 0.5)
                                 .rounded_full_style(cx)
-                                .bg(colors.thumb),
+                                .bg(dot),
                         )
                     }),
             )
@@ -254,11 +274,14 @@ impl RenderOnce for Radio {
                 this.child(
                     v_flex()
                         .w_full()
-                        .line_height(relative(1.25))
+                        .line_height(relative(LABEL_LINE_HEIGHT))
                         .gap_1()
                         .when_some(self.label, |this, label| {
                             this.child(
                                 div()
+                                    .when(cfg!(test), |this| {
+                                        this.debug_selector(|| "radio-label".into())
+                                    })
                                     .size_full()
                                     .when(self.disabled, |this| {
                                         this.text_color(cx.theme().muted_foreground)
@@ -428,6 +451,37 @@ impl RenderOnce for RadioGroup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui::px;
+
+    #[gpui::test]
+    fn indicator_is_centered_on_the_first_line_of_its_label(cx: &mut gpui::TestAppContext) {
+        struct Labeled(Size);
+
+        impl gpui::Render for Labeled {
+            fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
+                div().flex().child(
+                    Radio::new("radio")
+                        .label("Automatic")
+                        .checked(true)
+                        .with_size(self.0),
+                )
+            }
+        }
+
+        cx.update(crate::init);
+        for size in [Size::XSmall, Size::Small, Size::Medium, Size::Large] {
+            let (_, cx) = cx.add_window_view(move |_, _| Labeled(size));
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            let indicator = cx.debug_bounds("radio-indicator").unwrap();
+            let label = cx.debug_bounds("radio-label").unwrap();
+            let offset = (indicator.center().y - label.center().y).abs();
+            assert!(
+                offset <= px(0.5),
+                "{size:?}: the indicator sits {offset:?} off the middle of the label's line \
+                 (indicator {indicator:?}, label {label:?})",
+            );
+        }
+    }
 
     #[test]
     fn an_explicit_accessibility_label_replaces_the_visible_one() {
