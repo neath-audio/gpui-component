@@ -398,8 +398,9 @@ impl SettingItem {
                         .disabled(disabled)
                         .track_focus(&focus)
                         .accessibility_label(format!("{configure} {title}"))
-                        .when(cfg!(test), |this| {
-                            this.debug_selector(|| "setting-sub-page-link".into())
+                        .debug_selector({
+                            let title = title.clone();
+                            move || format!("setting-sub-page-link-{title}")
                         })
                         .child(
                             h_flex()

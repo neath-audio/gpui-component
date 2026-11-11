@@ -238,16 +238,27 @@ impl Settings {
                         .active(is_page_active)
                         .on_click({
                             let state = state.clone();
-                            move |_, _, cx| {
-                                state.update(cx, |state, cx| {
-                                    state.selected_index = SelectIndex {
-                                        page_ix,
-                                        ..Default::default()
-                                    };
-                                    state.deferred_scroll_group_ix = None;
-                                    state.navigation.update(cx, |nav, cx| nav.clear(cx));
-                                    cx.notify();
-                                })
+                            move |_, window, cx| {
+                                let navigation = state.read(cx).navigation.clone();
+                                let state = state.clone();
+                                SettingsNavigation::leave(
+                                    &navigation,
+                                    0,
+                                    move |_, cx| {
+                                        state.update(cx, |state, cx| {
+                                            state.selected_index = SelectIndex {
+                                                page_ix,
+                                                ..Default::default()
+                                            };
+                                            state.deferred_scroll_group_ix = None;
+                                            state.navigation.update(cx, |nav, cx| nav.clear(cx));
+                                            cx.notify();
+                                        })
+                                    },
+                                    None,
+                                    window,
+                                    cx,
+                                );
                             }
                         })
                         .when(show_groups && groups.len() > 1, |this| {
@@ -267,19 +278,34 @@ impl Settings {
                                             .active(is_active)
                                             .on_click({
                                                 let state = state.clone();
-                                                move |_, _, cx| {
-                                                    state.update(cx, |state, cx| {
-                                                        state.selected_index = SelectIndex {
-                                                            page_ix,
-                                                            group_ix: Some(group_ix),
-                                                        };
-                                                        state.deferred_scroll_group_ix =
-                                                            Some(group_ix);
-                                                        state
-                                                            .navigation
-                                                            .update(cx, |nav, cx| nav.clear(cx));
-                                                        cx.notify();
-                                                    })
+                                                move |_, window, cx| {
+                                                    let navigation =
+                                                        state.read(cx).navigation.clone();
+                                                    let state = state.clone();
+                                                    SettingsNavigation::leave(
+                                                        &navigation,
+                                                        0,
+                                                        move |_, cx| {
+                                                            state.update(cx, |state, cx| {
+                                                                state.selected_index =
+                                                                    SelectIndex {
+                                                                        page_ix,
+                                                                        group_ix: Some(group_ix),
+                                                                    };
+                                                                state.deferred_scroll_group_ix =
+                                                                    Some(group_ix);
+                                                                state
+                                                                    .navigation
+                                                                    .update(cx, |nav, cx| {
+                                                                        nav.clear(cx)
+                                                                    });
+                                                                cx.notify();
+                                                            })
+                                                        },
+                                                        None,
+                                                        window,
+                                                        cx,
+                                                    );
                                                 }
                                             })
                                     }),
@@ -351,6 +377,11 @@ pub(super) struct SettingsState {
     pub(super) deferred_scroll_group_ix: Option<usize>,
     pub(super) search_input: Entity<InputState>,
     pub(super) navigation: Entity<SettingsNavigation>,
+    /// The query as of the last frame whose selection was stable, restored when a guarded
+    /// search is held back.
+    last_query: gpui::SharedString,
+    /// Set by a resumed search so the page change it was held for is not asked about again.
+    leave_bypass: bool,
     // Keep page scroll state across sidebar excursions and nested page content.
     // This belongs to the Settings instance, not a frame-local rendered group.
     pub(super) pages: HashMap<usize, PageState>,
@@ -486,6 +517,8 @@ impl RenderOnce for Settings {
             SettingsState {
                 search_input,
                 navigation,
+                last_query: gpui::SharedString::default(),
+                leave_bypass: false,
                 selected_index: self.default_selected_index,
                 deferred_scroll_group_ix: None,
                 pages: HashMap::new(),
@@ -503,10 +536,54 @@ impl RenderOnce for Settings {
             });
         }
 
-        let query = search_input.read(cx).value();
-        let filter = SettingsFilter::new(&self.pages, &query, cx);
+        let mut query = search_input.read(cx).value();
+        let mut filter = SettingsFilter::new(&self.pages, &query, cx);
         let previous = state.read(cx).selected_index;
-        let selected = filter.selected_index(previous);
+        let mut selected = filter.selected_index(previous);
+        let navigation = state.read(cx).navigation.clone();
+        let (depth, guarded) = {
+            let navigation = navigation.read(cx);
+            (navigation.depth(), navigation.has_leave_guard())
+        };
+        let bypass = state.read(cx).leave_bypass;
+        if selected.page_ix != previous.page_ix && depth > 0 && guarded && !bypass {
+            // The query would leave the open sub-page: ask first, and meanwhile keep showing
+            // what the last accepted query showed.
+            let held = state.read(cx).last_query.clone();
+            let (new_query, search) = (query.clone(), search_input.clone());
+            window.defer(cx, {
+                let state = state.clone();
+                move |window, cx| {
+                    let apply = {
+                        let (state, search) = (state.clone(), search.clone());
+                        move |window: &mut Window, cx: &mut App| {
+                            // Allowed at once, the input still holds what was typed: keep its
+                            // caret and undo history. A resumed leave re-applies the query.
+                            let typed = search.read(cx).value() == new_query;
+                            state.update(cx, |state, cx| {
+                                state.leave_bypass = true;
+                                cx.notify();
+                            });
+                            if !typed {
+                                search
+                                    .update(cx, |input, cx| input.set_value(new_query, window, cx));
+                            }
+                        }
+                    };
+                    if !SettingsNavigation::leave(&navigation, 0, apply, None, window, cx) {
+                        search.update(cx, |input, cx| input.set_value(held, window, cx));
+                    }
+                }
+            });
+            query = state.read(cx).last_query.clone();
+            filter = SettingsFilter::new(&self.pages, &query, cx);
+            selected = filter.selected_index(previous);
+        } else {
+            state.update(cx, |state, _| {
+                state.last_query = query.clone();
+                state.leave_bypass = false;
+            });
+        }
         if selected.page_ix != previous.page_ix || selected.group_ix != previous.group_ix {
             state.update(cx, |state, cx| {
                 // Sub-pages belong to the page they opened over.

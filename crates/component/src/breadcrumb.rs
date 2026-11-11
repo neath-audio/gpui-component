@@ -29,6 +29,7 @@ pub struct BreadcrumbItem {
     disabled: bool,
     is_last: bool,
     tooltip: Option<SharedString>,
+    debug_selector: Option<Box<dyn FnOnce() -> String>>,
 }
 
 impl BreadcrumbItem {
@@ -42,7 +43,15 @@ impl BreadcrumbItem {
             disabled: false,
             is_last: false,
             tooltip: None,
+            debug_selector: None,
         }
+    }
+
+    /// Name this crumb for `debug_bounds` lookups. The name is built only in debug
+    /// builds with `test-support`, like [`gpui::InteractiveElement::debug_selector`].
+    pub fn debug_selector(mut self, selector: impl FnOnce() -> String + 'static) -> Self {
+        self.debug_selector = Some(Box::new(selector));
+        self
     }
 
     /// Show a tooltip on hover — for a crumb whose label is truncated and
@@ -128,6 +137,9 @@ impl RenderOnce for BreadcrumbItem {
                 Role::ListItem
             })
             .flex()
+            .when_some(self.debug_selector, |this, selector| {
+                this.debug_selector(selector)
+            })
             .child(label)
             .text_color(cx.theme().muted_foreground)
             .when(self.is_last, |this| this.text_color(cx.theme().foreground))

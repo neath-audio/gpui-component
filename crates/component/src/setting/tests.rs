@@ -804,7 +804,7 @@ fn a_link_opens_its_sub_page_and_back_returns_to_the_page(cx: &mut TestAppContex
     assert!(cx.debug_bounds("on-parent-page").is_some());
     assert!(cx.debug_bounds("inside-sub-page").is_none());
 
-    click("setting-sub-page-link", cx);
+    click("setting-sub-page-link-Provider", cx);
     assert_eq!(depth(&navigation, cx), 1);
     assert!(cx.debug_bounds("inside-sub-page").is_some());
     assert!(cx.debug_bounds("on-parent-page").is_none());
@@ -845,16 +845,16 @@ fn going_back_returns_keyboard_focus_to_the_link_that_opened_the_page(cx: &mut T
 fn search_finds_a_link_through_what_its_sub_page_contains(cx: &mut TestAppContext) {
     let (_, search, cx) = sub_page_setup(cx);
     type_search(&search, "api key", cx);
-    assert!(cx.debug_bounds("setting-sub-page-link").is_some());
+    assert!(cx.debug_bounds("setting-sub-page-link-Provider").is_some());
     assert!(cx.debug_bounds("on-parent-page").is_none());
     type_search(&search, "no such setting", cx);
-    assert!(cx.debug_bounds("setting-sub-page-link").is_none());
+    assert!(cx.debug_bounds("setting-sub-page-link-Provider").is_none());
 }
 
 #[gpui::test]
 fn search_shows_results_over_an_open_sub_page_and_clearing_restores_it(cx: &mut TestAppContext) {
     let (navigation, search, cx) = sub_page_setup(cx);
-    click("setting-sub-page-link", cx);
+    click("setting-sub-page-link-Provider", cx);
 
     type_search(&search, "language", cx);
     assert!(cx.debug_bounds("on-parent-page").is_some());
@@ -868,7 +868,7 @@ fn search_shows_results_over_an_open_sub_page_and_clearing_restores_it(cx: &mut 
 #[gpui::test]
 fn leaving_the_page_closes_its_sub_pages(cx: &mut TestAppContext) {
     let (navigation, search, cx) = sub_page_setup(cx);
-    click("setting-sub-page-link", cx);
+    click("setting-sub-page-link-Provider", cx);
     assert_eq!(depth(&navigation, cx), 1);
 
     // Only Editor matches, so the selection moves there.
@@ -882,7 +882,7 @@ fn leaving_the_page_closes_its_sub_pages(cx: &mut TestAppContext) {
 #[gpui::test]
 fn clicking_the_sidebar_closes_sub_pages(cx: &mut TestAppContext) {
     let (navigation, _, cx) = sub_page_setup(cx);
-    click("setting-sub-page-link", cx);
+    click("setting-sub-page-link-Provider", cx);
     assert_eq!(depth(&navigation, cx), 1);
 
     click_nav(SECOND_SIDEBAR_ROW, cx);
@@ -916,7 +916,7 @@ fn popping_to_a_depth_keeps_the_pages_below_it(cx: &mut TestAppContext) {
 fn opening_a_link_from_search_results_ends_the_search_and_shows_the_page(cx: &mut TestAppContext) {
     let (navigation, search, cx) = sub_page_setup(cx);
     type_search(&search, "api key", cx);
-    click("setting-sub-page-link", cx);
+    click("setting-sub-page-link-Provider", cx);
 
     assert_eq!(depth(&navigation, cx), 1);
     assert!(cx.update(|_, cx| search.read(cx).value().is_empty()));
@@ -926,7 +926,7 @@ fn opening_a_link_from_search_results_ends_the_search_and_shows_the_page(cx: &mu
 #[gpui::test]
 fn an_open_sub_page_follows_the_page_as_it_is_rebuilt(cx: &mut TestAppContext) {
     let (host, navigation, _, cx) = sub_page_host(cx);
-    click("setting-sub-page-link", cx);
+    click("setting-sub-page-link-Provider", cx);
     assert!(cx.debug_bounds("inside-sub-page").is_some());
 
     cx.update(|_, cx| {
@@ -946,4 +946,395 @@ fn an_open_sub_page_follows_the_page_as_it_is_rebuilt(cx: &mut TestAppContext) {
     assert_eq!(depth(&navigation, cx), 1);
     assert!(cx.debug_bounds("rebuilt-sub-page").is_some());
     assert!(cx.debug_bounds("inside-sub-page").is_none());
+}
+
+fn block_leaves(
+    navigation: &Entity<SettingsNavigation>,
+    seen: std::rc::Rc<std::cell::RefCell<Vec<usize>>>,
+    cx: &mut VisualTestContext,
+) {
+    cx.update(|_, cx| {
+        navigation.update(cx, |nav, _| {
+            nav.set_leave_guard(move |target, _, _| {
+                seen.borrow_mut().push(target);
+                false
+            })
+        })
+    });
+}
+
+fn has_pending_leave(navigation: &Entity<SettingsNavigation>, cx: &mut VisualTestContext) -> bool {
+    cx.update(|_, cx| navigation.read(cx).has_pending_leave())
+}
+
+#[gpui::test]
+fn a_named_link_row_can_be_targeted(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    assert!(cx.debug_bounds("setting-sub-page-link-Provider").is_some());
+    click("setting-sub-page-link-Provider", cx);
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+}
+
+#[gpui::test]
+fn a_blocking_guard_holds_back_until_resumed(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen = Default::default();
+    block_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    click("setting-sub-page-back", cx);
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+    assert_eq!(*seen.borrow(), vec![0]);
+    assert!(has_pending_leave(&navigation, cx));
+
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.resume_leave(window, cx)));
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+    assert!(cx.debug_bounds("inside-sub-page").is_none());
+    assert!(!has_pending_leave(&navigation, cx));
+}
+
+#[gpui::test]
+fn cancelling_a_held_leave_keeps_the_page(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    block_leaves(&navigation, Default::default(), cx);
+
+    click("setting-sub-page-back", cx);
+    assert!(has_pending_leave(&navigation, cx));
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.cancel_leave(window, cx)));
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+    assert!(!has_pending_leave(&navigation, cx));
+}
+
+#[gpui::test]
+fn a_breadcrumb_asks_with_its_target_depth(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    let nested = SettingSubPage::new("Model")
+        .group(SettingGroup::new().item(marked("inside-nested-page", "model")));
+    cx.update(|window, cx| {
+        navigation.update(cx, |nav, cx| {
+            nav.push(provider_page(), window, cx);
+            nav.push(nested, window, cx);
+        })
+    });
+    draw(cx);
+    let seen = Default::default();
+    block_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    click("setting-sub-page-crumb-0", cx);
+    assert_eq!(*seen.borrow(), vec![0]);
+    assert_eq!(depth(&navigation, cx), 2);
+    assert!(cx.debug_bounds("inside-nested-page").is_some());
+
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.resume_leave(window, cx)));
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+}
+
+#[gpui::test]
+fn an_allowing_guard_and_no_guard_leave_at_once(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen: std::rc::Rc<std::cell::RefCell<Vec<usize>>> = Default::default();
+    cx.update(|_, cx| {
+        navigation.update(cx, |nav, _| {
+            let seen = std::rc::Rc::clone(&seen);
+            nav.set_leave_guard(move |target, _, _| {
+                seen.borrow_mut().push(target);
+                true
+            })
+        })
+    });
+    click("setting-sub-page-back", cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+    assert_eq!(*seen.borrow(), vec![0]);
+    assert!(!has_pending_leave(&navigation, cx));
+
+    cx.update(|_, cx| navigation.update(cx, |nav, _| nav.clear_leave_guard()));
+    click("setting-sub-page-link-Provider", cx);
+    click("setting-sub-page-back", cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert_eq!(seen.borrow().len(), 1);
+}
+
+#[gpui::test]
+fn app_pops_are_not_guarded(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen = Default::default();
+    block_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.pop_to(0, window, cx)));
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+    assert!(seen.borrow().is_empty());
+}
+
+#[gpui::test]
+fn a_page_pushed_in_a_section_shows_that_crumb(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    cx.update(|window, cx| {
+        navigation.update(cx, |nav, cx| {
+            nav.push_in_section(provider_page(), "Providers", window, cx)
+        })
+    });
+    draw(cx);
+    // General, Providers, Provider.
+    assert!(cx.debug_bounds("setting-sub-page-crumb-0").is_some());
+    assert!(cx.debug_bounds("setting-sub-page-crumb-1").is_some());
+    assert!(cx.debug_bounds("setting-sub-page-crumb-2").is_some());
+    assert!(cx.debug_bounds("setting-sub-page-crumb-3").is_none());
+
+    click("setting-sub-page-crumb-1", cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+}
+
+fn search_value(input: &Entity<InputState>, cx: &mut VisualTestContext) -> String {
+    cx.update(|_, cx| input.read(cx).value().to_string())
+}
+
+#[gpui::test]
+fn a_blocked_sidebar_click_keeps_the_sub_page_until_resumed(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen = Default::default();
+    block_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    click_nav(SECOND_SIDEBAR_ROW, cx);
+    assert_eq!(*seen.borrow(), vec![0]);
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+    assert!(cx.debug_bounds("other-page").is_none());
+
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.resume_leave(window, cx)));
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("other-page").is_some());
+    assert!(cx.debug_bounds("inside-sub-page").is_none());
+}
+
+#[gpui::test]
+fn a_blocked_search_that_changes_page_reverts_the_query(cx: &mut TestAppContext) {
+    let (navigation, search, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen = Default::default();
+    block_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    type_search(&search, "theme", cx);
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 1);
+    assert_eq!(search_value(&search, cx), "");
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+    assert!(cx.debug_bounds("other-page").is_none());
+    assert_eq!(*seen.borrow(), vec![0]);
+
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.resume_leave(window, cx)));
+    draw(cx);
+    draw(cx);
+    assert_eq!(search_value(&search, cx), "theme");
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("other-page").is_some());
+    // Resuming does not ask again.
+    assert_eq!(*seen.borrow(), vec![0]);
+}
+
+#[gpui::test]
+fn search_results_over_an_open_page_do_not_ask(cx: &mut TestAppContext) {
+    let (navigation, search, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen = Default::default();
+    block_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    type_search(&search, "language", cx);
+    draw(cx);
+    assert!(seen.borrow().is_empty());
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("on-parent-page").is_some());
+    assert!(cx.debug_bounds("inside-sub-page").is_none());
+
+    type_search(&search, "", cx);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+}
+
+/// Installs a guard that records the depth each leave would drop to and allows it.
+fn allow_leaves(
+    navigation: &Entity<SettingsNavigation>,
+    seen: std::rc::Rc<std::cell::RefCell<Vec<usize>>>,
+    cx: &mut VisualTestContext,
+) {
+    cx.update(|_, cx| {
+        navigation.update(cx, |nav, _| {
+            nav.set_leave_guard(move |target, _, _| {
+                seen.borrow_mut().push(target);
+                true
+            })
+        })
+    });
+}
+
+/// A point inside the first row of the sub-page fixture's sidebar.
+const FIRST_SIDEBAR_ROW: f32 = 60.;
+
+/// Selects General again and opens its sub-page, from wherever the fixture is.
+fn reopen_sub_page(navigation: &Entity<SettingsNavigation>, cx: &mut VisualTestContext) {
+    click_nav(FIRST_SIDEBAR_ROW, cx);
+    click("setting-sub-page-link-Provider", cx);
+    assert_eq!(depth(navigation, cx), 1);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+}
+
+#[gpui::test]
+fn an_allowed_search_keeps_the_caret_and_the_undo_history(cx: &mut TestAppContext) {
+    let (navigation, search, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen = Default::default();
+    allow_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    // Nothing matches, so the page stays open and nothing is asked.
+    type_search(&search, "thexme", cx);
+    assert_eq!(depth(&navigation, cx), 1);
+    cx.update(|window, cx| search.update(cx, |input, cx| input.focus(window, cx)));
+    draw(cx);
+
+    // Deleting the stray letter makes the query match only Editor.
+    cx.simulate_keystrokes("left left backspace");
+    draw(cx);
+    draw(cx);
+    assert_eq!(*seen.borrow(), vec![0]);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("other-page").is_some());
+    assert_eq!(search_value(&search, cx), "theme");
+    assert_eq!(
+        cx.update(|_, cx| search.read(cx).selected_range()),
+        3..3,
+        "the caret stays where the deletion left it"
+    );
+
+    cx.simulate_keystrokes(if cfg!(target_os = "macos") {
+        "cmd-z"
+    } else {
+        "ctrl-z"
+    });
+    draw(cx);
+    assert_eq!(
+        search_value(&search, cx),
+        "thexme",
+        "undo restores the text from before the allowed search"
+    );
+}
+
+#[gpui::test]
+fn an_allowing_guard_and_no_guard_follow_a_breadcrumb_at_once(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    let push_nested = |cx: &mut VisualTestContext| {
+        let nested = SettingSubPage::new("Model")
+            .group(SettingGroup::new().item(marked("inside-nested-page", "model")));
+        cx.update(|window, cx| {
+            navigation.update(cx, |nav, cx| {
+                nav.pop_to(0, window, cx);
+                nav.push(provider_page(), window, cx);
+                nav.push(nested, window, cx);
+            })
+        });
+        draw(cx);
+        assert_eq!(depth(&navigation, cx), 2);
+        assert!(cx.debug_bounds("inside-nested-page").is_some());
+    };
+    let seen: std::rc::Rc<std::cell::RefCell<Vec<usize>>> = Default::default();
+    allow_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    for guarded in [true, false] {
+        push_nested(cx);
+        // General, Provider, Model: the Provider crumb drops to depth 1.
+        click("setting-sub-page-crumb-1", cx);
+        assert_eq!(depth(&navigation, cx), 1);
+        assert!(cx.debug_bounds("inside-sub-page").is_some());
+        assert!(cx.debug_bounds("inside-nested-page").is_none());
+        assert!(!has_pending_leave(&navigation, cx));
+        assert_eq!(*seen.borrow(), vec![1], "guarded: {guarded}");
+
+        cx.update(|_, cx| navigation.update(cx, |nav, _| nav.clear_leave_guard()));
+    }
+}
+
+#[gpui::test]
+fn an_allowing_guard_and_no_guard_follow_a_sidebar_click_at_once(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen: std::rc::Rc<std::cell::RefCell<Vec<usize>>> = Default::default();
+    allow_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    for guarded in [true, false] {
+        click_nav(SECOND_SIDEBAR_ROW, cx);
+        assert_eq!(depth(&navigation, cx), 0);
+        assert!(cx.debug_bounds("other-page").is_some());
+        assert!(cx.debug_bounds("inside-sub-page").is_none());
+        assert!(!has_pending_leave(&navigation, cx));
+        assert_eq!(*seen.borrow(), vec![0], "guarded: {guarded}");
+
+        cx.update(|_, cx| navigation.update(cx, |nav, _| nav.clear_leave_guard()));
+        reopen_sub_page(&navigation, cx);
+    }
+}
+
+#[gpui::test]
+fn an_allowing_guard_and_no_guard_follow_a_page_changing_search_at_once(cx: &mut TestAppContext) {
+    let (navigation, search, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen: std::rc::Rc<std::cell::RefCell<Vec<usize>>> = Default::default();
+    allow_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    for guarded in [true, false] {
+        // Only Editor matches, so the selection moves there.
+        type_search(&search, "theme", cx);
+        draw(cx);
+        assert_eq!(search_value(&search, cx), "theme");
+        assert_eq!(depth(&navigation, cx), 0);
+        assert!(cx.debug_bounds("other-page").is_some());
+        assert!(cx.debug_bounds("inside-sub-page").is_none());
+        assert!(!has_pending_leave(&navigation, cx));
+        assert_eq!(*seen.borrow(), vec![0], "guarded: {guarded}");
+
+        cx.update(|_, cx| navigation.update(cx, |nav, _| nav.clear_leave_guard()));
+        type_search(&search, "", cx);
+        reopen_sub_page(&navigation, cx);
+    }
+}
+
+#[gpui::test]
+fn a_second_held_leave_replaces_the_first(cx: &mut TestAppContext) {
+    let (navigation, _, cx) = sub_page_setup(cx);
+    click("setting-sub-page-link-Provider", cx);
+    let seen = Default::default();
+    block_leaves(&navigation, std::rc::Rc::clone(&seen), cx);
+
+    click("setting-sub-page-back", cx);
+    assert!(has_pending_leave(&navigation, cx));
+    click_nav(SECOND_SIDEBAR_ROW, cx);
+    assert_eq!(*seen.borrow(), vec![0, 0]);
+    assert_eq!(depth(&navigation, cx), 1);
+    assert!(cx.debug_bounds("inside-sub-page").is_some());
+
+    // Back alone would show General; the held sidebar click shows Editor.
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.resume_leave(window, cx)));
+    draw(cx);
+    assert_eq!(depth(&navigation, cx), 0);
+    assert!(cx.debug_bounds("other-page").is_some());
+    assert!(cx.debug_bounds("on-parent-page").is_none());
+    assert!(!has_pending_leave(&navigation, cx));
+
+    // Only one leave was held: resuming again does nothing.
+    cx.update(|window, cx| navigation.update(cx, |nav, cx| nav.resume_leave(window, cx)));
+    draw(cx);
+    assert!(cx.debug_bounds("other-page").is_some());
 }

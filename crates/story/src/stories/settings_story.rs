@@ -4,14 +4,14 @@ use gpui_kit::{
 };
 
 use gpui_kit::component::{
-    ActiveTheme, Disableable, Icon, IconName, Sizable, Size, Theme, ThemeMode,
+    ActiveTheme, Disableable, Icon, IconName, Sizable, Size, Theme, ThemeMode, WindowExt as _,
     button::{Button, ButtonVariants},
     group_box::GroupBoxVariant,
     h_flex,
     label::Label,
     setting::{
         NumberFieldOptions, RenderOptions, SettingField, SettingFieldElement, SettingGroup,
-        SettingItem, SettingPage, SettingSubPage, Settings,
+        SettingItem, SettingPage, SettingSubPage, Settings, SettingsNavigation,
     },
     text::markdown,
     v_flex,
@@ -28,6 +28,8 @@ struct AppSettings {
     density: SharedString,
     notifications_enabled: bool,
     auto_update: bool,
+    /// Asks before the Release Channel sub-page is left.
+    guard_release_channel: bool,
     resettable: bool,
     disabled: bool,
 }
@@ -43,6 +45,7 @@ impl Default for AppSettings {
             density: "Comfortable".into(),
             notifications_enabled: true,
             auto_update: true,
+            guard_release_channel: false,
             resettable: true,
             disabled: false,
         }
@@ -65,6 +68,7 @@ pub struct SettingsStory {
     focus_handle: FocusHandle,
     group_variant: GroupBoxVariant,
     size: Size,
+    navigation: Entity<SettingsNavigation>,
 }
 
 struct OpenURLSettingField {
@@ -121,10 +125,41 @@ impl SettingsStory {
     fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
         cx.set_global::<AppSettings>(AppSettings::default());
 
+        let navigation = cx.new(|_| SettingsNavigation::new());
+        let guarded = navigation.clone();
+        navigation.update(cx, |navigation, _| {
+            navigation.set_leave_guard(move |_, window, cx| {
+                if !AppSettings::global(cx).guard_release_channel {
+                    return true;
+                }
+                if !guarded.read(cx).has_pending_leave() {
+                    let (resume, cancel) = (guarded.clone(), guarded.clone());
+                    window.open_alert_dialog(cx, move |alert, _, _| {
+                        let (resume, cancel) = (resume.clone(), cancel.clone());
+                        alert
+                            .title("Leave this page?")
+                            .description("The guard on this page asked before letting you go.")
+                            .confirm()
+                            .ok_text("Leave")
+                            .on_ok(move |_, window, cx| {
+                                resume.update(cx, |nav, cx| nav.resume_leave(window, cx));
+                                true
+                            })
+                            .on_cancel(move |_, window, cx| {
+                                cancel.update(cx, |nav, cx| nav.cancel_leave(window, cx));
+                                true
+                            })
+                    });
+                }
+                false
+            });
+        });
+
         Self {
             focus_handle: cx.focus_handle(),
             group_variant: GroupBoxVariant::Outline,
             size: Size::default(),
+            navigation,
         }
     }
 
@@ -454,7 +489,7 @@ impl SettingsStory {
                             SettingSubPage::new("Release Channel")
                                 .description("Choose which builds this copy of the app receives.")
                                 .group(
-                                    SettingGroup::new().title("Channel").item(
+                                    SettingGroup::new().title("Channel").items([
                                         SettingItem::new(
                                             "Include Previews",
                                             SettingField::switch(
@@ -470,7 +505,20 @@ impl SettingsStory {
                                         .description(
                                             "Install preview builds before they are released.",
                                         ),
-                                    ),
+                                        SettingItem::new(
+                                            "Guard this page",
+                                            SettingField::switch(
+                                                |cx: &App| {
+                                                    AppSettings::global(cx).guard_release_channel
+                                                },
+                                                |val: bool, cx: &mut App| {
+                                                    AppSettings::global_mut(cx)
+                                                        .guard_release_channel = val;
+                                                },
+                                            ),
+                                        )
+                                        .description("Ask before leaving this page."),
+                                    ]),
                                 ),
                         )
                         .description("Opens a sub-page with its own settings.")
@@ -547,6 +595,7 @@ impl Render for SettingsStory {
         Settings::new("app-settings")
             .with_size(self.size)
             .with_group_variant(self.group_variant)
+            .navigation(&self.navigation)
             .pages(self.setting_pages(window, cx))
     }
 }

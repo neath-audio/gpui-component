@@ -25,6 +25,14 @@ use crate::{
 
 type ContentRenderer = Rc<dyn Fn(&RenderOptions, &mut Window, &mut App) -> AnyElement>;
 type ActionsRenderer = Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>;
+type LeaveGuard = Rc<dyn Fn(usize, &mut Window, &mut App) -> bool>;
+type LeaveAction = Box<dyn FnOnce(&mut Window, &mut App)>;
+
+/// A user navigation held back by the leave guard until the application decides.
+struct PendingLeave {
+    action: LeaveAction,
+    cancel: Option<LeaveAction>,
+}
 
 /// A detail page opened over a [`SettingPage`](crate::setting::SettingPage).
 ///
@@ -120,6 +128,8 @@ struct SubPageFrame {
 #[derive(Default)]
 pub struct SettingsNavigation {
     stack: Vec<SubPageFrame>,
+    leave_guard: Option<LeaveGuard>,
+    pending_leave: Option<PendingLeave>,
     /// Link focus outlives the link, which is not drawn while its page is covered.
     link_focus: HashMap<(usize, usize, usize, usize), FocusHandle>,
     search: Option<WeakEntity<InputState>>,
@@ -142,6 +152,101 @@ impl SettingsNavigation {
     /// page. Its closures should read live state.
     pub fn push(&mut self, page: SettingSubPage, window: &mut Window, cx: &mut Context<Self>) {
         self.push_from(page, None, None, window, cx);
+    }
+
+    /// Open a page like [`push`](Self::push), with `section` as the crumb between the settings
+    /// page and the new page, as if it had been opened from a link in that group.
+    pub fn push_in_section(
+        &mut self,
+        page: SettingSubPage,
+        section: impl Into<SharedString>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.push_from(page, Some(section.into()), None, window, cx);
+    }
+
+    /// Ask `guard` before the user leaves a page by the Back button or a breadcrumb.
+    ///
+    /// It receives the depth the stack would drop to and returns whether to leave now. When it
+    /// returns `false` the leave is held until [`resume_leave`](Self::resume_leave) or
+    /// [`cancel_leave`](Self::cancel_leave). The guard runs outside any borrow of this
+    /// navigation, so it may open a dialog or read other entities. [`push`](Self::push),
+    /// [`pop`](Self::pop) and [`pop_to`](Self::pop_to) called from code are never guarded.
+    pub fn set_leave_guard(
+        &mut self,
+        guard: impl Fn(usize, &mut Window, &mut App) -> bool + 'static,
+    ) {
+        self.leave_guard = Some(Rc::new(guard));
+    }
+
+    /// Remove the leave guard, and forget any held leave.
+    pub fn clear_leave_guard(&mut self) {
+        self.leave_guard = None;
+        self.pending_leave = None;
+    }
+
+    pub(super) fn has_leave_guard(&self) -> bool {
+        self.leave_guard.is_some()
+    }
+
+    /// Whether a leave is held back, waiting for [`resume_leave`](Self::resume_leave) or
+    /// [`cancel_leave`](Self::cancel_leave).
+    pub fn has_pending_leave(&self) -> bool {
+        self.pending_leave.is_some()
+    }
+
+    /// Carry out the held leave. It runs once this update has finished.
+    pub fn resume_leave(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(PendingLeave { action, .. }) = self.pending_leave.take() {
+            window.defer(cx, action);
+        }
+    }
+
+    /// Drop the held leave and stay on the page. Its cancel callback, if any, runs once this
+    /// update has finished.
+    pub fn cancel_leave(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(PendingLeave { cancel, .. }) = self.pending_leave.take() {
+            if let Some(cancel) = cancel {
+                window.defer(cx, cancel);
+            }
+            cx.notify();
+        }
+    }
+
+    /// The single entry for every user exit from a sub-page.
+    ///
+    /// Runs `action` and returns `true` when there is no guard, the guard allows `target`, or no
+    /// sub-page is open. Otherwise holds `action` (and `cancel`) in place of any held leave and
+    /// returns `false`.
+    pub(super) fn leave(
+        navigation: &Entity<SettingsNavigation>,
+        target: usize,
+        action: impl FnOnce(&mut Window, &mut App) + 'static,
+        cancel: Option<LeaveAction>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> bool {
+        let (depth, guard) = {
+            let this = navigation.read(cx);
+            (this.depth(), this.leave_guard.clone())
+        };
+        let allowed = depth == 0
+            || match guard {
+                Some(guard) => guard(target, window, cx),
+                None => true,
+            };
+        if allowed {
+            action(window, cx);
+            return true;
+        }
+        navigation.update(cx, |navigation, _| {
+            navigation.pending_leave = Some(PendingLeave {
+                action: Box::new(action),
+                cancel,
+            });
+        });
+        false
     }
 
     pub(super) fn set_search(&mut self, search: &Entity<InputState>) {
@@ -249,6 +354,28 @@ pub(super) struct SubPageLink {
     pub(super) section: Option<SharedString>,
 }
 
+/// Go back to `target` depth, unless the leave guard holds the user on the page.
+fn pop_to_guarded(
+    navigation: &Entity<SettingsNavigation>,
+    target: usize,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    SettingsNavigation::leave(
+        navigation,
+        target,
+        {
+            let navigation = navigation.clone();
+            move |window, cx| {
+                navigation.update(cx, |navigation, cx| navigation.pop_to(target, window, cx));
+            }
+        },
+        None,
+        window,
+        cx,
+    );
+}
+
 /// The top sub-page, or `None` when the settings page itself is showing.
 pub(super) fn render_top(
     navigation: &Entity<SettingsNavigation>,
@@ -278,11 +405,13 @@ pub(super) fn render_top(
     let breadcrumb =
         Breadcrumb::new().children(crumbs.into_iter().enumerate().map(|(ix, (label, target))| {
             let navigation = navigation.clone();
-            BreadcrumbItem::new(label).when(ix != current, |item| {
-                item.on_click(move |_, window, cx| {
-                    navigation.update(cx, |navigation, cx| navigation.pop_to(target, window, cx));
+            BreadcrumbItem::new(label)
+                .debug_selector(move || format!("setting-sub-page-crumb-{ix}"))
+                .when(ix != current, |item| {
+                    item.on_click(move |_, window, cx| {
+                        pop_to_guarded(&navigation, target, window, cx);
+                    })
                 })
-            })
         }));
 
     let actions = page.actions.as_ref().map(|render| render(window, cx));
@@ -302,13 +431,11 @@ pub(super) fn render_top(
                         .small()
                         .tooltip(t!("Settings.Back").to_string())
                         .accessibility_label(t!("Settings.Back").to_string())
-                        .when(cfg!(test), |this| {
-                            this.debug_selector(|| "setting-sub-page-back".into())
-                        })
+                        .debug_selector(|| "setting-sub-page-back".into())
                         .on_click({
                             let navigation = navigation.clone();
                             move |_, window, cx| {
-                                navigation.update(cx, |navigation, cx| navigation.pop(window, cx));
+                                pop_to_guarded(&navigation, depth - 1, window, cx);
                             }
                         }),
                 )
