@@ -435,6 +435,10 @@ pub struct ThemeColor {
     pub waveform_segment: Hsla,
     /// Active waveform segment color.
     pub waveform_segment_active: Hsla,
+    /// Shadow over the attenuated part of a waveform fade.
+    pub waveform_fade_shadow: Hsla,
+    /// Waveform overview band background color.
+    pub waveform_overview: Hsla,
 }
 
 macro_rules! define_theme_tokens {
@@ -681,6 +685,8 @@ define_theme_tokens! {
     waveform_marker_active,
     waveform_segment,
     waveform_segment_active,
+    waveform_fade_shadow,
+    waveform_overview,
 }
 
 impl ThemeColor {

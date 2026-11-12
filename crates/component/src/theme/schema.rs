@@ -846,6 +846,12 @@ pub struct ThemeConfigColors {
     /// Active waveform segment color.
     #[serde(rename = "waveform.segment.active")]
     pub waveform_segment_active: Option<SharedString>,
+    /// Shadow over the attenuated part of a waveform fade.
+    #[serde(rename = "waveform.fade_shadow")]
+    pub waveform_fade_shadow: Option<SharedString>,
+    /// Waveform overview band background color.
+    #[serde(rename = "waveform.overview.background")]
+    pub waveform_overview: Option<SharedString>,
 }
 
 /// Canonical schema metadata paired with one resolved representative color.
@@ -859,17 +865,26 @@ pub struct ResolvedThemeColorProperty {
     pub color: Hsla,
 }
 
-fn waveform_tint(
-    background: Hsla,
+/// Scales the waveform ladder saturations to the accent: a calm accent gets a
+/// calmer signal, a vivid one the full ladder.
+fn waveform_accent_scale(selection: Hsla) -> f32 {
+    (selection.s / 0.75).clamp(0.40, 1.0)
+}
+
+/// A step on the waveform ladder: the selection hue, its saturation scaled to
+/// the accent, and a lightness `position` of the way from the canvas to the
+/// foreground (capped so a step past the foreground stays below white).
+fn waveform_ladder(
+    canvas: Hsla,
     foreground: Hsla,
     selection: Hsla,
     saturation: f32,
-    contrast: f32,
+    position: f32,
 ) -> Hsla {
     Hsla {
         h: selection.h,
-        s: saturation,
-        l: background.l + (foreground.l - background.l) * contrast,
+        s: saturation * waveform_accent_scale(selection),
+        l: (canvas.l + (foreground.l - canvas.l) * position).min(0.98),
         a: 1.,
     }
 }
@@ -1330,10 +1345,39 @@ impl ThemeColor {
         let background = self.background;
         let foreground = self.foreground;
         let muted_foreground = self.muted_foreground;
-        let selection = self.selection;
+        // The recipes read the selection's hue and saturation, not its alpha.
+        let selection = self.selection.alpha(1.);
         let is_dark = background.l < 0.5;
 
-        apply_background_color!(waveform, fallback = tokens.background);
+        apply_background_color!(
+            waveform,
+            fallback = Hsla {
+                l: if is_dark {
+                    background.l * 0.46
+                } else {
+                    background.l + (1. - background.l) * 0.5
+                },
+                a: 1.,
+                ..background
+            }
+        );
+        let canvas = self.waveform;
+        let ladder = |saturation: f32, position: f32| {
+            waveform_ladder(canvas, foreground, selection, saturation, position)
+        };
+
+        apply_background_color!(
+            waveform_overview,
+            fallback = Hsla {
+                l: if is_dark {
+                    background.l * 0.31
+                } else {
+                    background.l - 0.05
+                },
+                a: 1.,
+                ..background
+            }
+        );
 
         let thumbnail_fill = Hsla {
             a: 1.,
@@ -1348,44 +1392,45 @@ impl ThemeColor {
         );
         apply_background_color!(waveform_thumbnail_fill, fallback = thumbnail_fill);
 
-        let waveform_fill = waveform_tint(
-            background,
-            foreground,
-            selection,
-            0.30,
-            if is_dark { 0.78 } else { 0.76 },
-        );
-        apply_background_color!(waveform_fill, fallback = waveform_fill);
-
-        let selected_waveform_fill = waveform_tint(
-            background,
-            foreground,
-            selection,
-            0.55,
-            if is_dark { 0.86 } else { 0.84 },
+        apply_background_color!(
+            waveform_fill,
+            fallback = if is_dark {
+                ladder(0.26, 0.60)
+            } else {
+                ladder(0.32, 0.55)
+            }
         );
         apply_color!(
             waveform_time_selection_foreground,
-            fallback = selected_waveform_fill
+            fallback = if is_dark {
+                ladder(0.44, 0.92)
+            } else {
+                ladder(0.58, 0.78)
+            }
         );
-
-        let selection_alpha_factor = if selection.a > 0. {
-            0.18 / selection.a
-        } else {
-            1.
-        };
-        let time_selection = ThemeToken::new(
-            selection.alpha(0.18),
-            tokens.selection.background.opacity(selection_alpha_factor),
+        apply_background_color!(
+            waveform_time_selection,
+            fallback = if is_dark {
+                ladder(0.62, 0.62).alpha(0.38)
+            } else {
+                ladder(0.80, 0.45).alpha(0.25)
+            }
         );
-        apply_background_color!(waveform_time_selection, fallback = time_selection);
         apply_color!(
             waveform_time_selection_border,
-            fallback = selection.alpha(if is_dark { 0.72 } else { 0.66 })
+            fallback = if is_dark {
+                ladder(0.52, 0.62)
+            } else {
+                ladder(0.56, 0.50)
+            }
         );
         apply_color!(
             waveform_time_selection_active_border,
-            fallback = selection.alpha(0.78)
+            fallback = if is_dark {
+                ladder(0.80, 0.90)
+            } else {
+                ladder(0.70, 0.66)
+            }
         );
 
         let overlay_fill = Hsla {
@@ -1411,7 +1456,28 @@ impl ThemeColor {
         apply_color!(waveform_zero_line, fallback = foreground.alpha(0.05));
         apply_color!(
             waveform_fade_control,
-            fallback = waveform_tint(background, foreground, selection, 0.72, 0.55).alpha(0.85)
+            fallback = if is_dark {
+                ladder(0.38, 0.74)
+            } else {
+                ladder(0.50, 0.62)
+            }
+        );
+        // Where the selection's light lies on the canvas at half strength,
+        // mixed in RGB so the near-neutral canvas keeps its hue.
+        let dimmed_selection = {
+            let canvas = gpui::Rgba::from(canvas);
+            let light = gpui::Rgba::from(self.waveform_time_selection);
+            let amount = light.a * 0.5;
+            gpui::Rgba {
+                r: canvas.r + (light.r - canvas.r) * amount,
+                g: canvas.g + (light.g - canvas.g) * amount,
+                b: canvas.b + (light.b - canvas.b) * amount,
+                a: 1.,
+            }
+        };
+        apply_color!(
+            waveform_fade_shadow,
+            fallback = Hsla::from(dimmed_selection).alpha(0.55)
         );
         apply_color!(
             waveform_playhead,
@@ -1422,7 +1488,23 @@ impl ThemeColor {
                 a: 1.,
             }
         );
-        apply_background_color!(waveform_ruler, fallback = tokens.table_head);
+        apply_background_color!(
+            waveform_ruler,
+            fallback = if is_dark {
+                Hsla {
+                    s: background.s * 0.75,
+                    l: background.l * 0.86,
+                    a: 1.,
+                    ..background
+                }
+            } else {
+                Hsla {
+                    l: background.l - 0.025,
+                    a: 1.,
+                    ..background
+                }
+            }
+        );
         apply_color!(
             waveform_ruler_foreground,
             fallback = muted_foreground.alpha(0.65)
@@ -1438,25 +1520,35 @@ impl ThemeColor {
             fallback = foreground.alpha(0.60)
         );
 
-        apply_background_color!(waveform_marker, fallback = tokens.danger);
-        apply_color!(
-            waveform_marker_foreground,
-            fallback = self.danger_foreground
-        );
-        apply_color!(waveform_marker_active, fallback = self.danger_active);
-
-        let segment_alpha = (self.primary.a * 0.55).clamp(0.35, 1.);
-        let segment_alpha_factor = if self.primary.a > 0. {
-            segment_alpha / self.primary.a
-        } else {
-            1.
+        let marker = Hsla {
+            h: self.warning.h,
+            s: 0.24,
+            l: foreground.l,
+            a: 1.,
         };
-        let segment = ThemeToken::new(
-            self.primary.alpha(segment_alpha),
-            tokens.primary.background.opacity(segment_alpha_factor),
+        apply_background_color!(waveform_marker, fallback = marker);
+        apply_color!(waveform_marker_foreground, fallback = canvas);
+        apply_color!(
+            waveform_marker_active,
+            fallback = mix_hsla(self.waveform_marker, canvas, 0.15)
         );
-        apply_background_color!(waveform_segment, fallback = segment);
-        apply_background_color!(waveform_segment_active, fallback = tokens.primary);
+
+        apply_background_color!(
+            waveform_segment,
+            fallback = if is_dark {
+                ladder(0.30, 0.40)
+            } else {
+                ladder(0.32, 0.30)
+            }
+        );
+        apply_background_color!(
+            waveform_segment_active,
+            fallback = if is_dark {
+                ladder(0.46, 0.80)
+            } else {
+                ladder(0.56, 0.66)
+            }
+        );
 
         tokens
     }
@@ -1659,6 +1751,8 @@ impl Theme {
             waveform_marker_active: color(self.waveform_marker_active),
             waveform_segment: color(self.waveform_segment),
             waveform_segment_active: color(self.waveform_segment_active),
+            waveform_fade_shadow: color(self.waveform_fade_shadow),
+            waveform_overview: color(self.waveform_overview),
         }
     }
 
@@ -2090,37 +2184,163 @@ mod tests {
         assert_eq!(theme.mode, ThemeMode::Light);
     }
 
-    #[test]
-    fn test_waveform_segment_fallbacks_follow_primary_background() {
+    fn waveform_theme(mode: &str, colors: &[(&str, &str)]) -> Theme {
+        let colors: serde_json::Map<String, serde_json::Value> = colors
+            .iter()
+            .map(|(key, value)| (key.to_string(), serde_json::json!(value)))
+            .collect();
         let config = serde_json::from_value::<ThemeConfig>(serde_json::json!({
-            "name": "Waveform Segment",
-            "mode": "dark",
-            "colors": {
-                "accent.background": "#202020",
-                "primary.background": "linear-gradient(135deg, #4F46E5, #06B6D4)"
-            }
+            "name": "Waveform",
+            "mode": mode,
+            "colors": colors,
         }))
         .unwrap();
-
         let mut theme = Theme::default();
         theme.apply_config(&std::rc::Rc::new(config));
+        theme
+    }
 
-        let primary_from = try_parse_color("#4F46E5").unwrap();
-        let primary_to = try_parse_color("#06B6D4").unwrap();
-        assert_eq!(theme.waveform_segment, primary_from.alpha(0.55));
-        assert_eq!(
-            theme.tokens.waveform_segment.background,
-            linear_gradient(
-                135.,
-                linear_color_stop(primary_from.alpha(0.55), 0.),
-                linear_color_stop(primary_to.alpha(0.55), 1.),
-            )
-        );
-        assert_eq!(theme.waveform_segment_active, primary_from);
-        assert_eq!(
-            theme.tokens.waveform_segment_active.background,
-            theme.tokens.primary.background
-        );
+    fn dark_fixture() -> Theme {
+        dark_fixture_with(&[])
+    }
+
+    fn dark_fixture_with(extra: &[(&str, &str)]) -> Theme {
+        let mut colors = vec![
+            ("background", "#191919"),
+            ("foreground", "#E1E1E1"),
+            ("selection.background", "#2383E2"),
+        ];
+        colors.extend_from_slice(extra);
+        waveform_theme("dark", &colors)
+    }
+
+    fn calm_fixture() -> Theme {
+        waveform_theme(
+            "dark",
+            &[
+                ("background", "#191919"),
+                ("foreground", "#E1E1E1"),
+                ("selection.background", "#89A6AD"),
+            ],
+        )
+    }
+
+    fn light_fixture() -> Theme {
+        waveform_theme(
+            "light",
+            &[
+                ("background", "#FFFFFF"),
+                ("foreground", "#1D1B16"),
+                ("selection.background", "#2383E2"),
+            ],
+        )
+    }
+
+    #[test]
+    fn waveform_canvas_is_deeper_than_a_dark_background() {
+        let theme = dark_fixture();
+        assert!((theme.waveform.l - theme.background.l * 0.46).abs() < 0.002);
+        assert!((theme.waveform_overview.l - theme.background.l * 0.31).abs() < 0.002);
+    }
+
+    #[test]
+    fn waveform_signal_sits_on_the_ladder_in_the_selection_hue() {
+        let theme = dark_fixture();
+        let canvas = theme.waveform.l;
+        let expected_l = canvas + (theme.foreground.l - canvas) * 0.60;
+        assert!((theme.waveform_fill.l - expected_l).abs() < 0.002);
+        assert!((theme.waveform_fill.h - theme.selection.h).abs() < 0.002);
+        // The selection saturation is above 0.75, so the accent scale is 1.
+        assert!(theme.selection.s >= 0.75);
+        assert!((theme.waveform_fill.s - 0.26).abs() < 0.002);
+    }
+
+    #[test]
+    fn a_calm_accent_scales_waveform_saturation_down() {
+        let theme = calm_fixture();
+        assert!(theme.selection.s / 0.75 < 0.40);
+        assert!((theme.waveform_fill.s - 0.26 * 0.40).abs() < 0.003);
+    }
+
+    #[test]
+    fn an_explicit_waveform_value_still_overrides_its_recipe() {
+        let theme = dark_fixture_with(&[("waveform.fill", "#FF0000")]);
+        assert_eq!(theme.waveform_fill, try_parse_color("#FF0000").unwrap());
+    }
+
+    #[test]
+    fn dark_waveform_roles_follow_the_recipe_table() {
+        let theme = dark_fixture();
+        let canvas = theme.waveform;
+        let at = |p: f32| canvas.l + (theme.foreground.l - canvas.l) * p;
+        assert!((theme.waveform_time_selection_foreground.l - at(0.92)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.s - 0.44).abs() < 0.002);
+        assert!((theme.waveform_time_selection.a - 0.38).abs() < 0.002);
+        assert!((theme.waveform_time_selection.l - at(0.62)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_border.s - 0.52).abs() < 0.002);
+        assert!((theme.waveform_time_selection_active_border.l - at(0.90)).abs() < 0.002);
+        assert!((theme.waveform_fade_control.l - at(0.74)).abs() < 0.002);
+        assert!((theme.waveform_segment.l - at(0.40)).abs() < 0.002);
+        assert!((theme.waveform_segment_active.s - 0.46).abs() < 0.002);
+        assert!((theme.waveform_ruler.l - theme.background.l * 0.86).abs() < 0.002);
+        assert_eq!(theme.waveform_marker_foreground, canvas);
+        assert!((theme.waveform_marker.s - 0.24).abs() < 0.002);
+        assert!((theme.waveform_marker.l - theme.foreground.l).abs() < 0.002);
+        assert!((theme.waveform_marker.h - theme.warning.h).abs() < 0.002);
+    }
+
+    #[test]
+    fn light_waveform_roles_follow_the_recipe_table() {
+        let theme = light_fixture();
+        assert!((theme.waveform.l - 1.0).abs() < 0.002);
+        assert!((theme.waveform_overview.l - 0.95).abs() < 0.002);
+        assert!((theme.waveform_ruler.l - 0.975).abs() < 0.002);
+        assert!((theme.waveform_time_selection.a - 0.25).abs() < 0.002);
+        assert!((theme.waveform_fade_shadow.a - 0.55).abs() < 0.002);
+    }
+
+    #[test]
+    fn the_fade_control_is_a_pale_tint_not_white() {
+        let theme = dark_fixture();
+        let canvas = theme.waveform.l;
+        let expected_l = canvas + (theme.foreground.l - canvas) * 0.74;
+        assert!((theme.waveform_fade_control.l - expected_l).abs() < 0.002);
+        assert!((theme.waveform_fade_control.s - 0.38).abs() < 0.002);
+        let light = light_fixture();
+        let canvas = light.waveform.l;
+        let expected_l = canvas + (light.foreground.l - canvas) * 0.62;
+        assert!((light.waveform_fade_control.l - expected_l).abs() < 0.002);
+    }
+
+    #[test]
+    fn the_fade_shadow_sits_between_the_canvas_and_the_selections_light() {
+        for theme in [dark_fixture(), light_fixture()] {
+            let canvas = gpui::Rgba::from(theme.waveform);
+            let light = gpui::Rgba::from(theme.waveform_time_selection);
+            let shadow = gpui::Rgba::from(theme.waveform_fade_shadow);
+            let t = light.a * 0.5;
+            assert!((shadow.r - (canvas.r + (light.r - canvas.r) * t)).abs() < 0.01);
+            assert!((shadow.g - (canvas.g + (light.g - canvas.g) * t)).abs() < 0.01);
+            assert!((shadow.b - (canvas.b + (light.b - canvas.b) * t)).abs() < 0.01);
+            assert!((shadow.a - 0.55).abs() < 0.002);
+        }
+    }
+
+    #[test]
+    fn an_explicit_selection_light_carries_into_the_fade_shadow() {
+        let theme = dark_fixture_with(&[("waveform.time_selection.background", "#FF000080")]);
+        let shadow = gpui::Rgba::from(theme.waveform_fade_shadow);
+        assert!(shadow.r > shadow.b + 0.1);
+    }
+
+    #[test]
+    fn the_new_waveform_roles_are_in_the_generated_schema() {
+        let schema = serde_json::to_value(schemars::schema_for!(ThemeConfig)).unwrap();
+        let keys = schema["$defs"]["ThemeConfigColors"]["properties"]
+            .as_object()
+            .unwrap();
+        assert!(keys.contains_key("waveform.fade_shadow"));
+        assert!(keys.contains_key("waveform.overview.background"));
     }
 
     #[test]

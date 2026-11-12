@@ -317,7 +317,9 @@
             "waveform.marker.foreground": null,
             "waveform.marker.active": null,
             "waveform.segment.background": null,
-            "waveform.segment.active": null
+            "waveform.segment.active": null,
+            "waveform.fade_shadow": null,
+            "waveform.overview.background": null
           }
         },
         "highlight": {
@@ -1658,6 +1660,20 @@
         },
         "waveform.segment.active": {
           "description": "Active waveform segment color.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "waveform.fade_shadow": {
+          "description": "Shadow over the attenuated part of a waveform fade.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "waveform.overview.background": {
+          "description": "Waveform overview band background color.",
           "type": [
             "string",
             "null"
