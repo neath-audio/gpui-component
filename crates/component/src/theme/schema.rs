@@ -1395,17 +1395,17 @@ impl ThemeColor {
         apply_background_color!(
             waveform_fill,
             fallback = if is_dark {
-                ladder(0.10, 0.74)
+                ladder(0.30, 0.79)
             } else {
-                ladder(0.10, 0.52)
+                ladder(0.30, 0.76)
             }
         );
         apply_color!(
             waveform_time_selection_foreground,
             fallback = if is_dark {
-                ladder(0.78, 0.80)
+                ladder(0.55, 0.865)
             } else {
-                ladder(0.80, 0.62)
+                ladder(0.55, 0.84)
             }
         );
         apply_background_color!(
@@ -2241,19 +2241,19 @@ mod tests {
     fn waveform_signal_sits_on_the_ladder_in_the_selection_hue() {
         let theme = dark_fixture();
         let canvas = theme.waveform.l;
-        let expected_l = canvas + (theme.foreground.l - canvas) * 0.74;
+        let expected_l = canvas + (theme.foreground.l - canvas) * 0.79;
         assert!((theme.waveform_fill.l - expected_l).abs() < 0.002);
         assert!((theme.waveform_fill.h - theme.selection.h).abs() < 0.002);
         // The selection saturation is above 0.75, so the accent scale is 1.
         assert!(theme.selection.s >= 0.75);
-        assert!((theme.waveform_fill.s - 0.10).abs() < 0.002);
+        assert!((theme.waveform_fill.s - 0.30).abs() < 0.002);
     }
 
     #[test]
     fn a_calm_accent_scales_waveform_saturation_down() {
         let theme = calm_fixture();
         assert!(theme.selection.s / 0.75 < 0.40);
-        assert!((theme.waveform_fill.s - 0.10 * 0.40).abs() < 0.003);
+        assert!((theme.waveform_fill.s - 0.30 * 0.40).abs() < 0.003);
     }
 
     #[test]
@@ -2267,8 +2267,8 @@ mod tests {
         let theme = dark_fixture();
         let canvas = theme.waveform;
         let at = |p: f32| canvas.l + (theme.foreground.l - canvas.l) * p;
-        assert!((theme.waveform_time_selection_foreground.l - at(0.80)).abs() < 0.002);
-        assert!((theme.waveform_time_selection_foreground.s - 0.78).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.l - at(0.865)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.s - 0.55).abs() < 0.002);
         assert!((theme.waveform_time_selection.a - 0.38).abs() < 0.002);
         assert!((theme.waveform_time_selection.l - at(0.62)).abs() < 0.002);
         assert!((theme.waveform_time_selection_border.s - 0.52).abs() < 0.002);
@@ -2292,10 +2292,7 @@ mod tests {
                 theme.waveform_fill,
                 theme.waveform_time_selection_foreground,
             );
-            assert!(
-                chroma(selected) > chroma(rest) * 3.,
-                "{rest:?} {selected:?}"
-            );
+            assert!(chroma(selected) > chroma(rest), "{rest:?} {selected:?}");
         }
     }
 
@@ -2322,9 +2319,9 @@ mod tests {
         let theme = light_fixture();
         let canvas = theme.waveform;
         let at = |p: f32| canvas.l + (theme.foreground.l - canvas.l) * p;
-        assert!((theme.waveform_fill.l - at(0.52)).abs() < 0.002);
-        assert!((theme.waveform_fill.s - 0.10).abs() < 0.002);
-        assert!((theme.waveform_time_selection_foreground.l - at(0.62)).abs() < 0.002);
+        assert!((theme.waveform_fill.l - at(0.76)).abs() < 0.002);
+        assert!((theme.waveform_fill.s - 0.30).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.l - at(0.84)).abs() < 0.002);
         assert!((theme.waveform_time_selection_active_border.l - at(0.58)).abs() < 0.002);
         assert!((theme.waveform_segment.l - at(0.40)).abs() < 0.002);
         assert!((theme.waveform_segment_active.l - at(0.56)).abs() < 0.002);
