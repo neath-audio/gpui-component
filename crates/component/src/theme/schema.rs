@@ -1392,45 +1392,41 @@ impl ThemeColor {
         );
         apply_background_color!(waveform_thumbnail_fill, fallback = thumbnail_fill);
 
+        // The signal pair and the time selection keep the recipes they had
+        // before the ladder: tints of the selection's hue measured from the
+        // page background, and the selection colour itself at three alphas.
+        let tint = |saturation: f32, contrast: f32| Hsla {
+            h: selection.h,
+            s: saturation,
+            l: background.l + (foreground.l - background.l) * contrast,
+            a: 1.,
+        };
         apply_background_color!(
             waveform_fill,
-            fallback = if is_dark {
-                ladder(0.30, 0.79)
-            } else {
-                ladder(0.30, 0.76)
-            }
+            fallback = tint(0.30, if is_dark { 0.78 } else { 0.76 })
         );
         apply_color!(
             waveform_time_selection_foreground,
-            fallback = if is_dark {
-                ladder(0.55, 0.865)
-            } else {
-                ladder(0.55, 0.84)
-            }
+            fallback = tint(0.55, if is_dark { 0.86 } else { 0.84 })
         );
-        apply_background_color!(
-            waveform_time_selection,
-            fallback = if is_dark {
-                ladder(0.62, 0.62).alpha(0.38)
-            } else {
-                ladder(0.80, 0.45).alpha(0.25)
-            }
+
+        let selection_alpha_factor = if self.selection.a > 0. {
+            0.18 / self.selection.a
+        } else {
+            1.
+        };
+        let time_selection = ThemeToken::new(
+            selection.alpha(0.18),
+            tokens.selection.background.opacity(selection_alpha_factor),
         );
+        apply_background_color!(waveform_time_selection, fallback = time_selection);
         apply_color!(
             waveform_time_selection_border,
-            fallback = if is_dark {
-                ladder(0.52, 0.62)
-            } else {
-                ladder(0.56, 0.50)
-            }
+            fallback = selection.alpha(if is_dark { 0.72 } else { 0.66 })
         );
         apply_color!(
             waveform_time_selection_active_border,
-            fallback = if is_dark {
-                ladder(0.58, 0.74)
-            } else {
-                ladder(0.62, 0.58)
-            }
+            fallback = selection.alpha(0.78)
         );
 
         let overlay_fill = Hsla {
@@ -2240,14 +2236,12 @@ mod tests {
     }
 
     #[test]
-    fn waveform_signal_sits_on_the_ladder_in_the_selection_hue() {
+    fn waveform_signal_is_a_pale_tint_of_the_selection_hue() {
         let theme = dark_fixture();
-        let canvas = theme.waveform.l;
-        let expected_l = canvas + (theme.foreground.l - canvas) * 0.79;
+        let page = theme.background.l;
+        let expected_l = page + (theme.foreground.l - page) * 0.78;
         assert!((theme.waveform_fill.l - expected_l).abs() < 0.002);
         assert!((theme.waveform_fill.h - theme.selection.h).abs() < 0.002);
-        // The selection saturation is above 0.75, so the accent scale is 1.
-        assert!(theme.selection.s >= 0.75);
         assert!((theme.waveform_fill.s - 0.30).abs() < 0.002);
     }
 
@@ -2255,7 +2249,8 @@ mod tests {
     fn a_calm_accent_scales_waveform_saturation_down() {
         let theme = calm_fixture();
         assert!(theme.selection.s / 0.75 < 0.40);
-        assert!((theme.waveform_fill.s - 0.30 * 0.40).abs() < 0.003);
+        assert!((theme.waveform_segment.s - 0.66 * 0.40).abs() < 0.003);
+        assert!((theme.waveform_fade_control.s - 0.38 * 0.40).abs() < 0.003);
     }
 
     #[test]
@@ -2269,13 +2264,17 @@ mod tests {
         let theme = dark_fixture();
         let canvas = theme.waveform;
         let at = |p: f32| canvas.l + (theme.foreground.l - canvas.l) * p;
-        assert!((theme.waveform_time_selection_foreground.l - at(0.865)).abs() < 0.002);
+        let page = theme.background.l;
+        let selected_l = page + (theme.foreground.l - page) * 0.86;
+        assert!((theme.waveform_time_selection_foreground.l - selected_l).abs() < 0.002);
         assert!((theme.waveform_time_selection_foreground.s - 0.55).abs() < 0.002);
-        assert!((theme.waveform_time_selection.a - 0.38).abs() < 0.002);
-        assert!((theme.waveform_time_selection.l - at(0.62)).abs() < 0.002);
-        assert!((theme.waveform_time_selection_border.s - 0.52).abs() < 0.002);
-        assert!((theme.waveform_time_selection_active_border.l - at(0.74)).abs() < 0.002);
-        assert!((theme.waveform_time_selection_active_border.s - 0.58).abs() < 0.002);
+        let accent = theme.selection;
+        assert_eq!(theme.waveform_time_selection, accent.alpha(0.18));
+        assert_eq!(theme.waveform_time_selection_border, accent.alpha(0.72));
+        assert_eq!(
+            theme.waveform_time_selection_active_border,
+            accent.alpha(0.78)
+        );
         assert!((theme.waveform_fade_control.l - at(0.74)).abs() < 0.002);
         assert!((theme.waveform_segment.l - at(0.30)).abs() < 0.002);
         assert!((theme.waveform_segment.s - 0.66).abs() < 0.002);
@@ -2324,7 +2323,10 @@ mod tests {
         assert!((theme.waveform_fill.l - at(0.76)).abs() < 0.002);
         assert!((theme.waveform_fill.s - 0.30).abs() < 0.002);
         assert!((theme.waveform_time_selection_foreground.l - at(0.84)).abs() < 0.002);
-        assert!((theme.waveform_time_selection_active_border.l - at(0.58)).abs() < 0.002);
+        assert_eq!(
+            theme.waveform_time_selection_active_border,
+            theme.selection.alpha(0.78)
+        );
         assert!((theme.waveform_segment.l - at(0.40)).abs() < 0.002);
         assert!((theme.waveform_segment_active.l - at(0.56)).abs() < 0.002);
     }
@@ -2341,7 +2343,11 @@ mod tests {
         );
         assert!((ruler.r - (paper.r + (ink.r - paper.r) * 0.03)).abs() < 0.002);
         assert!((ruler.b - (paper.b + (ink.b - paper.b) * 0.03)).abs() < 0.002);
-        assert!((theme.waveform_time_selection.a - 0.25).abs() < 0.002);
+        assert_eq!(theme.waveform_time_selection, theme.selection.alpha(0.18));
+        assert_eq!(
+            theme.waveform_time_selection_border,
+            theme.selection.alpha(0.66)
+        );
         assert!((theme.waveform_fade_shadow.a - 0.55).abs() < 0.002);
     }
 
