@@ -1392,9 +1392,11 @@ impl ThemeColor {
         );
         apply_background_color!(waveform_thumbnail_fill, fallback = thumbnail_fill);
 
-        // The signal pair and the time selection keep the recipes they had
-        // before the ladder: tints of the selection's hue measured from the
-        // page background, and the selection colour itself at three alphas.
+        // The signal and the time selection keep the recipes they had before
+        // the ladder: a tint of the selection's hue measured from the page
+        // background, and the selection colour itself at three alphas. The
+        // selected signal is the same tint at a saturation, and a lightness,
+        // where its colour shows.
         let tint = |saturation: f32, contrast: f32| Hsla {
             h: selection.h,
             s: saturation,
@@ -1407,7 +1409,7 @@ impl ThemeColor {
         );
         apply_color!(
             waveform_time_selection_foreground,
-            fallback = tint(0.55, if is_dark { 0.86 } else { 0.84 })
+            fallback = tint(0.80, if is_dark { 0.82 } else { 0.62 })
         );
 
         let selection_alpha_factor = if self.selection.a > 0. {
@@ -2265,9 +2267,9 @@ mod tests {
         let canvas = theme.waveform;
         let at = |p: f32| canvas.l + (theme.foreground.l - canvas.l) * p;
         let page = theme.background.l;
-        let selected_l = page + (theme.foreground.l - page) * 0.86;
+        let selected_l = page + (theme.foreground.l - page) * 0.82;
         assert!((theme.waveform_time_selection_foreground.l - selected_l).abs() < 0.002);
-        assert!((theme.waveform_time_selection_foreground.s - 0.55).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.s - 0.80).abs() < 0.002);
         let accent = theme.selection;
         assert_eq!(theme.waveform_time_selection, accent.alpha(0.18));
         assert_eq!(theme.waveform_time_selection_border, accent.alpha(0.72));
@@ -2293,7 +2295,10 @@ mod tests {
                 theme.waveform_fill,
                 theme.waveform_time_selection_foreground,
             );
-            assert!(chroma(selected) > chroma(rest), "{rest:?} {selected:?}");
+            assert!(
+                chroma(selected) > chroma(rest) * 2.,
+                "{rest:?} {selected:?}"
+            );
         }
     }
 
@@ -2322,7 +2327,8 @@ mod tests {
         let at = |p: f32| canvas.l + (theme.foreground.l - canvas.l) * p;
         assert!((theme.waveform_fill.l - at(0.76)).abs() < 0.002);
         assert!((theme.waveform_fill.s - 0.30).abs() < 0.002);
-        assert!((theme.waveform_time_selection_foreground.l - at(0.84)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.l - at(0.62)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.s - 0.80).abs() < 0.002);
         assert_eq!(
             theme.waveform_time_selection_active_border,
             theme.selection.alpha(0.78)
