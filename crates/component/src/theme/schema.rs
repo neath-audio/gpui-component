@@ -1355,7 +1355,7 @@ impl ThemeColor {
                 l: if is_dark {
                     background.l * 0.68
                 } else {
-                    background.l + (1. - background.l) * 0.5
+                    background.l + (1. - background.l) * 0.25
                 },
                 a: 1.,
                 ..background
@@ -1498,10 +1498,12 @@ impl ThemeColor {
                     ..background
                 }
             } else {
+                // Toward the text, not down the lightness scale: a tinted
+                // background would gain colour there and stand out from the
+                // theme's own surfaces.
                 Hsla {
-                    l: background.l - 0.025,
                     a: 1.,
-                    ..background
+                    ..background.blend(foreground.alpha(0.03))
                 }
             }
         );
@@ -2332,9 +2334,38 @@ mod tests {
         let theme = light_fixture();
         assert!((theme.waveform.l - 1.0).abs() < 0.002);
         assert!((theme.waveform_overview.l - 0.95).abs() < 0.002);
-        assert!((theme.waveform_ruler.l - 0.975).abs() < 0.002);
+        let ruler = gpui::Rgba::from(theme.waveform_ruler);
+        let (paper, ink) = (
+            gpui::Rgba::from(theme.background),
+            gpui::Rgba::from(theme.foreground),
+        );
+        assert!((ruler.r - (paper.r + (ink.r - paper.r) * 0.03)).abs() < 0.002);
+        assert!((ruler.b - (paper.b + (ink.b - paper.b) * 0.03)).abs() < 0.002);
         assert!((theme.waveform_time_selection.a - 0.25).abs() < 0.002);
         assert!((theme.waveform_fade_shadow.a - 0.55).abs() < 0.002);
+    }
+
+    #[test]
+    fn a_tinted_light_theme_keeps_its_own_strength_in_the_waveform_surfaces() {
+        let theme = waveform_theme(
+            "light",
+            &[
+                ("background", "#FBF1C7"),
+                ("foreground", "#3C3836"),
+                ("selection.background", "#D79921"),
+            ],
+        );
+        let background = theme.background;
+        // The canvas lifts a quarter of the way to white.
+        let lifted = background.l + (1. - background.l) * 0.25;
+        assert!((theme.waveform.l - lifted).abs() < 0.002);
+        // The ruler is darker than the background and no more colourful.
+        let colour = |color: gpui::Hsla| {
+            let color = gpui::Rgba::from(color);
+            color.r.max(color.g).max(color.b) - color.r.min(color.g).min(color.b)
+        };
+        assert!(theme.waveform_ruler.l < background.l);
+        assert!(colour(theme.waveform_ruler) <= colour(background));
     }
 
     #[test]
