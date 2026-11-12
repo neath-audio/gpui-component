@@ -1353,7 +1353,7 @@ impl ThemeColor {
             waveform,
             fallback = Hsla {
                 l: if is_dark {
-                    background.l * 0.46
+                    background.l * 0.68
                 } else {
                     background.l + (1. - background.l) * 0.5
                 },
@@ -1395,17 +1395,17 @@ impl ThemeColor {
         apply_background_color!(
             waveform_fill,
             fallback = if is_dark {
-                ladder(0.26, 0.60)
+                ladder(0.10, 0.74)
             } else {
-                ladder(0.32, 0.55)
+                ladder(0.10, 0.52)
             }
         );
         apply_color!(
             waveform_time_selection_foreground,
             fallback = if is_dark {
-                ladder(0.44, 0.92)
+                ladder(0.78, 0.80)
             } else {
-                ladder(0.58, 0.78)
+                ladder(0.80, 0.62)
             }
         );
         apply_background_color!(
@@ -1427,9 +1427,9 @@ impl ThemeColor {
         apply_color!(
             waveform_time_selection_active_border,
             fallback = if is_dark {
-                ladder(0.80, 0.90)
+                ladder(0.58, 0.74)
             } else {
-                ladder(0.70, 0.66)
+                ladder(0.62, 0.58)
             }
         );
 
@@ -1493,7 +1493,7 @@ impl ThemeColor {
             fallback = if is_dark {
                 Hsla {
                     s: background.s * 0.75,
-                    l: background.l * 0.86,
+                    l: background.l * 0.92,
                     a: 1.,
                     ..background
                 }
@@ -1520,33 +1520,27 @@ impl ThemeColor {
             fallback = foreground.alpha(0.60)
         );
 
-        let marker = Hsla {
-            h: self.warning.h,
-            s: 0.24,
-            l: foreground.l,
-            a: 1.,
-        };
-        apply_background_color!(waveform_marker, fallback = marker);
-        apply_color!(waveform_marker_foreground, fallback = canvas);
+        apply_background_color!(waveform_marker, fallback = tokens.danger);
         apply_color!(
-            waveform_marker_active,
-            fallback = mix_hsla(self.waveform_marker, canvas, 0.15)
+            waveform_marker_foreground,
+            fallback = self.danger_foreground
         );
+        apply_color!(waveform_marker_active, fallback = self.danger_active);
 
         apply_background_color!(
             waveform_segment,
             fallback = if is_dark {
-                ladder(0.30, 0.40)
+                ladder(0.66, 0.30)
             } else {
-                ladder(0.32, 0.30)
+                ladder(0.62, 0.40)
             }
         );
         apply_background_color!(
             waveform_segment_active,
             fallback = if is_dark {
-                ladder(0.46, 0.80)
+                ladder(0.72, 0.62)
             } else {
-                ladder(0.56, 0.66)
+                ladder(0.74, 0.56)
             }
         );
 
@@ -2239,7 +2233,7 @@ mod tests {
     #[test]
     fn waveform_canvas_is_deeper_than_a_dark_background() {
         let theme = dark_fixture();
-        assert!((theme.waveform.l - theme.background.l * 0.46).abs() < 0.002);
+        assert!((theme.waveform.l - theme.background.l * 0.68).abs() < 0.002);
         assert!((theme.waveform_overview.l - theme.background.l * 0.31).abs() < 0.002);
     }
 
@@ -2247,19 +2241,19 @@ mod tests {
     fn waveform_signal_sits_on_the_ladder_in_the_selection_hue() {
         let theme = dark_fixture();
         let canvas = theme.waveform.l;
-        let expected_l = canvas + (theme.foreground.l - canvas) * 0.60;
+        let expected_l = canvas + (theme.foreground.l - canvas) * 0.74;
         assert!((theme.waveform_fill.l - expected_l).abs() < 0.002);
         assert!((theme.waveform_fill.h - theme.selection.h).abs() < 0.002);
         // The selection saturation is above 0.75, so the accent scale is 1.
         assert!(theme.selection.s >= 0.75);
-        assert!((theme.waveform_fill.s - 0.26).abs() < 0.002);
+        assert!((theme.waveform_fill.s - 0.10).abs() < 0.002);
     }
 
     #[test]
     fn a_calm_accent_scales_waveform_saturation_down() {
         let theme = calm_fixture();
         assert!(theme.selection.s / 0.75 < 0.40);
-        assert!((theme.waveform_fill.s - 0.26 * 0.40).abs() < 0.003);
+        assert!((theme.waveform_fill.s - 0.10 * 0.40).abs() < 0.003);
     }
 
     #[test]
@@ -2273,20 +2267,67 @@ mod tests {
         let theme = dark_fixture();
         let canvas = theme.waveform;
         let at = |p: f32| canvas.l + (theme.foreground.l - canvas.l) * p;
-        assert!((theme.waveform_time_selection_foreground.l - at(0.92)).abs() < 0.002);
-        assert!((theme.waveform_time_selection_foreground.s - 0.44).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.l - at(0.80)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.s - 0.78).abs() < 0.002);
         assert!((theme.waveform_time_selection.a - 0.38).abs() < 0.002);
         assert!((theme.waveform_time_selection.l - at(0.62)).abs() < 0.002);
         assert!((theme.waveform_time_selection_border.s - 0.52).abs() < 0.002);
-        assert!((theme.waveform_time_selection_active_border.l - at(0.90)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_active_border.l - at(0.74)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_active_border.s - 0.58).abs() < 0.002);
         assert!((theme.waveform_fade_control.l - at(0.74)).abs() < 0.002);
+        assert!((theme.waveform_segment.l - at(0.30)).abs() < 0.002);
+        assert!((theme.waveform_segment.s - 0.66).abs() < 0.002);
+        assert!((theme.waveform_segment_active.l - at(0.62)).abs() < 0.002);
+        assert!((theme.waveform_segment_active.s - 0.72).abs() < 0.002);
+        assert!((theme.waveform_ruler.l - theme.background.l * 0.92).abs() < 0.002);
+    }
+
+    #[test]
+    fn the_selected_signal_carries_more_colour_than_the_signal_beside_it() {
+        // HSL chroma, which is what the eye reads as the colour's strength:
+        // a very light fill loses it whatever its saturation says.
+        let chroma = |color: gpui::Hsla| color.s * (1. - (2. * color.l - 1.).abs());
+        for theme in [dark_fixture(), light_fixture()] {
+            let (rest, selected) = (
+                theme.waveform_fill,
+                theme.waveform_time_selection_foreground,
+            );
+            assert!(
+                chroma(selected) > chroma(rest) * 3.,
+                "{rest:?} {selected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn waveform_markers_are_the_themes_danger_colours() {
+        let theme = dark_fixture_with(&[
+            ("danger.background", "#DE5550"),
+            ("danger.foreground", "#FFFFFF"),
+        ]);
+        assert_eq!(theme.waveform_marker, try_parse_color("#DE5550").unwrap());
+        assert_eq!(
+            theme.waveform_marker_foreground,
+            try_parse_color("#FFFFFF").unwrap()
+        );
+        assert_eq!(theme.waveform_marker_active, theme.danger_active);
+        assert_eq!(
+            theme.tokens.waveform_marker.background,
+            theme.tokens.danger.background
+        );
+    }
+
+    #[test]
+    fn light_waveform_signal_and_bars_follow_the_recipe_table() {
+        let theme = light_fixture();
+        let canvas = theme.waveform;
+        let at = |p: f32| canvas.l + (theme.foreground.l - canvas.l) * p;
+        assert!((theme.waveform_fill.l - at(0.52)).abs() < 0.002);
+        assert!((theme.waveform_fill.s - 0.10).abs() < 0.002);
+        assert!((theme.waveform_time_selection_foreground.l - at(0.62)).abs() < 0.002);
+        assert!((theme.waveform_time_selection_active_border.l - at(0.58)).abs() < 0.002);
         assert!((theme.waveform_segment.l - at(0.40)).abs() < 0.002);
-        assert!((theme.waveform_segment_active.s - 0.46).abs() < 0.002);
-        assert!((theme.waveform_ruler.l - theme.background.l * 0.86).abs() < 0.002);
-        assert_eq!(theme.waveform_marker_foreground, canvas);
-        assert!((theme.waveform_marker.s - 0.24).abs() < 0.002);
-        assert!((theme.waveform_marker.l - theme.foreground.l).abs() < 0.002);
-        assert!((theme.waveform_marker.h - theme.warning.h).abs() < 0.002);
+        assert!((theme.waveform_segment_active.l - at(0.56)).abs() < 0.002);
     }
 
     #[test]
