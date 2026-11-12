@@ -1353,7 +1353,7 @@ impl ThemeColor {
             waveform,
             fallback = Hsla {
                 l: if is_dark {
-                    background.l * 0.68
+                    background.l * 0.82
                 } else {
                     background.l + (1. - background.l) * 0.25
                 },
@@ -1493,7 +1493,7 @@ impl ThemeColor {
             fallback = if is_dark {
                 Hsla {
                     s: background.s * 0.75,
-                    l: background.l * 0.92,
+                    l: background.l,
                     a: 1.,
                     ..background
                 }
@@ -2235,7 +2235,7 @@ mod tests {
     #[test]
     fn waveform_canvas_is_deeper_than_a_dark_background() {
         let theme = dark_fixture();
-        assert!((theme.waveform.l - theme.background.l * 0.68).abs() < 0.002);
+        assert!((theme.waveform.l - theme.background.l * 0.82).abs() < 0.002);
         assert!((theme.waveform_overview.l - theme.background.l * 0.31).abs() < 0.002);
     }
 
@@ -2281,7 +2281,7 @@ mod tests {
         assert!((theme.waveform_segment.s - 0.66).abs() < 0.002);
         assert!((theme.waveform_segment_active.l - at(0.62)).abs() < 0.002);
         assert!((theme.waveform_segment_active.s - 0.72).abs() < 0.002);
-        assert!((theme.waveform_ruler.l - theme.background.l * 0.92).abs() < 0.002);
+        assert!((theme.waveform_ruler.l - theme.background.l).abs() < 0.002);
     }
 
     #[test]
