@@ -1489,9 +1489,11 @@ impl ThemeColor {
         apply_background_color!(
             waveform_ruler,
             fallback = if is_dark {
+                // The page background's own colour. A near-black background
+                // leaves no room under it for the canvas, so there the ruler
+                // lifts to stay a step above the canvas.
                 Hsla {
-                    s: background.s * 0.75,
-                    l: background.l,
+                    l: background.l.max(canvas.l + 0.017).max(0.03),
                     a: 1.,
                     ..background
                 }
@@ -2378,6 +2380,41 @@ mod tests {
         };
         assert!(theme.waveform_ruler.l < background.l);
         assert!(colour(theme.waveform_ruler) <= colour(background));
+    }
+
+    #[test]
+    fn a_dark_waveform_ruler_is_the_page_background_with_room_above_the_canvas() {
+        // A tinted theme keeps its own colour in the ruler.
+        let tinted = waveform_theme(
+            "dark",
+            &[
+                ("background", "#002B36"),
+                ("foreground", "#FDF6E3"),
+                ("selection.background", "#0D667D"),
+            ],
+        );
+        assert_eq!(tinted.waveform_ruler, tinted.background);
+
+        // A black theme has no room below the background: the ruler lifts.
+        let black = waveform_theme(
+            "dark",
+            &[
+                ("background", "#000000"),
+                ("foreground", "#FFFFCE"),
+                ("selection.background", "#720202"),
+            ],
+        );
+        assert!(black.waveform_ruler.l - black.waveform.l >= 0.03 - 0.001);
+        let near_black = waveform_theme(
+            "dark",
+            &[
+                ("background", "#020D02"),
+                ("foreground", "#88FF88"),
+                ("selection.background", "#00FF00"),
+            ],
+        );
+        assert!(near_black.waveform_ruler.l - near_black.waveform.l >= 0.017 - 0.001);
+        assert!((near_black.waveform_ruler.h - near_black.background.h).abs() < 0.002);
     }
 
     #[test]
